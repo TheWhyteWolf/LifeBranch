@@ -12,7 +12,7 @@ mako kept installed as the fallback (`pkill lifenote && mako`).
 
 | Area | Desktop | MacBook |
 |---|---|---|
-| Display | BenQ 1080p on `HDMI-A-1`, scale 1 | internal Retina on `eDP-1`, **scale 2** |
+| Display | external 1080p, scale 1 | internal Retina on `eDP-1`, **scale 2** |
 | Pointer | mouse | **trackpad**: tap, natural-scroll, clickfinger, dwt |
 | Keyboard | full-size UK, numpad | internal **US** ANSI, **no numpad** |
 | Volume | numpad `KP_*` | **XF86 media keys** (+ `Mod+F10/F11/F12` fallback) |

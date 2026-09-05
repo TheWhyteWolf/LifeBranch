@@ -315,7 +315,7 @@ next time you open it.
   `journalctl --user -u waybar -b` to read it, `systemctl --user reload waybar`
   to poke SIGUSR2 by hand.
 
-  **Why it exists:** waybar died on the development machine and stayed dead. A
+  **Why it exists:** waybar has been seen to die and stay dead. A
   coredump put the SIGSEGV inside `libgdk-3` dispatching a Wayland output event
   — plausibly from a phantom connector the GPU reports as connected with no
   EDID — but the link was never proven. The unit makes the symptom self-healing

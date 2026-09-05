@@ -1,12 +1,12 @@
 # waybar as a supervised user unit instead of niri spawn-at-startup.
 #
-# Why: waybar dies on this box and does not come back. A niri-spawned process is
-# a one-shot scope — when it exits, the bar is simply gone until you notice and
-# respawn it by hand. The 2026-08-31 coredump shows a SIGSEGV inside libgdk-3
-# while dispatching a Wayland event via libwayland-client (an output event; this
-# machine carries a phantom eDP-2 connector on the amdgpu that reports connected
-# with no EDID). Root cause is still open — this makes the symptom self-healing
-# while the journal collects evidence.
+# Why: waybar has been seen to die and stay dead. A niri-spawned process is a
+# one-shot scope, so when it exits the bar is simply gone until you notice and
+# respawn it by hand. A coredump put the SIGSEGV inside libgdk-3 while it was
+# dispatching a Wayland output event via libwayland-client; a phantom connector
+# reporting itself connected with no EDID is a plausible source of those events,
+# but the link was never proven. Root cause is still open, so this makes the
+# symptom self-healing while the journal collects evidence.
 #
 # Read its output with: journalctl --user -u waybar -b
 

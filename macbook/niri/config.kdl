@@ -7,7 +7,7 @@
 //   - no numpad              -> volume/brightness on the XF86 function-row keys
 //   - Command key = Super    -> Mod stays Super
 //
-// Palette (from ~/git/pages):
+// Palette:
 //   bg #121412 · panel #171a14 · border #39412b · text #7b8c5a · accent #a4c94b
 //
 // Docs: https://yalter.github.io/niri/
@@ -157,8 +157,8 @@ spawn-at-startup "swayidle" "-w" "timeout" "600" "systemd-cat -t lifelock ~/.loc
 // (systemd/waybar.service, WantedBy=graphical-session.target). spawn-at-startup
 // gives a one-shot scope: when waybar dies the bar is just gone, and its stderr
 // is discarded so there is nothing to read afterwards. The unit restarts it and
-// journals it. See the 2026-08-31 coredump (SIGSEGV in libgdk-3 dispatching a
-// Wayland event) and this box's phantom eDP-2 connector.
+// journals it. It has been seen to die with a SIGSEGV inside libgdk-3 while
+// dispatching a Wayland output event; root cause is still open.
 //   journalctl --user -u waybar -b     systemctl --user reload waybar
 // Polkit auth agent: pops the password dialog pkexec needs — e.g. lifeconf
 // applying the root-owned greeter config (/etc/lifegreet/config), and any GUI
