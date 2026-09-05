@@ -7,6 +7,13 @@ and one config file re-themes every part of it.
 
 ![CI](https://github.com/TheWhyteWolf/LifeBranch/actions/workflows/ci.yml/badge.svg)
 
+| | |
+|---|---|
+| ![Tiled windows and the lifeconf TUI](docs/desktop.png) | ![Floating windows over the tiling layout](docs/floating.png) |
+| Tiled columns, the bar, the wallpaper behind them | Floating windows stacked over the layout |
+| ![yazi beside lifeconf](docs/yazi.png) | ![The lock screen](docs/lifelock.png) |
+| A file manager and the theming TUI side by side | lifelock; lifegreet is its twin |
+
 Rust components, built from source by the installer:
 
 | | |
@@ -16,8 +23,6 @@ Rust components, built from source by the installer:
 | [`lifelock`](lifelock/README.md) | screen locker, PAM-backed |
 | [`lifenote`](lifenote/README.md) | notification daemon |
 | [`lifegreet`](lifegreet/README.md) | login screen |
-
-Screenshots go in [`docs/`](docs/).
 
 ## Install
 

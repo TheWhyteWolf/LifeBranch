@@ -72,9 +72,9 @@ layout {
     // LIFECONF:BEGIN niri-border
     border {
         width 2
-        active-color "#ff0000"
-        inactive-color "#511f1f"
-        urgent-color "#f47b25"
+        active-color "#a4c94b"
+        inactive-color "#39412b"
+        urgent-color "#8a3b2e"
     }
     // LIFECONF:END niri-border
 
@@ -85,16 +85,16 @@ layout {
     // LIFECONF:BEGIN niri-tab-indicator
     tab-indicator {
         hide-when-single-tab
-        active-color "#ff0000"
-        inactive-color "#511f1f"
-        urgent-color "#f47b25"
+        active-color "#a4c94b"
+        inactive-color "#39412b"
+        urgent-color "#8a3b2e"
     }
     // LIFECONF:END niri-tab-indicator
 
     // Drop-target hint while moving windows: translucent accent, not default blue.
     // LIFECONF:BEGIN niri-insert-hint
     insert-hint {
-        color "#ff000080"
+        color "#a4c94b80"
     }
     // LIFECONF:END niri-insert-hint
 
@@ -142,7 +142,7 @@ spawn-at-startup "dbus-update-activation-environment" "--systemd" "QT_QPA_PLATFO
 spawn-at-startup "swaybg" "-c" "#121412"
 // Conway's Game of Life wallpaper (shared lifewall build; see install.sh).
 // LIFECONF:BEGIN lifewall
-spawn-sh-at-startup "kitten panel --edge=background --config NONE -o font_size=8 -o font_family='ShureTechMono Nerd Font' -o background='#150a0a' ~/.local/bin/lifebg --tick 0.2 --fps 15 --fade 3 --density 0.41 --char 'BUMFACEbumface' --bg '#150a0a' --mature '#7d3636' --newborn '#be1b1b' --glider-interval 90"
+spawn-sh-at-startup "kitten panel --edge=background --config NONE -o font_size=8 -o font_family='ShureTechMono Nerd Font' -o background='#121412' ~/.local/bin/lifebg --tick 0.2 --fps 15 --fade 3 --density 0.41 --char '#' --bg '#121412' --mature '#66744c' --newborn '#87a540' --glider-interval 90"
 // LIFECONF:END lifewall
 // Idle chain: lock at 10 min, screens off at 15 min. Unlike the desktop, sleep
 // stays available on the laptop — before-sleep locks first (lid close, etc.).
