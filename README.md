@@ -206,7 +206,7 @@ next time you open it.
   screens (lifelock/lifegreet) can follow the palette or carry their own colours.
 - **Game of Life wallpaper** — [`lifewall/`](lifewall/README.md) (rust,
   built by install.sh) runs in a `kitten panel --edge=background` on niri's
-  background layer as `#` glyphs: muted olive cells (`#66744c`), newborn
+  background layer as random printable ASCII: muted olive cells (`#66744c`), newborn
   flashes (`#87a540`), and 30 fps colour interpolation — births fade in,
   deaths dissolve, generations tick every 0.3s. Auto-reseeds (crossfade)
   when the board settles or nearly dies. Flags: `lifebg --help`.

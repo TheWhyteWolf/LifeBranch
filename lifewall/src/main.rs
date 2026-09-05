@@ -69,7 +69,10 @@ impl Default for Config {
             fps: 30.0,
             fade: 3.0,
             density: 0.14,
-            glyphs: vec!['#'],
+            // Printable ASCII, space excluded. A single repeated glyph gives
+            // the board no texture; this needs no font beyond the terminal's
+            // own and matches what lifeconf generates by default.
+            glyphs: ('!'..='~').collect(),
             bg: Rgb([18.0, 20.0, 18.0]),        // #121412
             mature: Rgb([102.0, 116.0, 76.0]),  // #66744c
             newborn: Rgb([135.0, 165.0, 64.0]), // #87a540
@@ -330,7 +333,7 @@ fn parse_args() -> Config {
         --fade GENS     fade length in generations    (default 3)\n\
         --density F     seed fill fraction 0..1       (default 0.14)\n\
         --char S        glyph(s) for live cells; 2+ chars picks randomly\n\
-        \x20               per cell                     (default '#')\n\
+        \x20               per cell        (default: printable ASCII)\n\
         --bg HEX        background colour             (default #121412)\n\
         --mature HEX    settled cell colour           (default #66744c)\n\
         --newborn HEX   birth flash colour            (default #87a540)\n\

@@ -140,7 +140,7 @@ spawn-at-startup "swaybg" "-c" "#121412"
 // lifebg -> lifewall (rust, 30 fps) or scripts/life.py fallback; see install.sh.
 // --config NONE so it ignores kitty.conf (rice.conf transparency etc.).
 // LIFECONF:BEGIN lifewall
-spawn-sh-at-startup "kitten panel --edge=background --config NONE -o font_size=8 -o font_family='ShureTechMono Nerd Font' -o background='#121412' ~/.local/bin/lifebg --tick 0.3 --fps 30 --fade 3 --density 0.14 --char '#' --bg '#121412' --mature '#66744c' --newborn '#87a540'"
+spawn-sh-at-startup "kitten panel --edge=background --config NONE -o font_size=8 -o font_family='ShureTechMono Nerd Font' -o background='#121412' ~/.local/bin/lifebg --tick 0.3 --fps 30 --fade 3 --density 0.14 --char '!#$%&()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~' --bg '#121412' --mature '#66744c' --newborn '#87a540'"
 // LIFECONF:END lifewall
 // Idle chain: lock at 10 min, screens off at 15 min. There is deliberately no
 // suspend timeout here: this config was written for a machine that runs
