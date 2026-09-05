@@ -1,0 +1,31 @@
+# Slate — a cooler, muted gray-green with a soft teal accent.
+[palette]
+bg      = "#121414"
+surface = "#171a1a"
+border  = "#2e3a3a"
+text    = "#7a8c8c"
+accent  = "#6fb0a8"
+warn    = "#c2c98a"
+urgent  = "#9a4a3e"
+
+[lifewall]
+mature  = "#5c7a72"
+newborn = "#6fb0a8"
+
+[ansi]
+color0  = "#1a1d1d"
+color8  = "#2e3a3a"
+color1  = "#9a4a3e"
+color9  = "#bf6152"
+color2  = "#7a8c8c"
+color10 = "#6fb0a8"
+color3  = "#9aa08c"
+color11 = "#c2c98a"
+color4  = "#3e5750"
+color12 = "#567a70"
+color5  = "#5c6f6a"
+color13 = "#8f9590"
+color6  = "#4a6b66"
+color14 = "#6f9690"
+color7  = "#7a8c8c"
+color15 = "#c2d0cc"

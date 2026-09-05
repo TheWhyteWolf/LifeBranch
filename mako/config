@@ -1,0 +1,34 @@
+# RETIRED from autostart — lifenote (~/niri/lifenote) replaced mako as the
+# notification daemon. This config stays themed and installed as the
+# emergency fallback: `pkill lifenote && mako`.
+#
+# Minimal muted-olive mako notifications
+# Palette: panel #171a14 · text #7b8c5a · border #39412b · accent #a4c94b · urgent #8a3b2e
+
+background-color=#171a14
+text-color=#7b8c5a
+border-color=#39412b
+progress-color=over #39412b
+border-size=1
+border-radius=0
+font=ShureTechMono Nerd Font 11
+padding=10
+margin=8
+# Keep in step with lifenote/config (primary daemon). NOTE: mako's parser
+# rejects trailing comments — full-line only.
+default-timeout=3000
+anchor=top-right
+max-visible=5
+width=340
+# Pure-text rice: no app icons in notifications.
+icons=0
+
+[urgency=high]
+border-color=#8a3b2e
+text-color=#a4c94b
+default-timeout=0
+
+# Do-not-disturb: toggled by Mod+N / the waybar DND label (dnd-toggle.sh).
+# Notifications are swallowed silently but still land in `makoctl history`.
+[mode=do-not-disturb]
+invisible=1

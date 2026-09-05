@@ -1,0 +1,16 @@
+# T2 suspend fix: run t2-sleep.sh pre before sleep, post on resume.
+# ExecStart fires when sleep.target pulls this in (pre-suspend); ExecStop fires
+# when sleep.target stops again after resume (StopWhenUnneeded).
+[Unit]
+Description=T2 suspend fix (Touch Bar / Wi-Fi module lifecycle)
+Before=sleep.target
+StopWhenUnneeded=yes
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/lib/t2/t2-sleep.sh pre
+ExecStop=/usr/local/lib/t2/t2-sleep.sh post
+
+[Install]
+WantedBy=sleep.target

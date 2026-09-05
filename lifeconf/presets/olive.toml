@@ -1,0 +1,34 @@
+# Olive — the rice's original muted olive-green palette (default).
+[palette]
+bg      = "#121412"
+surface = "#171a14"
+border  = "#39412b"
+text    = "#7b8c5a"
+accent  = "#a4c94b"
+warn    = "#c7d17a"
+urgent  = "#8a3b2e"
+
+[lifewall]
+mature  = "#66744c"
+newborn = "#87a540"
+
+# The hand-tuned 16-colour terminal palette (kitty). Stored verbatim so the
+# olive preset reproduces kitty/olive.conf byte-for-byte; other presets carry
+# their own, and "custom" derives one (ansi16::derive_ansi16).
+[ansi]
+color0  = "#1b1e18"
+color8  = "#39412b"
+color1  = "#8a3b2e"
+color9  = "#b5533f"
+color2  = "#7b8c5a"
+color10 = "#a4c94b"
+color3  = "#9aa066"
+color11 = "#c7d17a"
+color4  = "#4d5738"
+color12 = "#6b7a4a"
+color5  = "#6b6f4a"
+color13 = "#8f9560"
+color6  = "#5c6b4a"
+color14 = "#7f9668"
+color7  = "#7b8c5a"
+color15 = "#c9d4a5"

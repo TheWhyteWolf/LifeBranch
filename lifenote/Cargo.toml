@@ -1,0 +1,22 @@
+[package]
+name = "lifenote"
+version = "0.1.0"
+edition = "2021"
+description = "freedesktop notification daemon for niri: box-drawing-framed pure-text popups (companion to lifelock/lifegreet/lifewall)"
+license = "GPL-3.0-or-later"
+authors = ["Whyte Erminae"]
+
+[dependencies]
+# Pinned: app.rs is written against the vendored 0.20.0 source (wlr_layer,
+# seat/pointer). Keep in lockstep with ../lifelock and ../lifegreet.
+smithay-client-toolkit = "=0.20.0"
+libc = "0.2"
+fontdue = "0.9"
+# The one deps-ethos divergence in the life* family: hand-rolling the DBus
+# wire protocol is a project in itself. Blocking API only, on its own thread.
+zbus = "5"
+
+[profile.release]
+lto = true
+strip = true
+panic = "abort"

@@ -1,0 +1,32 @@
+# Rainbow Violet — bright blue-purple accent.
+[palette]
+bg      = "#110d16"
+surface = "#181320"
+border  = "#37264f"
+text    = "#8c64c4"
+accent  = "#8744e4"
+warn    = "#e7d374"
+urgent  = "#ca3b2b"
+
+[lifewall]
+mature  = "#624887"
+newborn = "#7237c4"
+
+# Derived from the seven palette roles via ansi16::derive_ansi16.
+[ansi]
+color0  = "#29252d"
+color8  = "#37264f"
+color1  = "#ca3b2b"
+color9  = "#d6665a"
+color2  = "#8c64c4"
+color10 = "#8744e4"
+color3  = "#ba9c9c"
+color11 = "#e7d374"
+color4  = "#4c376a"
+color12 = "#5e30a0"
+color5  = "#6e4e9b"
+color13 = "#9d7bcd"
+color6  = "#66488f"
+color14 = "#966ad3"
+color7  = "#8c64c4"
+color15 = "#c0aadf"

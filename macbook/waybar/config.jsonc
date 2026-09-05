@@ -1,0 +1,119 @@
+{
+  // Thin, minimal, muted-olive top bar for niri — laptop variant.
+  // Adds battery + backlight to the desktop bar; shares waybar/style.css.
+  // Pure-text policy: no glyph icons — labels only (NET/VOL/CPU/MEM/BAT/BRT).
+  "layer": "top",
+  "position": "top",
+  "height": 26,
+  "spacing": 6,
+
+  "modules-left": ["niri/workspaces", "niri/window"],
+  "modules-center": ["clock"],
+  "modules-right": ["custom/notif", "custom/dnd", "idle_inhibitor", "network", "backlight", "wireplumber", "battery", "cpu", "memory", "tray"],
+
+  "niri/workspaces": {
+    "format": "{index}"
+  },
+
+  "niri/window": {
+    "format": "{title}",
+    "max-length": 60,
+    "separate-outputs": true
+  },
+
+  "clock": {
+    "format": "{:%a %d %b  %H:%M}",
+    "tooltip-format": "<tt>{calendar}</tt>"
+  },
+
+  // Notification history: the pure-text stand-in for a tray icon. Shows
+  // "# N" while N notifications came and went unseen (expired, DND-swallowed);
+  // a bare "#" otherwise. lifenote pings signal 9 on every change; clicking
+  // opens the fuzzel history (last 50), which marks everything seen.
+  "custom/notif": {
+    "exec": "n=\"$(~/.local/bin/lifenote ctl unseen 2>/dev/null)\" && [ \"$n\" -gt 0 ] && echo \"# $n\" || echo '#'",
+    "interval": "once",
+    "signal": 9,
+    "format": "{}",
+    "tooltip": false,
+    "on-click": "~/.local/bin/notif-menu.sh"
+  },
+
+  // Caffeine: click IDLE to hold off the idle chain (lock at 10 min, screens
+  // off at 15) — the label flips to a warn-tinted WAKE while inhibited.
+  "idle_inhibitor": {
+    "format": "{icon}",
+    "format-icons": { "activated": "WAKE", "deactivated": "IDLE" },
+    "tooltip": false
+  },
+
+  // Shows DND only while lifenote's do-not-disturb mode is on; click (or Mod+N)
+  // toggles it. dnd-toggle.sh pings signal 8 so the label updates instantly.
+  "custom/dnd": {
+    "exec": "[ \"$(~/.local/bin/lifenote ctl dnd get 2>/dev/null)\" = on ] && echo DND || echo ''",
+    "interval": "once",
+    "signal": 8,
+    "format": "{}",
+    "tooltip": false,
+    "on-click": "~/.local/bin/dnd-toggle.sh"
+  },
+
+  "network": {
+    "format-ethernet": "NET",
+    "format-wifi": "NET {signalStrength}%",
+    "format-disconnected": "NET --",
+    "tooltip-format": "{ifname}  {ipaddr}/{cidr}  via {gwaddr}",
+    "tooltip-format-wifi": "{essid}  {ipaddr}/{cidr}  {frequency} GHz",
+    "tooltip-format-disconnected": "no connection"
+  },
+
+  "backlight": {
+    "format": "BRT {percent}%",
+    "on-scroll-up": "brightnessctl set 5%+",
+    "on-scroll-down": "brightnessctl set 5%-"
+  },
+
+  // Volume via the native wireplumber module — the pulseaudio module SIGSEGVed
+  // the whole bar in libpulse on the desktop (see waybar/config.jsonc); same
+  // fix here. Scroll goes through vol-osd.sh for the wob flash.
+  "wireplumber": {
+    "format": "VOL {volume}%",
+    "format-muted": "MUTE",
+    "tooltip-format": "{node_name}",
+    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+    "on-scroll-up": "~/.local/bin/vol-osd.sh up",
+    "on-scroll-down": "~/.local/bin/vol-osd.sh down"
+  },
+
+  "battery": {
+    "interval": 30,
+    "states": {
+      "warning": 20,
+      "critical": 10
+    },
+    "format": "BAT {capacity}%",
+    "format-charging": "CHG {capacity}%",
+    "format-plugged": "AC {capacity}%",
+    "tooltip-format": "{timeTo} · {power}W"
+  },
+
+  "cpu": {
+    "interval": 5,
+    "format": "CPU {usage}%",
+    "states": { "warning": 70, "critical": 90 },
+    "on-click": "kitty -e htop"
+  },
+
+  "memory": {
+    "interval": 5,
+    "format": "MEM {percentage}%",
+    "states": { "warning": 70, "critical": 90 },
+    "tooltip-format": "{used:0.1f} / {total:0.1f} GiB",
+    "on-click": "kitty -e htop"
+  },
+
+  "tray": {
+    "spacing": 8,
+    "icon-size": 16
+  }
+}

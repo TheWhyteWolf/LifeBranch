@@ -1,0 +1,32 @@
+# Pastel Butter — soft buttery-yellow accent on a dark ground.
+[palette]
+bg      = "#15140f"
+surface = "#1e1d15"
+border  = "#4c472e"
+text    = "#cac091"
+accent  = "#e2d79c"
+warn    = "#a8cce6"
+urgent  = "#d37769"
+
+[lifewall]
+mature  = "#a1986b"
+newborn = "#c9bc7c"
+
+# Derived from the seven palette roles via ansi16::derive_ansi16.
+[ansi]
+color0  = "#2c2c27"
+color8  = "#4c472e"
+color1  = "#d37769"
+color9  = "#dd958a"
+color2  = "#cac091"
+color10 = "#e2d79c"
+color3  = "#b9c6bc"
+color11 = "#a8cce6"
+color4  = "#6b664d"
+color12 = "#9e966d"
+color5  = "#9e966e"
+color13 = "#d2c9a2"
+color6  = "#918a64"
+color14 = "#d6cd9f"
+color7  = "#cac091"
+color15 = "#e2dcc2"

@@ -1,0 +1,32 @@
+# Daylight — an inverted light-mode take on olive.
+[palette]
+bg      = "#eef0ea"
+surface = "#e1e5dc"
+border  = "#bbc6a9"
+text    = "#3d4c24"
+accent  = "#81b234"
+warn    = "#b68420"
+urgent  = "#ab382b"
+
+[lifewall]
+mature  = "#5f7241"
+newborn = "#8dbb44"
+
+# Derived from the seven palette roles via ansi16::derive_ansi16.
+[ansi]
+color0  = "#f0f2ec"
+color8  = "#bbc6a9"
+color1  = "#ab382b"
+color9  = "#bd645a"
+color2  = "#3d4c24"
+color10 = "#81b234"
+color3  = "#7a6822"
+color11 = "#b68420"
+color4  = "#97a089"
+color12 = "#5a7d24"
+color5  = "#697753"
+color13 = "#5a6745"
+color6  = "#768360"
+color14 = "#627a3e"
+color7  = "#3d4c24"
+color15 = "#949d87"

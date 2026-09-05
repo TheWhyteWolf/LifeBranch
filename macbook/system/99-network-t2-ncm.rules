@@ -1,0 +1,4 @@
+# The T2 exposes an internal USB-NCM "ethernet" (fixed MAC ac:de:48:00:11:22)
+# that never has a DHCP server behind it. Give it a recognisable name so
+# NetworkManager's no-auto-default rule can ignore it (t2linux wiki rule).
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="ac:de:48:00:11:22", NAME="t2_ncm"

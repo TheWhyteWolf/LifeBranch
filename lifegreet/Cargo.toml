@@ -1,0 +1,26 @@
+[package]
+name = "lifegreet"
+version = "0.1.0"
+edition = "2021"
+description = "greetd Wayland greeter for niri: the lifelock Game of Life cube grows out of the username box (companion to lifelock/lifewall)"
+license = "GPL-3.0-or-later"
+authors = ["Whyte Erminae"]
+
+[dependencies]
+# Pinned: app.rs is written against the vendored 0.20.0 source (xdg window,
+# seat/keyboard repeat semantics). Bump deliberately, re-verifying (and keep
+# in lockstep with ../lifelock, which shares the pin and several modules).
+smithay-client-toolkit = "=0.20.0"
+libc = "0.2"
+zeroize = "1"
+fontdue = "0.9"
+greetd_ipc = { version = "0.10", features = ["sync-codec"] }
+
+[profile.release]
+lto = true
+strip = true
+panic = "abort"
+
+[profile.dev]
+# Parity with lifelock: never unwind through password state in any build.
+panic = "abort"

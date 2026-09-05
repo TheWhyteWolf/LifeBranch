@@ -1,0 +1,104 @@
+{
+  // Thin, minimal, muted-olive top bar for niri.
+  // Pure-text policy: no glyph icons — labels only (NET/VOL/CPU/MEM).
+  "layer": "top",
+  "position": "top",
+  "height": 26,
+  "spacing": 6,
+
+  "modules-left": ["niri/workspaces", "niri/window"],
+  "modules-center": ["clock"],
+  "modules-right": ["custom/notif", "custom/dnd", "idle_inhibitor", "network", "wireplumber", "cpu", "memory", "tray"],
+
+  "niri/workspaces": {
+    "format": "{index}"
+  },
+
+  "niri/window": {
+    "format": "{title}",
+    "max-length": 60,
+    "separate-outputs": true
+  },
+
+  "clock": {
+    "format": "{:%a %d %b  %H:%M}",
+    "tooltip-format": "<tt>{calendar}</tt>"
+  },
+
+  // Notification history: the pure-text stand-in for a tray icon. Shows
+  // "# N" while N notifications came and went unseen (expired, DND-swallowed);
+  // a bare "#" otherwise. The daemon pings signal 9 on every change (the
+  // custom/dnd signal-8 pattern below); clicking opens the fuzzel history
+  // (last 50), which marks everything seen and clears the badge.
+  "custom/notif": {
+    "exec": "n=\"$(~/.local/bin/lifenote ctl unseen 2>/dev/null)\" && [ \"$n\" -gt 0 ] && echo \"# $n\" || echo '#'",
+    "interval": "once",
+    "signal": 9,
+    "format": "{}",
+    "tooltip": false,
+    "on-click": "~/.local/bin/notif-menu.sh"
+  },
+
+  // Caffeine: click IDLE to hold off the idle chain (lock at 10 min, screens
+  // off at 15) — the label flips to a warn-tinted WAKE while inhibited.
+  // Wayland idle-inhibit protocol, same mechanism mpv/Firefox playback uses.
+  "idle_inhibitor": {
+    "format": "{icon}",
+    "format-icons": { "activated": "WAKE", "deactivated": "IDLE" },
+    "tooltip": false
+  },
+
+  // Shows DND only while lifenote's do-not-disturb mode is on; click (or
+  // Mod+N) toggles it. dnd-toggle.sh pings signal 8 to update the label.
+  // Full path: waybar's PATH may not include ~/.local/bin.
+  "custom/dnd": {
+    "exec": "[ \"$(~/.local/bin/lifenote ctl dnd get 2>/dev/null)\" = on ] && echo DND || echo ''",
+    "interval": "once",
+    "signal": 8,
+    "format": "{}",
+    "tooltip": false,
+    "on-click": "~/.local/bin/dnd-toggle.sh"
+  },
+
+  "network": {
+    "format-ethernet": "NET",
+    "format-wifi": "NET {signalStrength}%",
+    "format-disconnected": "NET --",
+    "tooltip-format": "{ifname}  {ipaddr}/{cidr}  via {gwaddr}",
+    "tooltip-format-disconnected": "no connection"
+  },
+
+  // Volume via the native wireplumber module. The pulseaudio module took the
+  // whole bar down repeatedly (five cores Jul 11-16, all SIGSEGV/SIGABRT in
+  // libpulse's pa_pdispatch_run) — wireplumber talks PipeWire directly, no
+  // libpulse in-process. Scroll goes through vol-osd.sh for the wob flash,
+  // same as the volume keys.
+  "wireplumber": {
+    "format": "VOL {volume}%",
+    "format-muted": "MUTE",
+    "tooltip-format": "{node_name}",
+    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+    "on-scroll-up": "~/.local/bin/vol-osd.sh up",
+    "on-scroll-down": "~/.local/bin/vol-osd.sh down"
+  },
+
+  "cpu": {
+    "interval": 5,
+    "format": "CPU {usage}%",
+    "states": { "warning": 70, "critical": 90 },
+    "on-click": "kitty -e htop"
+  },
+
+  "memory": {
+    "interval": 5,
+    "format": "MEM {percentage}%",
+    "states": { "warning": 70, "critical": 90 },
+    "tooltip-format": "{used:0.1f} / {total:0.1f} GiB",
+    "on-click": "kitty -e htop"
+  },
+
+  "tray": {
+    "spacing": 8,
+    "icon-size": 16
+  }
+}

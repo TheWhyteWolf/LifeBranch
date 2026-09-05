@@ -1,0 +1,32 @@
+# Vivid Magenta — Super Saturated: pure #ff00ff accent.
+[palette]
+bg      = "#150a15"
+surface = "#1f0f1f"
+border  = "#511f51"
+text    = "#e052e0"
+accent  = "#ff00ff"
+warn    = "#f9d51f"
+urgent  = "#f44125"
+
+[lifewall]
+mature  = "#7d367d"
+newborn = "#be1bbe"
+
+# Derived from the seven palette roles via ansi16::derive_ansi16.
+[ansi]
+color0  = "#2c222c"
+color8  = "#511f51"
+color1  = "#f44125"
+color9  = "#f66b55"
+color2  = "#e052e0"
+color10 = "#ff00ff"
+color3  = "#ec9480"
+color11 = "#f9d51f"
+color4  = "#762d76"
+color12 = "#b200b2"
+color5  = "#ae40ae"
+color13 = "#e56ce5"
+color6  = "#a03ba0"
+color14 = "#eb4deb"
+color7  = "#e052e0"
+color15 = "#eea0ee"

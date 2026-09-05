@@ -1,0 +1,32 @@
+# Vivid Red — Super Saturated: pure #ff0000 accent.
+[palette]
+bg      = "#150a0a"
+surface = "#1f0f0f"
+border  = "#511f1f"
+text    = "#e05252"
+accent  = "#ff0000"
+warn    = "#f9d51f"
+urgent  = "#f47b25"
+
+[lifewall]
+mature  = "#7d3636"
+newborn = "#be1b1b"
+
+# Derived from the seven palette roles via ansi16::derive_ansi16.
+[ansi]
+color0  = "#2c2222"
+color8  = "#511f1f"
+color1  = "#f47b25"
+color9  = "#f69855"
+color2  = "#e05252"
+color10 = "#ff0000"
+color3  = "#ec9438"
+color11 = "#f9d51f"
+color4  = "#762d2d"
+color12 = "#b20000"
+color5  = "#ae4040"
+color13 = "#e56c6c"
+color6  = "#a03b3b"
+color14 = "#eb4d4d"
+color7  = "#e05252"
+color15 = "#eea0a0"

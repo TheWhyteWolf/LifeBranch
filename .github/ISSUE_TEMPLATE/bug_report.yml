@@ -1,0 +1,52 @@
+name: Bug report
+description: Something did not work, especially on hardware I do not have
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: installer
+    attributes:
+      label: Which installer
+      options:
+        - "bootstrap.sh (curl)"
+        - "install.sh"
+        - "macbook/install.sh"
+        - "greeter-install.sh"
+        - "none, a script or config on its own"
+    validations:
+      required: true
+
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Detection output
+      description: >
+        Output of `bash scripts/detect-trackpad.sh` and
+        `bash scripts/setup-locale.sh --detect`. Both read sysfs and udev only.
+      render: shell
+
+  - type: textarea
+    id: versions
+    attributes:
+      label: Versions
+      description: "`niri --version`, `pacman -Q niri waybar fuzzel kitty`, `uname -r`"
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: >
+        `journalctl --user -u waybar -b` for a missing bar, `journalctl -t
+        lifelock -b` for the locker, `niri validate` for a config that will not
+        load.
+      render: shell

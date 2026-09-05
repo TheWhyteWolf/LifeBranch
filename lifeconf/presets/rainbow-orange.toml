@@ -1,0 +1,32 @@
+# Rainbow Orange — bright citrus-orange accent.
+[palette]
+bg      = "#16120d"
+surface = "#201913"
+border  = "#4f3926"
+text    = "#c49164"
+accent  = "#e48f44"
+warn    = "#e7d374"
+urgent  = "#ca3b2b"
+
+[lifewall]
+mature  = "#876548"
+newborn = "#c47937"
+
+# Derived from the seven palette roles via ansi16::derive_ansi16.
+[ansi]
+color0  = "#2d2a25"
+color8  = "#4f3926"
+color1  = "#ca3b2b"
+color9  = "#d6665a"
+color2  = "#c49164"
+color10 = "#e48f44"
+color3  = "#d6b26c"
+color11 = "#e7d374"
+color4  = "#6a4f37"
+color12 = "#a06430"
+color5  = "#9b724e"
+color13 = "#cda27b"
+color6  = "#8f6948"
+color14 = "#d39b6a"
+color7  = "#c49164"
+color15 = "#dfc2aa"

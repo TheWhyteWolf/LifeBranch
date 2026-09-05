@@ -1,0 +1,103 @@
+# What CI is for here: this repo is two installers, two niri configs and five
+# Rust crates that all have to agree with each other. The failure mode it
+# guards against is real and has happened — a change landing in install.sh and
+# not in macbook/install.sh, or a config edit that only one of the two configs
+# gets. Everything below is something you could run locally in a minute.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  shell:
+    name: shell scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      # Parse check first: a syntax error makes every other result noise.
+      - name: bash -n
+        run: |
+          shopt -s nullglob
+          for f in bootstrap.sh install.sh greeter-install.sh macbook/install.sh \
+                   macbook/system/*.sh scripts/*.sh; do
+            bash -n "$f" || { echo "::error file=$f::syntax error"; exit 1; }
+          done
+
+      # -S warning, not the default: info/style notes are advisory here (see
+      # CONTRIBUTING). -x follows `source`d files, which is how the installers
+      # pick up scripts/config-region.sh.
+      - name: shellcheck
+        run: |
+          shellcheck -S warning -x \
+            bootstrap.sh install.sh greeter-install.sh macbook/install.sh scripts/*.sh
+
+      # The cheat sheet parses the niri config with awk. If that parser breaks,
+      # the window silently comes up empty — so render both configs and insist
+      # there is something in them.
+      - name: shortcuts window renders both configs
+        run: |
+          for cfg in niri/config.kdl macbook/niri/config.kdl; do
+            n=$(NIRI_CONFIG="$cfg" COLUMNS=100 bash scripts/shortcuts-window.sh --print | grep -c 'Mod+') || true
+            echo "$cfg: $n binding rows"
+            [ "$n" -ge 20 ] || { echo "::error::$cfg produced only $n rows"; exit 1; }
+          done
+
+  arch:
+    name: configs + crates (Arch)
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      # Before checkout: actions/checkout wants git, and the build needs a
+      # toolchain plus the libraries the sctk/pam crates link against.
+      - name: Install toolchain
+        run: |
+          pacman -Syu --noconfirm --needed \
+            base-devel git niri rust pam wayland libxkbcommon pkgconf
+
+      - uses: actions/checkout@v4
+
+      - name: niri validate (both configs)
+        run: |
+          niri validate --config niri/config.kdl
+          niri validate --config macbook/niri/config.kdl
+
+      # Every fenced region the installers write into must exist in BOTH
+      # configs, or one machine silently never gets that setting.
+      - name: fenced regions present in both configs
+        run: |
+          status=0
+          for region in touchpad keyboard nightlight; do
+            for cfg in niri/config.kdl macbook/niri/config.kdl; do
+              grep -q "LIFEBRANCH:BEGIN $region\$" "$cfg" \
+                || { echo "::error file=$cfg::missing LIFEBRANCH region '$region'"; status=1; }
+              grep -q "LIFEBRANCH:END $region\$" "$cfg" \
+                || { echo "::error file=$cfg::unterminated LIFEBRANCH region '$region'"; status=1; }
+            done
+          done
+          exit $status
+
+      # The two installers drift: this is the check that catches it.
+      - name: installers agree on the scripts they link
+        run: |
+          extract() { sed -n '/^SCRIPTS=(/,/)/p' "$1" | tr ' ()' '\n\n\n' | grep '\.sh$' | sort -u; }
+          if ! diff <(extract install.sh) <(extract macbook/install.sh) > /tmp/d; then
+            echo "::warning::installers link different script sets:"; cat /tmp/d
+          fi
+          for f in $(extract install.sh; extract macbook/install.sh | sort -u); do
+            [ -f "scripts/$f" ] || { echo "::error::scripts/$f is linked but does not exist"; exit 1; }
+          done
+
+      - name: cargo build
+        run: |
+          for c in lifewall lifelock lifenote lifeconf lifegreet; do
+            echo "::group::$c"
+            cargo build --release --manifest-path "$c/Cargo.toml"
+            echo "::endgroup::"
+          done

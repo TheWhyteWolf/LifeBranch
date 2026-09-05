@@ -1,0 +1,4 @@
+# Touch Bar Display (05ac:8302): never USB-autosuspend it. During long
+# suspends the BCE controller can cut its power in a way it can't recover
+# from; keeping runtime PM off avoids the same failure while running.
+SUBSYSTEM=="usb", ATTR{idVendor}=="05ac", ATTR{idProduct}=="8302", ATTR{power/control}="on", ATTR{power/autosuspend_delay_ms}="-1"

@@ -1,0 +1,32 @@
+# Pastel Lavender — soft purple accent on a dark ground.
+[palette]
+bg      = "#110f15"
+surface = "#19151e"
+border  = "#3b2e4c"
+text    = "#a991ca"
+accent  = "#b99ce2"
+warn    = "#e6d9a8"
+urgent  = "#d37769"
+
+[lifewall]
+mature  = "#816ba1"
+newborn = "#9c7cc9"
+
+# Derived from the seven palette roles via ansi16::derive_ansi16.
+[ansi]
+color0  = "#29272c"
+color8  = "#3b2e4c"
+color1  = "#d37769"
+color9  = "#dd958a"
+color2  = "#a991ca"
+color10 = "#b99ce2"
+color3  = "#c8b5b9"
+color11 = "#e6d9a8"
+color4  = "#5a4d6b"
+color12 = "#826d9e"
+color5  = "#826e9e"
+color13 = "#b6a2d2"
+color6  = "#786491"
+color14 = "#b69fd6"
+color7  = "#a991ca"
+color15 = "#d0c2e2"
