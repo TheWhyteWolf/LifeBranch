@@ -58,8 +58,10 @@ jobs:
       # toolchain plus the libraries the sctk/pam crates link against.
       - name: Install toolchain
         run: |
+          # clang is not optional: lifelock's pam-client pulls in bindgen, whose
+          # clang-sys build script needs libclang.so and panics without it.
           pacman -Syu --noconfirm --needed \
-            base-devel git niri rust pam wayland libxkbcommon pkgconf
+            base-devel git niri rust clang pam wayland libxkbcommon pkgconf
 
       - uses: actions/checkout@v4
 
