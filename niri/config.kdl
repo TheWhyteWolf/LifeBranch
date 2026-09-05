@@ -1,7 +1,9 @@
-// niri config — minimal, muted, olive-green theme
-// Managed in ~/niri (git). Symlinked to ~/.config/niri/config.kdl by install.sh.
+// LifeBranch niri config: minimal, muted, olive-green.
+// Managed in the LifeBranch checkout, symlinked to ~/.config/niri/config.kdl
+// by install.sh. Regions fenced LIFECONF:* are rewritten by lifeconf and
+// LIFEBRANCH:* by the installer; everything else is yours to edit.
 //
-// Palette (from ~/git/pages):
+// Palette:
 //   bg #121412 · panel #171a14 · border #39412b · text #7b8c5a · accent #a4c94b
 //
 // Docs: https://yalter.github.io/niri/
@@ -12,13 +14,14 @@ input {
 
     // LIFEBRANCH:BEGIN keyboard
     keyboard {
-        // Pin the exact known-good UK keymap (verified: Super_L -> Mod4).
+        // install.sh detects your layout and rewrites this region; edit it by
+        // hand any time (`localectl list-x11-keymap-layouts` lists the names).
         xkb {
             layout "gb"
             model "pc105"
             options "terminate:ctrl_alt_bksp"
         }
-        // Full-size board has a numpad — enable numlock on startup.
+        // Only useful on a keyboard that has a numpad.
         numlock
     }
     // LIFEBRANCH:END keyboard
@@ -35,13 +38,15 @@ input {
     // focus-follows-mouse max-scroll-amount="0%"
 }
 
-// Single monitor: BenQ GL2250H on HDMI-A-1 (from niri logs). Auto-detect also works.
-output "HDMI-A-1" {
-    mode "1920x1080@60"
-    scale 1
-    transform "normal"
-    position x=0 y=0
-}
+// Outputs are auto-detected, so nothing needs to be declared here. Uncomment
+// and edit only if you want to pin a mode, a scale, or a monitor's position:
+// `niri msg outputs` prints the connector names and the modes each one offers.
+// output "HDMI-A-1" {
+//     mode "1920x1080@60"
+//     scale 1
+//     transform "normal"
+//     position x=0 y=0
+// }
 
 layout {
     gaps 12
@@ -137,9 +142,11 @@ spawn-at-startup "swaybg" "-c" "#121412"
 // LIFECONF:BEGIN lifewall
 spawn-sh-at-startup "kitten panel --edge=background --config NONE -o font_size=8 -o font_family='ShureTechMono Nerd Font' -o background='#121412' ~/.local/bin/lifebg --tick 0.3 --fps 30 --fade 3 --density 0.14 --char '#' --bg '#121412' --mature '#66744c' --newborn '#87a540'"
 // LIFECONF:END lifewall
-// Idle chain: lock at 10 min, screens off at 15 min. NO suspend timeout —
-// this box runs live services and must never sleep (install.sh also masks
-// sleep.target/suspend.target system-wide). niri wakes monitors on input.
+// Idle chain: lock at 10 min, screens off at 15 min. There is deliberately no
+// suspend timeout here: this config was written for a machine that runs
+// services and must stay up. On a laptop you probably want one, and install.sh
+// leaves the sleep targets alone when it finds a battery. niri wakes monitors
+// on input.
 // The 900s step also freezes the Game of Life wallpaper (30 fps of nothing
 // while the screen is dark); resume thaws it — but only if this pause was
 // dpms-made, so a manual Mod+Shift+G pause survives an idle cycle.
@@ -153,8 +160,8 @@ spawn-at-startup "swayidle" "-w" "timeout" "600" "systemd-cat -t lifelock ~/.loc
 // (systemd/waybar.service, WantedBy=graphical-session.target). spawn-at-startup
 // gives a one-shot scope: when waybar dies the bar is just gone, and its stderr
 // is discarded so there is nothing to read afterwards. The unit restarts it and
-// journals it. See the 2026-08-31 coredump (SIGSEGV in libgdk-3 dispatching a
-// Wayland event) and this box's phantom eDP-2 connector.
+// journals it. It has been seen to die with a SIGSEGV inside libgdk-3 while
+// dispatching a Wayland output event; root cause is still open.
 //   journalctl --user -u waybar -b     systemctl --user reload waybar
 // Notifications: lifenote (box-drawing frames, ~/niri/lifenote). systemd-cat
 // for the same stderr reason as lifelock above. mako stays installed as the
@@ -286,7 +293,8 @@ binds {
     Mod+Shift+Alt+Escape allow-when-locked=true hotkey-overlay-title="Force swaylock (recovery)" { spawn-sh "pkill -x -9 lifelock; sleep 1; swaylock -f"; }
 
     // --- Volume ---
-    // The HP KU-0316 has no media keys, so use the numpad (with XF86 fallbacks).
+    // For keyboards with no media keys: the numpad doubles as volume control,
+    // with the XF86 keys bound underneath for the boards that do have them.
     // vol-osd.sh = wpctl + a wob OSD flash (keys still work while locked; the
     // bar itself can't render over the lock surface).
     Mod+KP_Add      allow-when-locked=true { spawn-sh "~/.local/bin/vol-osd.sh up"; }
@@ -455,7 +463,7 @@ binds {
     Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
 
     // --- Session ---
-    // Power menu (lock/logout/reboot/poweroff — no suspend on this box).
+    // Power menu. Suspend appears in it only when sleep.target is not masked.
     Mod+Shift+E hotkey-overlay-title="Power menu" { spawn-sh "~/.local/bin/power-menu.sh"; }
     Ctrl+Alt+Delete { quit; }
     Mod+Shift+P     { power-off-monitors; }
