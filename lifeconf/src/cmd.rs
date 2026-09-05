@@ -18,6 +18,15 @@ fn kana_charset() -> String {
     ('\u{FF66}'..='\u{FF9D}').collect()
 }
 
+/// Printable ASCII, space excluded. The default: it needs no font beyond the
+/// one every terminal already has, and the spread from `.` to `@` gives the
+/// board texture that a single repeated glyph cannot. sanitize_glyphs drops
+/// the quotes and backslash immediately after, so they are left in here rather
+/// than hand-excluded in two places.
+fn ascii_charset() -> String {
+    ('!'..='~').collect()
+}
+
 /// The glyph string drops into a single-quoted shell arg that itself sits
 /// inside an unescaped double-quoted KDL string (see gen_lifewall's "no
 /// escaping" invariant) — so strip anything that could break out of either:
@@ -40,7 +49,12 @@ fn sanitize_glyphs(s: &str) -> String {
 pub fn lifewall_shell_cmd(t: &Theme) -> String {
     let w = &t.lifewall;
     let bg = hash(&t.palette.bg);
-    let raw = if w.glyph_mode == "kana" { kana_charset() } else { w.char.clone() };
+    let raw = match w.glyph_mode.as_str() {
+        "ascii" => ascii_charset(),
+        "kana" => kana_charset(),
+        // "custom", and anything a hand-edited theme.toml puts here.
+        _ => w.char.clone(),
+    };
     let glyph = sanitize_glyphs(&raw);
     format!(
         "kitten panel --edge=background --config NONE \

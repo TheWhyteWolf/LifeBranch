@@ -3,8 +3,8 @@
 Conway's Game of Life as a smooth terminal wallpaper. The simulation ticks at
 a relaxed pace while rendering interpolates every cell's colour at 30 fps:
 births fade in, the newborn flash melts into the mature tone, deaths dissolve
-back into the background. Cells are drawn as `#` glyphs by default; `--char`
-takes a whole string, and each cell picks one glyph at random from it
+back into the background. Cells are drawn as random printable ASCII by
+default; `--char` takes a whole string, and each cell picks one glyph from it
 (stable until the cell dies and is reborn).
 
 A single ~400 KB binary; the only dependency is `libc`.
@@ -37,7 +37,7 @@ or macOS. It also runs in any plain terminal — nice for previewing.
 --fade GENS     fade length in generations    (default 3)
 --density F     seed fill fraction 0..1       (default 0.14)
 --char S        glyph(s) for live cells; 2+ chars picks randomly
-                per cell                     (default '#')
+                per cell        (default: printable ASCII)
 --bg HEX        background colour             (default #121412)
 --mature HEX    settled cell colour           (default #66744c)
 --newborn HEX   birth flash colour            (default #87a540)

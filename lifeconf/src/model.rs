@@ -16,9 +16,10 @@ pub const CATS: &[&str] = &[
 const SCREEN_FIELDS: &[&str] = &["link", "mature", "newborn", "accent", "urgent", "text"];
 pub const STYLES: &[&str] = &["single", "rounded", "heavy", "double", "ascii"];
 pub const ANCHORS: &[&str] = &["top-right", "top-left", "bottom-right", "bottom-left"];
-/// "custom" uses the `char` field verbatim; "kana" ignores it and draws random
-/// half-width katakana per cell instead (see cmd::lifewall_shell_cmd).
-pub const GLYPH_MODES: &[&str] = &["custom", "kana"];
+/// "ascii" (the default) draws random printable ASCII per cell and "kana"
+/// random half-width katakana, both ignoring `char`; "custom" uses the `char`
+/// field verbatim (see cmd::lifewall_shell_cmd).
+pub const GLYPH_MODES: &[&str] = &["ascii", "custom", "kana"];
 
 /// What the current field is, which decides how input drives it.
 pub enum Kind {

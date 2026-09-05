@@ -80,9 +80,10 @@ pub struct Lifewall {
     pub fps: u32,
     pub fade: f64,
     pub density: f64,
-    /// "custom" (use `char` verbatim) or "kana" (random half-width katakana
-    /// per cell). #[serde(default)] so older theme.toml files without this
-    /// field still load.
+    /// "ascii" (random printable ASCII per cell; the default), "kana" (random
+    /// half-width katakana) or "custom" (use `char` verbatim).
+    /// #[serde(default)] so older theme.toml files without this field still
+    /// load.
     #[serde(default = "default_glyph_mode")]
     pub glyph_mode: String,
     pub char: String,
@@ -95,6 +96,11 @@ pub struct Lifewall {
     pub glider_interval: f64,
 }
 
+/// Deliberately NOT the same as the shipped default below. This is the serde
+/// backfill for a theme.toml written before the field existed, and those files
+/// were saved when the only behaviour was "use `char` verbatim" — answering
+/// "ascii" here would silently change the wallpaper of every existing install
+/// on upgrade.
 fn default_glyph_mode() -> String {
     "custom".into()
 }
@@ -152,7 +158,9 @@ impl Default for Theme {
                 fps: 30,
                 fade: 3.0,
                 density: 0.14,
-                glyph_mode: "custom".into(),
+                glyph_mode: "ascii".into(),
+                // Only consulted in "custom" mode; kept as the fallback so
+                // switching modes in the UI has something to land on.
                 char: "#".into(),
                 mature: "#66744c".into(),
                 newborn: "#87a540".into(),
