@@ -1,0 +1,32 @@
+# Pastel Pink — soft rose accent on a dark ground.
+[palette]
+bg      = "#150f12"
+surface = "#1e151a"
+border  = "#4c2e3d"
+text    = "#ca91ad"
+accent  = "#e29cbf"
+warn    = "#e6d9a8"
+urgent  = "#d37769"
+
+[lifewall]
+mature  = "#a16b86"
+newborn = "#c97ca3"
+
+# Derived from the seven palette roles via ansi16::derive_ansi16.
+[ansi]
+color0  = "#2c272a"
+color8  = "#4c2e3d"
+color1  = "#d37769"
+color9  = "#dd958a"
+color2  = "#ca91ad"
+color10 = "#e29cbf"
+color3  = "#d8b5aa"
+color11 = "#e6d9a8"
+color4  = "#6b4d5c"
+color12 = "#9e6d86"
+color5  = "#9e6e86"
+color13 = "#d2a2b9"
+color6  = "#91647b"
+color14 = "#d69fba"
+color7  = "#ca91ad"
+color15 = "#e2c2d2"

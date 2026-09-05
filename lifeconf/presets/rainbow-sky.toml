@@ -1,0 +1,32 @@
+# Rainbow Sky — bright sky-blue accent.
+[palette]
+bg      = "#0d1316"
+surface = "#131b20"
+border  = "#263e4f"
+text    = "#649cc4"
+accent  = "#44a1e4"
+warn    = "#e7d374"
+urgent  = "#ca3b2b"
+
+[lifewall]
+mature  = "#486d87"
+newborn = "#378ac4"
+
+# Derived from the seven palette roles via ansi16::derive_ansi16.
+[ansi]
+color0  = "#252b2d"
+color8  = "#263e4f"
+color1  = "#ca3b2b"
+color9  = "#d6665a"
+color2  = "#649cc4"
+color10 = "#44a1e4"
+color3  = "#a6b89c"
+color11 = "#e7d374"
+color4  = "#37556a"
+color12 = "#3071a0"
+color5  = "#4e7b9b"
+color13 = "#7babcd"
+color6  = "#48728f"
+color14 = "#6aa8d3"
+color7  = "#649cc4"
+color15 = "#aac9df"

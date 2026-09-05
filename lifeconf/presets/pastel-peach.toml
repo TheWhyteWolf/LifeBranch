@@ -1,0 +1,32 @@
+# Pastel Peach — soft peach-orange accent on a dark ground.
+[palette]
+bg      = "#15110f"
+surface = "#1e1915"
+border  = "#4c3b2e"
+text    = "#caa991"
+accent  = "#e2b99c"
+warn    = "#e6d9a8"
+urgent  = "#d37769"
+
+[lifewall]
+mature  = "#a1816b"
+newborn = "#c99c7c"
+
+# Derived from the seven palette roles via ansi16::derive_ansi16.
+[ansi]
+color0  = "#2c2927"
+color8  = "#4c3b2e"
+color1  = "#d37769"
+color9  = "#dd958a"
+color2  = "#caa991"
+color10 = "#e2b99c"
+color3  = "#d8c19c"
+color11 = "#e6d9a8"
+color4  = "#6b5a4d"
+color12 = "#9e826d"
+color5  = "#9e826e"
+color13 = "#d2b6a2"
+color6  = "#917864"
+color14 = "#d6b69f"
+color7  = "#caa991"
+color15 = "#e2d0c2"

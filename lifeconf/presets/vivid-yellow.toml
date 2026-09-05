@@ -1,0 +1,32 @@
+# Vivid Yellow — Super Saturated: pure #ffff00 accent.
+[palette]
+bg      = "#15150a"
+surface = "#1f1f0f"
+border  = "#51511f"
+text    = "#e0e052"
+accent  = "#ffff00"
+warn    = "#f98c1f"
+urgent  = "#f44125"
+
+[lifewall]
+mature  = "#7d7d36"
+newborn = "#bebe1b"
+
+# Derived from the seven palette roles via ansi16::derive_ansi16.
+[ansi]
+color0  = "#2c2c22"
+color8  = "#51511f"
+color1  = "#f44125"
+color9  = "#f66b55"
+color2  = "#e0e052"
+color10 = "#ffff00"
+color3  = "#ecb638"
+color11 = "#f98c1f"
+color4  = "#76762d"
+color12 = "#b2b200"
+color5  = "#aeae40"
+color13 = "#e5e56c"
+color6  = "#a0a03b"
+color14 = "#ebeb4d"
+color7  = "#e0e052"
+color15 = "#eeeea0"

@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=lifeconf
+GenericName=Rice Settings
+Comment=Theme and settings for the niri olive rice (palette, wallpaper, notifications…)
+# install.sh rewrites this Exec to an absolute ~/.local/bin path, since a
+# launcher's environment may not carry ~/.local/bin on PATH.
+Exec=lifeconf --gui
+Terminal=false
+Icon=preferences-desktop-theme
+Categories=Settings;DesktopSettings;
+Keywords=theme;palette;rice;niri;lifeconf;colours;wallpaper;
+StartupNotify=false
+StartupWMClass=lifeconf

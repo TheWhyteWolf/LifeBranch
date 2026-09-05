@@ -1,0 +1,32 @@
+# Pastel Mint — soft mint-green accent on a dark ground.
+[palette]
+bg      = "#0f1512"
+surface = "#151e1a"
+border  = "#2e4c40"
+text    = "#91cab2"
+accent  = "#9ce2c5"
+warn    = "#e6d9a8"
+urgent  = "#d37769"
+
+[lifewall]
+mature  = "#6ba18a"
+newborn = "#7cc9a9"
+
+# Derived from the seven palette roles via ansi16::derive_ansi16.
+[ansi]
+color0  = "#272c2a"
+color8  = "#2e4c40"
+color1  = "#d37769"
+color9  = "#dd958a"
+color2  = "#91cab2"
+color10 = "#9ce2c5"
+color3  = "#bcd2ad"
+color11 = "#e6d9a8"
+color4  = "#4d6b5e"
+color12 = "#6d9e8a"
+color5  = "#6e9e8a"
+color13 = "#a2d2be"
+color6  = "#64917f"
+color14 = "#9fd6bf"
+color7  = "#91cab2"
+color15 = "#c2e2d5"

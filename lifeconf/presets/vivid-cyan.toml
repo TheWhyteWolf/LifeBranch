@@ -1,0 +1,32 @@
+# Vivid Cyan — Super Saturated: pure #00ffff accent.
+[palette]
+bg      = "#0a1515"
+surface = "#0f1f1f"
+border  = "#1f5151"
+text    = "#52e0e0"
+accent  = "#00ffff"
+warn    = "#f9d51f"
+urgent  = "#f44125"
+
+[lifewall]
+mature  = "#367d7d"
+newborn = "#1bbebe"
+
+# Derived from the seven palette roles via ansi16::derive_ansi16.
+[ansi]
+color0  = "#222c2c"
+color8  = "#1f5151"
+color1  = "#f44125"
+color9  = "#f66b55"
+color2  = "#52e0e0"
+color10 = "#00ffff"
+color3  = "#a6da80"
+color11 = "#f9d51f"
+color4  = "#2d7676"
+color12 = "#00b2b2"
+color5  = "#40aeae"
+color13 = "#6ce5e5"
+color6  = "#3ba0a0"
+color14 = "#4debeb"
+color7  = "#52e0e0"
+color15 = "#a0eeee"

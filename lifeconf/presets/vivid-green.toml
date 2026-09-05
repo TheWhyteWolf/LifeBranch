@@ -1,0 +1,32 @@
+# Vivid Green — Super Saturated: pure #00ff00 accent.
+[palette]
+bg      = "#0a150a"
+surface = "#0f1f0f"
+border  = "#1f511f"
+text    = "#52e052"
+accent  = "#00ff00"
+warn    = "#f9d51f"
+urgent  = "#f44125"
+
+[lifewall]
+mature  = "#367d36"
+newborn = "#1bbe1b"
+
+# Derived from the seven palette roles via ansi16::derive_ansi16.
+[ansi]
+color0  = "#222c22"
+color8  = "#1f511f"
+color1  = "#f44125"
+color9  = "#f66b55"
+color2  = "#52e052"
+color10 = "#00ff00"
+color3  = "#a6da38"
+color11 = "#f9d51f"
+color4  = "#2d762d"
+color12 = "#00b200"
+color5  = "#40ae40"
+color13 = "#6ce56c"
+color6  = "#3ba03b"
+color14 = "#4deb4d"
+color7  = "#52e052"
+color15 = "#a0eea0"

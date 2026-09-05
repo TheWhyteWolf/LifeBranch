@@ -1,0 +1,31 @@
+# Moss — a deeper forest-olive, darker ground with a brighter leaf accent.
+[palette]
+bg      = "#10130e"
+surface = "#161a12"
+border  = "#2f3a26"
+text    = "#6f8a56"
+accent  = "#8fbf4a"
+warn    = "#c7cf7a"
+urgent  = "#7e3b2c"
+
+[lifewall]
+mature  = "#5c7040"
+newborn = "#8fbf4a"
+
+[ansi]
+color0  = "#171a12"
+color8  = "#2f3a26"
+color1  = "#7e3b2c"
+color9  = "#a5533f"
+color2  = "#6f8a56"
+color10 = "#8fbf4a"
+color3  = "#94a066"
+color11 = "#c7cf7a"
+color4  = "#45573a"
+color12 = "#63784a"
+color5  = "#5c6f4a"
+color13 = "#879560"
+color6  = "#52683f"
+color14 = "#779668"
+color7  = "#6f8a56"
+color15 = "#bfd0a0"

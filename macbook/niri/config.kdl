@@ -1,0 +1,464 @@
+// niri config — 2019 MacBook Pro (T2) on Arch, minimal muted olive.
+// Managed in ~/niri/macbook (git). Symlinked to ~/.config/niri/config.kdl by macbook/install.sh.
+//
+// Shares the olive palette with the desktop config, tweaked for laptop hardware:
+//   - internal Retina panel  -> HiDPI scale 2 on eDP-1
+//   - Apple trackpad         -> tap / natural-scroll / clickfinger
+//   - no numpad              -> volume/brightness on the XF86 function-row keys
+//   - Command key = Super    -> Mod stays Super
+//
+// Palette (from ~/git/pages):
+//   bg #121412 · panel #171a14 · border #39412b · text #7b8c5a · accent #a4c94b
+//
+// Docs: https://yalter.github.io/niri/
+
+input {
+    // Apple's Command key reports as Super (Mod4), so Mod = Super works out of the box.
+    mod-key "Super"
+
+    // LIFEBRANCH:BEGIN keyboard
+    keyboard {
+        // Standard US layout on the internal Apple keyboard (ANSI, no numpad).
+        xkb {
+            layout "us"
+            model "pc105"
+            options "terminate:ctrl_alt_bksp"
+        }
+    }
+    // LIFEBRANCH:END keyboard
+
+    // LIFEBRANCH:BEGIN touchpad
+    touchpad {
+        tap
+        natural-scroll
+        dwt                        // disable-while-typing
+        // Apple clickpad: two-finger click = right, three-finger = middle.
+        click-method "clickfinger"
+        accel-profile "adaptive"
+        scroll-method "two-finger"
+    }
+    // LIFEBRANCH:END touchpad
+
+    mouse {}
+
+    // Uncomment to focus windows/outputs by moving the mouse into them:
+    // focus-follows-mouse max-scroll-amount="0%"
+}
+
+// Internal Retina panel. niri auto-detects the preferred mode; scale 2 gives a
+// comfortable HiDPI logical size for the 2019 MBP (2560x1600 / 2880x1800 panels).
+output "eDP-1" {
+    // mode "2560x1600@60"   // uncomment to pin if auto-detect picks wrong
+    scale 2
+    transform "normal"
+    position x=0 y=0
+}
+
+layout {
+    gaps 12
+    center-focused-column "never"
+
+    preset-column-widths {
+        proportion 0.33333
+        proportion 0.5
+        proportion 0.66667
+    }
+    default-column-width { proportion 0.5; }
+
+    // Muted-olive look: thin, always-on olive border; no focus ring.
+    focus-ring {
+        off
+    }
+    // LIFECONF:BEGIN niri-border
+    border {
+        width 2
+        active-color "#ff0000"
+        inactive-color "#511f1f"
+        urgent-color "#f47b25"
+    }
+    // LIFECONF:END niri-border
+
+    shadow {
+    }
+
+    // Tabbed columns (Mod+W): olive strip instead of niri's default colors.
+    // LIFECONF:BEGIN niri-tab-indicator
+    tab-indicator {
+        hide-when-single-tab
+        active-color "#ff0000"
+        inactive-color "#511f1f"
+        urgent-color "#f47b25"
+    }
+    // LIFECONF:END niri-tab-indicator
+
+    // Drop-target hint while moving windows: translucent accent, not default blue.
+    // LIFECONF:BEGIN niri-insert-hint
+    insert-hint {
+        color "#ff000080"
+    }
+    // LIFECONF:END niri-insert-hint
+
+    struts {}
+}
+
+// Ask clients to omit client-side decorations -> sharp corners + niri-drawn borders.
+prefer-no-csd
+
+// Qt apps follow qt6ct (Fusion + dark palette; see qt6ct/qt6ct.conf). Theming
+// is rice, so it stays niri-only — the Plasma session keeps its own look.
+// The Wayland platform vars deliberately do NOT live here: this block only
+// reaches processes niri spawns, and they have to reach D-Bus-activated and
+// systemd-launched apps too. They are in environment.d/50-niri-platform.conf
+// (installed to ~/.config/environment.d/), which also documents the
+// drag-and-drop trade-off they buy — X11-only apps like Bitwig lose file
+// drags from Dolphin; Brave/vesktop/VS Code gain them.
+environment {
+    QT_QPA_PLATFORMTHEME "qt6ct"
+}
+
+// Cursor: phinger (light variant — visible on the dark backdrop).
+// niri exports XCURSOR_THEME/XCURSOR_SIZE to spawned apps; install.sh sets GTK to match.
+// LIFECONF:BEGIN cursor
+cursor {
+    xcursor-theme "phinger-cursors-light"
+    xcursor-size 24
+}
+// LIFECONF:END cursor
+
+// Dark-olive backdrop behind the overview / empty workspaces.
+overview {
+    backdrop-color "#0d0f0d"
+}
+
+// --- Startup ---
+// Hand the platform vars from ~/.config/environment.d to the D-Bus activation
+// environment. The systemd user manager already has them, but roughly half the
+// D-Bus service files on an Arch/KDE box carry no SystemdService=, so they are
+// activated by dbus-broker directly and would otherwise inherit the pre-session
+// login environment — landing on XWayland while the same app started from
+// fuzzel is a Wayland client. Values come from niri's own env, i.e. environment.d.
+spawn-at-startup "dbus-update-activation-environment" "--systemd" "QT_QPA_PLATFORM" "QT_WAYLAND_DISABLE_WINDOWDECORATION" "ELECTRON_OZONE_PLATFORM_HINT"
+// swaybg stays as a solid-colour fallback beneath the Game of Life panel.
+spawn-at-startup "swaybg" "-c" "#121412"
+// Conway's Game of Life wallpaper (shared lifewall build; see install.sh).
+// LIFECONF:BEGIN lifewall
+spawn-sh-at-startup "kitten panel --edge=background --config NONE -o font_size=8 -o font_family='ShureTechMono Nerd Font' -o background='#150a0a' ~/.local/bin/lifebg --tick 0.2 --fps 15 --fade 3 --density 0.41 --char 'BUMFACEbumface' --bg '#150a0a' --mature '#7d3636' --newborn '#be1b1b' --glider-interval 90"
+// LIFECONF:END lifewall
+// Idle chain: lock at 10 min, screens off at 15 min. Unlike the desktop, sleep
+// stays available on the laptop — before-sleep locks first (lid close, etc.).
+// lifelock is the locker (desktop parity); Mod+Shift+Alt+Escape spawns the
+// swaylock recovery fallback. The 900s step also freezes the Game of Life wallpaper.
+// systemd-cat: niri /dev/null's spawned processes' stderr, so without the
+// wrapper lifelock's diagnostics never reach the journal.
+// LIFECONF:BEGIN idle-timeouts
+spawn-at-startup "swayidle" "-w" "timeout" "600" "systemd-cat -t lifelock ~/.local/bin/lifelock -f" "timeout" "900" "niri msg action power-off-monitors; ~/.local/bin/lifebg-toggle.sh dpms-pause" "resume" "~/.local/bin/lifebg-toggle.sh dpms-resume" "lock" "systemd-cat -t lifelock ~/.local/bin/lifelock -f" "before-sleep" "systemd-cat -t lifelock ~/.local/bin/lifelock -f"
+// LIFECONF:END idle-timeouts
+// waybar is NOT spawned here — it runs as a supervised systemd user unit
+// (systemd/waybar.service, WantedBy=graphical-session.target). spawn-at-startup
+// gives a one-shot scope: when waybar dies the bar is just gone, and its stderr
+// is discarded so there is nothing to read afterwards. The unit restarts it and
+// journals it. See the 2026-08-31 coredump (SIGSEGV in libgdk-3 dispatching a
+// Wayland event) and this box's phantom eDP-2 connector.
+//   journalctl --user -u waybar -b     systemctl --user reload waybar
+// Polkit auth agent: pops the password dialog pkexec needs — e.g. lifeconf
+// applying the root-owned greeter config (/etc/lifegreet/config), and any GUI
+// app that touches system settings. polkit-kde-agent (installed by install.sh).
+spawn-at-startup "/usr/lib/polkit-kde-authentication-agent-1"
+// Tray applets: network + bluetooth status icons in waybar's tray (desktop
+// parity — without these the laptop tray sat empty).
+spawn-at-startup "nm-applet" "--indicator"
+spawn-at-startup "blueman-applet"
+// LIFEBRANCH:BEGIN nightlight
+// Night light: warms the gamma after sunset (wlr-gamma-control).
+// Coordinates are London — adjust -l/-L for elsewhere.
+spawn-at-startup "wlsunset" "-l" "51.5" "-L" "-0.1"
+// LIFEBRANCH:END nightlight
+// Automount removable media (udisks2); mount/unmount events show up as
+// lifenote popups via libnotify.
+spawn-at-startup "udiskie"
+// Notifications: lifenote (box-drawing frames, ~/niri/lifenote). systemd-cat so
+// its stderr reaches the journal. mako stays installed as the fallback on this
+// laptop too: pkill lifenote && mako.
+spawn-sh-at-startup "systemd-cat -t lifenote ~/.local/bin/lifenote"
+// Volume/brightness OSD: wob draws a bar for whatever percentage lands in its
+// FIFO (vol-osd.sh / bright-osd.sh write there). Themed via ~/.config/wob/wob.ini.
+spawn-sh-at-startup "f=$XDG_RUNTIME_DIR/wob.sock; rm -f $f; mkfifo $f; tail -f $f | wob"
+// Clipboard-history watchers (cliphist).
+spawn-at-startup "wl-paste" "--watch" "cliphist" "store"
+spawn-at-startup "wl-paste" "--type" "image" "--watch" "cliphist" "store"
+// Note: xwayland-satellite is auto-managed by niri 26.04 once the binary is installed.
+
+// LifeBranch keyboard cheat sheet: opens once at every login. The list is
+// parsed straight out of THIS file, so it always matches your real binds.
+// The line below is the switch — set it to `off` and the window stops
+// appearing (Mod+Slash still summons it on demand).
+// shortcuts-at-startup on
+spawn-sh-at-startup "~/.local/bin/shortcuts-window.sh --at-startup"
+
+hotkey-overlay {
+    // Don't pop the cheat-sheet on every login; Mod+Shift+/ summons it.
+    skip-at-startup
+}
+
+screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
+
+// LIFECONF:BEGIN animations
+animations {
+    // Crisper, less floaty (1.0 = niri default speed; lower = faster).
+    slowdown 0.6
+}
+// LIFECONF:END animations
+
+// --- Window rules ---
+window-rule {
+    // Work around WezTerm's initial-configure bug.
+    match app-id=r#"^org\.wezfurlong\.wezterm$"#
+    default-column-width {}
+}
+window-rule {
+    // Firefox picture-in-picture floats, docked to the bottom-right corner.
+    match app-id=r#"firefox$"# title="^Picture-in-Picture$"
+    open-floating true
+    default-floating-position x=12 y=12 relative-to="bottom-right"
+}
+window-rule {
+    // Utility panels open floating at a sane size instead of as huge tiles
+    // (rules for apps that aren't installed are harmless).
+    match app-id=r#"^org\.pulseaudio\.pavucontrol$"#
+    match app-id=r#"^pavucontrol$"#
+    match app-id=r#"^nm-connection-editor$"#
+    match app-id=r#"^\.?blueman-manager(-wrapped)?$"#
+    open-floating true
+    default-column-width { fixed 720; }
+    default-window-height { fixed 540; }
+}
+window-rule {
+    // Dropdown terminal (Mod+Grave): floats in the top half; scratch-term.sh
+    // re-asserts the exact geometry via float-snap.sh on every summon and
+    // parks it on the trailing empty workspace while hidden.
+    match app-id=r#"^scratchterm$"#
+    open-floating true
+    // Top-half zone at this panel's logical 1280x800 (float-snap re-asserts
+    // the exact geometry on every summon anyway).
+    default-column-width { fixed 1252; }
+    default-window-height { fixed 365; }
+    default-floating-position x=0 y=12 relative-to="top"
+}
+window-rule {
+    // The LifeBranch cheat sheet (Mod+Slash, and once at every login). A plain
+    // kitty window; float it at a readable size instead of giving it a column.
+    match app-id=r#"^lifebranch-shortcuts$"#
+    open-floating true
+    default-column-width { fixed 900; }
+    default-window-height { fixed 700; }
+}
+window-rule {
+    // Dim unfocused windows slightly; makes the lime focus border pop.
+    match is-focused=false
+    opacity 0.95
+}
+
+binds {
+    Mod+Shift+Slash { show-hotkey-overlay; }
+    // The LifeBranch cheat sheet: the same window that opens at login,
+    // parsed live out of this file. Mod+Shift+Slash is niris own overlay.
+    Mod+Slash hotkey-overlay-title="Keyboard shortcuts (LifeBranch)" { spawn-sh "~/.local/bin/shortcuts-window.sh"; }
+
+    // --- Applications ---
+    Mod+Return hotkey-overlay-title="Launcher: fuzzel"       { spawn "fuzzel"; }
+    Mod+T      hotkey-overlay-title="Terminal: kitty"        { spawn "kitty"; }
+    Mod+D      hotkey-overlay-title="Launcher: fuzzel"       { spawn "fuzzel"; }
+    Mod+Space  hotkey-overlay-title="Launcher: fuzzel"       { spawn "fuzzel"; }
+    Mod+P      hotkey-overlay-title="Clipboard history"      { spawn-sh "~/.local/bin/clip-menu.sh"; }
+    Mod+Grave  hotkey-overlay-title="Dropdown terminal"      { spawn-sh "~/.local/bin/scratch-term.sh"; }
+
+    // --- Non-Super fallbacks (kept as a safety net; harmless on the laptop) ---
+    Ctrl+Alt+Return { spawn "kitty"; }
+    Ctrl+Alt+Space  { spawn "fuzzel"; }
+    Ctrl+Alt+O      { toggle-overview; }
+    Ctrl+Alt+Q      { close-window; }
+
+    // Screen lock (swayidle listens for the logind lock signal -> lifelock).
+    // Moved from Mod+Alt+L to free the float-snap H/J/K/L mirror.
+    Mod+Alt+Escape hotkey-overlay-title="Lock screen" { spawn "loginctl" "lock-session"; }
+
+    // Recovery escape hatch: spawn a fresh swaylock even while locked. If the
+    // locker ever wedges, this takes over the orphaned lock so the session is
+    // always recoverable from the keyboard (desktop parity).
+    Mod+Shift+Alt+Escape allow-when-locked=true hotkey-overlay-title="Force swaylock (recovery)" { spawn-sh "pkill -x -9 lifelock; sleep 1; swaylock -f"; }
+
+    // --- Volume (Apple function row emits XF86 media keys) ---
+    // vol-osd.sh = wpctl + a wob OSD flash (keys still work while locked; the
+    // bar itself can't render over the lock surface).
+    XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "~/.local/bin/vol-osd.sh up"; }
+    XF86AudioLowerVolume allow-when-locked=true { spawn-sh "~/.local/bin/vol-osd.sh down"; }
+    XF86AudioMute        allow-when-locked=true { spawn-sh "~/.local/bin/vol-osd.sh mute"; }
+    XF86AudioMicMute     allow-when-locked=true { spawn-sh "wpctl set-mute   @DEFAULT_AUDIO_SOURCE@ toggle"; }
+    // Mod fallbacks if the function row is remapped (F-keys instead of media keys):
+    Mod+F12 allow-when-locked=true { spawn-sh "~/.local/bin/vol-osd.sh up"; }
+    Mod+F11 allow-when-locked=true { spawn-sh "~/.local/bin/vol-osd.sh down"; }
+    Mod+F10 allow-when-locked=true { spawn-sh "~/.local/bin/vol-osd.sh mute"; }
+
+    // --- Backlight (brightnessctl; needs the video group or its udev rules) ---
+    // bright-osd.sh = brightnessctl + the same wob OSD flash.
+    XF86MonBrightnessUp   allow-when-locked=true { spawn-sh "~/.local/bin/bright-osd.sh up"; }
+    XF86MonBrightnessDown allow-when-locked=true { spawn-sh "~/.local/bin/bright-osd.sh down"; }
+    Mod+F2 allow-when-locked=true { spawn-sh "~/.local/bin/bright-osd.sh up"; }
+    Mod+F1 allow-when-locked=true { spawn-sh "~/.local/bin/bright-osd.sh down"; }
+
+    // Keyboard backlight (:white:kbd_backlight LED; same video-group/udev
+    // needs as the display backlight). XF86 events come from tiny-dfr's media
+    // layer; Mod+F5/F6 are the always-available fallbacks.
+    XF86KbdBrightnessUp   allow-when-locked=true { spawn-sh "brightnessctl -d ':white:kbd_backlight' set 10%+"; }
+    XF86KbdBrightnessDown allow-when-locked=true { spawn-sh "brightnessctl -d ':white:kbd_backlight' set 10%-"; }
+    Mod+F6 allow-when-locked=true { spawn-sh "brightnessctl -d ':white:kbd_backlight' set 10%+"; }
+    Mod+F5 allow-when-locked=true { spawn-sh "brightnessctl -d ':white:kbd_backlight' set 10%-"; }
+
+    // --- Notifications ---
+    // Do-not-disturb toggle (lifenote ctl dnd; the waybar DND label mirrors it).
+    Mod+N hotkey-overlay-title="Do not disturb" { spawn-sh "~/.local/bin/dnd-toggle.sh"; }
+
+    // --- Window management ---
+    Mod+O repeat=false { toggle-overview; }
+    Mod+Q repeat=false { close-window; }
+
+    Mod+Left  { focus-column-left; }
+    Mod+Down  { focus-window-down; }
+    Mod+Up    { focus-window-up; }
+    Mod+Right { focus-column-right; }
+    Mod+H     { focus-column-left; }
+    Mod+J     { focus-window-down; }
+    Mod+K     { focus-window-up; }
+    Mod+L     { focus-column-right; }
+
+    Mod+Ctrl+Left  { move-column-left; }
+    Mod+Ctrl+Down  { move-window-down; }
+    Mod+Ctrl+Up    { move-window-up; }
+    Mod+Ctrl+Right { move-column-right; }
+    Mod+Ctrl+H     { move-column-left; }
+    Mod+Ctrl+J     { move-window-down; }
+    Mod+Ctrl+K     { move-window-up; }
+    Mod+Ctrl+L     { move-column-right; }
+
+    Mod+Home      { focus-column-first; }
+    Mod+End       { focus-column-last; }
+    Mod+Ctrl+Home { move-column-to-first; }
+    Mod+Ctrl+End  { move-column-to-last; }
+
+    // Monitor focus (single internal panel now, kept for external displays).
+    Mod+Shift+Left  { focus-monitor-left; }
+    Mod+Shift+Down  { focus-monitor-down; }
+    Mod+Shift+Up    { focus-monitor-up; }
+    Mod+Shift+Right { focus-monitor-right; }
+
+    // --- Workspaces ---
+    Mod+Page_Down { focus-workspace-down; }
+    Mod+Page_Up   { focus-workspace-up; }
+    Mod+U         { focus-workspace-down; }
+    Mod+I         { focus-workspace-up; }
+    Mod+Ctrl+Page_Down { move-column-to-workspace-down; }
+    Mod+Ctrl+Page_Up   { move-column-to-workspace-up; }
+    Mod+Ctrl+U         { move-column-to-workspace-down; }
+    Mod+Ctrl+I         { move-column-to-workspace-up; }
+
+    // Trackpad two-finger scroll switches workspaces with Mod held.
+    Mod+WheelScrollDown      cooldown-ms=150 { focus-workspace-down; }
+    Mod+WheelScrollUp        cooldown-ms=150 { focus-workspace-up; }
+    Mod+Ctrl+WheelScrollDown cooldown-ms=150 { move-column-to-workspace-down; }
+    Mod+Ctrl+WheelScrollUp   cooldown-ms=150 { move-column-to-workspace-up; }
+
+    Mod+1 { focus-workspace 1; }
+    Mod+2 { focus-workspace 2; }
+    Mod+3 { focus-workspace 3; }
+    Mod+4 { focus-workspace 4; }
+    Mod+5 { focus-workspace 5; }
+    Mod+6 { focus-workspace 6; }
+    Mod+7 { focus-workspace 7; }
+    Mod+8 { focus-workspace 8; }
+    Mod+9 { focus-workspace 9; }
+    Mod+Ctrl+1 { move-column-to-workspace 1; }
+    Mod+Ctrl+2 { move-column-to-workspace 2; }
+    Mod+Ctrl+3 { move-column-to-workspace 3; }
+    Mod+Ctrl+4 { move-column-to-workspace 4; }
+    Mod+Ctrl+5 { move-column-to-workspace 5; }
+    Mod+Ctrl+6 { move-column-to-workspace 6; }
+    Mod+Ctrl+7 { move-column-to-workspace 7; }
+    Mod+Ctrl+8 { move-column-to-workspace 8; }
+    Mod+Ctrl+9 { move-column-to-workspace 9; }
+
+    // --- Columns ---
+    Mod+BracketLeft  { consume-or-expel-window-left; }
+    Mod+BracketRight { consume-or-expel-window-right; }
+    Mod+Comma  { consume-window-into-column; }
+    Mod+Period { expel-window-from-column; }
+
+    Mod+R       { switch-preset-column-width; }
+    Mod+Shift+R { switch-preset-column-width-back; }
+    Mod+Ctrl+R  { reset-window-height; }
+
+    Mod+F       { maximize-column; }
+    Mod+Shift+F { fullscreen-window; }
+    Mod+M       { maximize-window-to-edges; }
+    Mod+Ctrl+F  { expand-column-to-available-width; }
+    Mod+C       { center-column; }
+
+    Mod+Minus { set-column-width "-10%"; }
+    Mod+Equal { set-column-width "+10%"; }
+    Mod+Shift+Minus { set-window-height "-10%"; }
+    Mod+Shift+Equal { set-window-height "+10%"; }
+
+    Mod+V       { toggle-window-floating; }
+    Mod+Shift+V { switch-focus-between-floating-and-tiling; }
+    Mod+W       { toggle-column-tabbed-display; }
+
+    // --- Floating snap (float-snap.sh; Windows-style) ---
+    // Smart directional snap: halves -> quarters -> maximized-with-margins.
+    // Pressing back toward the middle steps out, ending in a restore of the
+    // pre-snap geometry; tiled windows auto-float and restore back to tiling.
+    // (Desktop adds numpad direct-zone binds; no numpad on this keyboard.)
+    Mod+Alt+Left  hotkey-overlay-title="Snap float left"  { spawn-sh "~/.local/bin/float-snap.sh left"; }
+    Mod+Alt+Down  hotkey-overlay-title="Snap float down"  { spawn-sh "~/.local/bin/float-snap.sh down"; }
+    Mod+Alt+Up    hotkey-overlay-title="Snap float up"    { spawn-sh "~/.local/bin/float-snap.sh up"; }
+    Mod+Alt+Right hotkey-overlay-title="Snap float right" { spawn-sh "~/.local/bin/float-snap.sh right"; }
+    Mod+Alt+H hotkey-overlay-title=null { spawn-sh "~/.local/bin/float-snap.sh left"; }
+    Mod+Alt+J hotkey-overlay-title=null { spawn-sh "~/.local/bin/float-snap.sh down"; }
+    Mod+Alt+K hotkey-overlay-title=null { spawn-sh "~/.local/bin/float-snap.sh up"; }
+    Mod+Alt+L hotkey-overlay-title=null { spawn-sh "~/.local/bin/float-snap.sh right"; }
+    Mod+Alt+C hotkey-overlay-title="Center float"  { spawn-sh "~/.local/bin/float-snap.sh center"; }
+    Mod+Alt+R hotkey-overlay-title="Un-snap float" { spawn-sh "~/.local/bin/float-snap.sh restore"; }
+
+    // Nudge floats 40px (move-floating-window is IPC-only in niri 26.04,
+    // so these spawn niri msg instead of binding the action directly).
+    Mod+Shift+Ctrl+Left  hotkey-overlay-title="Nudge float left"  { spawn-sh "niri msg action move-floating-window -x -40"; }
+    Mod+Shift+Ctrl+Down  hotkey-overlay-title="Nudge float down"  { spawn-sh "niri msg action move-floating-window -y +40"; }
+    Mod+Shift+Ctrl+Up    hotkey-overlay-title="Nudge float up"    { spawn-sh "niri msg action move-floating-window -y -40"; }
+    Mod+Shift+Ctrl+Right hotkey-overlay-title="Nudge float right" { spawn-sh "niri msg action move-floating-window -x +40"; }
+    Mod+Shift+Ctrl+H hotkey-overlay-title=null { spawn-sh "niri msg action move-floating-window -x -40"; }
+    Mod+Shift+Ctrl+J hotkey-overlay-title=null { spawn-sh "niri msg action move-floating-window -y +40"; }
+    Mod+Shift+Ctrl+K hotkey-overlay-title=null { spawn-sh "niri msg action move-floating-window -y -40"; }
+    Mod+Shift+Ctrl+L hotkey-overlay-title=null { spawn-sh "niri msg action move-floating-window -x +40"; }
+
+    // --- Screenshots ---
+    Print      { screenshot; }
+    Ctrl+Print { screenshot-screen; }
+    Alt+Print  { screenshot-window; }
+    // Screen record toggle (wf-recorder; start/stop announced via lifenote —
+    // desktop parity).
+    Mod+Print hotkey-overlay-title="Record screen" { spawn-sh "~/.local/bin/rec-toggle.sh"; }
+
+    // --- Shortcut inhibiting ---
+    // Escape hatch for shortcut inhibitors (e.g. remote-desktop clients).
+    Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
+
+    // --- Session ---
+    // Power menu (shared script; shows Suspend here since sleep isn't masked).
+    Mod+Shift+E hotkey-overlay-title="Power menu" { spawn-sh "~/.local/bin/power-menu.sh"; }
+    Ctrl+Alt+Delete { quit; }
+    Mod+Shift+P     { power-off-monitors; }
+
+    // Pause/resume the Game of Life wallpaper (zero CPU while paused).
+    Mod+Shift+G hotkey-overlay-title="Pause wallpaper" { spawn-sh "~/.local/bin/lifebg-toggle.sh"; }
+    // Reset it: crossfade into a fresh soup (SIGUSR1; queues if paused).
+    // The pattern must not catch the kitty panel (its cmdline ends in bin/lifebg too).
+    Mod+Ctrl+G hotkey-overlay-title="Reset wallpaper" { spawn-sh "pkill -USR1 -f '^(python[0-9.]* )?[^ ]*bin/lifebg( |$)'"; }
+}

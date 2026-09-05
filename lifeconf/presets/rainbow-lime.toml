@@ -1,0 +1,32 @@
+# Rainbow Lime — zesty yellow-green accent.
+[palette]
+bg      = "#13160d"
+surface = "#1b2013"
+border  = "#3e4f26"
+text    = "#9cc464"
+accent  = "#a1e444"
+warn    = "#e7d374"
+urgent  = "#ca3b2b"
+
+[lifewall]
+mature  = "#6d8748"
+newborn = "#8ac437"
+
+# Derived from the seven palette roles via ansi16::derive_ansi16.
+[ansi]
+color0  = "#2b2d25"
+color8  = "#3e4f26"
+color1  = "#ca3b2b"
+color9  = "#d6665a"
+color2  = "#9cc464"
+color10 = "#a1e444"
+color3  = "#c2cc6c"
+color11 = "#e7d374"
+color4  = "#556a37"
+color12 = "#71a030"
+color5  = "#7b9b4e"
+color13 = "#abcd7b"
+color6  = "#728f48"
+color14 = "#a8d36a"
+color7  = "#9cc464"
+color15 = "#c9dfaa"

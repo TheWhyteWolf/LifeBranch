@@ -1,0 +1,32 @@
+# Rainbow Pink — bright rose-pink accent.
+[palette]
+bg      = "#160d12"
+surface = "#20131a"
+border  = "#4f263b"
+text    = "#c46494"
+accent  = "#e44494"
+warn    = "#e7d374"
+urgent  = "#ca3b2b"
+
+[lifewall]
+mature  = "#874868"
+newborn = "#c4377e"
+
+# Derived from the seven palette roles via ansi16::derive_ansi16.
+[ansi]
+color0  = "#2d252a"
+color8  = "#4f263b"
+color1  = "#ca3b2b"
+color9  = "#d6665a"
+color2  = "#c46494"
+color10 = "#e44494"
+color3  = "#d69c84"
+color11 = "#e7d374"
+color4  = "#6a3751"
+color12 = "#a03068"
+color5  = "#9b4e75"
+color13 = "#cd7ba4"
+color6  = "#8f486c"
+color14 = "#d36a9f"
+color7  = "#c46494"
+color15 = "#dfaac4"

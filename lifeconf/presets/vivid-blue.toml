@@ -1,0 +1,32 @@
+# Vivid Blue — Super Saturated: pure #0000ff accent.
+[palette]
+bg      = "#0a0a15"
+surface = "#0f0f1f"
+border  = "#1f1f51"
+text    = "#5252e0"
+accent  = "#0000ff"
+warn    = "#f9d51f"
+urgent  = "#f44125"
+
+[lifewall]
+mature  = "#36367d"
+newborn = "#1b1bbe"
+
+# Derived from the seven palette roles via ansi16::derive_ansi16.
+[ansi]
+color0  = "#22222c"
+color8  = "#1f1f51"
+color1  = "#f44125"
+color9  = "#f66b55"
+color2  = "#5252e0"
+color10 = "#0000ff"
+color3  = "#a69480"
+color11 = "#f9d51f"
+color4  = "#2d2d76"
+color12 = "#0000b2"
+color5  = "#4040ae"
+color13 = "#6c6ce5"
+color6  = "#3b3ba0"
+color14 = "#4d4deb"
+color7  = "#5252e0"
+color15 = "#a0a0ee"

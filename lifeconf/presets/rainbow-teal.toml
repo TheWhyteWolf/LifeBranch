@@ -1,0 +1,32 @@
+# Rainbow Teal — bright blue-green accent.
+[palette]
+bg      = "#0d1615"
+surface = "#13201e"
+border  = "#264f48"
+text    = "#64c4b4"
+accent  = "#44e4c9"
+warn    = "#e7d374"
+urgent  = "#ca3b2b"
+
+[lifewall]
+mature  = "#48877c"
+newborn = "#37c4ad"
+
+# Derived from the seven palette roles via ansi16::derive_ansi16.
+[ansi]
+color0  = "#252d2c"
+color8  = "#264f48"
+color1  = "#ca3b2b"
+color9  = "#d6665a"
+color2  = "#64c4b4"
+color10 = "#44e4c9"
+color3  = "#a6cc94"
+color11 = "#e7d374"
+color4  = "#376a62"
+color12 = "#30a08d"
+color5  = "#4e9b8e"
+color13 = "#7bcdbf"
+color6  = "#488f83"
+color14 = "#6ad3c1"
+color7  = "#64c4b4"
+color15 = "#aadfd6"

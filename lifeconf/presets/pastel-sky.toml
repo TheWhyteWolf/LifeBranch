@@ -1,0 +1,32 @@
+# Pastel Sky — soft baby-blue accent on a dark ground.
+[palette]
+bg      = "#0f1315"
+surface = "#151b1e"
+border  = "#2e424c"
+text    = "#91b7ca"
+accent  = "#9ccbe2"
+warn    = "#e6d9a8"
+urgent  = "#d37769"
+
+[lifewall]
+mature  = "#6b8fa1"
+newborn = "#7cafc9"
+
+# Derived from the seven palette roles via ansi16::derive_ansi16.
+[ansi]
+color0  = "#272b2c"
+color8  = "#2e424c"
+color1  = "#d37769"
+color9  = "#dd958a"
+color2  = "#91b7ca"
+color10 = "#9ccbe2"
+color3  = "#bcc8b9"
+color11 = "#e6d9a8"
+color4  = "#4d616b"
+color12 = "#6d8e9e"
+color5  = "#6e8e9e"
+color13 = "#a2c2d2"
+color6  = "#648291"
+color14 = "#9fc4d6"
+color7  = "#91b7ca"
+color15 = "#c2d7e2"

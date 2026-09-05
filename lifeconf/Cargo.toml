@@ -1,0 +1,26 @@
+[package]
+name = "lifeconf"
+version = "0.1.0"
+edition = "2021"
+description = "settings/theming front-end for the niri olive rice: one TOML drives waybar/kitty/fuzzel/lifenote/swaylock/lifelock/lifegreet/niri (companion to lifenote/lifelock/lifegreet/lifewall)"
+license = "GPL-3.0-or-later"
+authors = ["Whyte Erminae"]
+
+[dependencies]
+# The theme model is plain data; serde+toml is the whole dependency budget for
+# M1. TUI (ratatui) and GUI (smithay-client-toolkit) land in later milestones.
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+# TUI (M5). ratatui bundles crossterm; we re-export it via ratatui::crossterm
+# so there's a single version to track.
+ratatui = "0.29"
+# GUI (M6): a software-rendered xdg-shell window, same sctk+fontdue stack as
+# lifelock/lifegreet/lifenote (pinned in lockstep with them).
+smithay-client-toolkit = "=0.20.0"
+fontdue = "0.9"
+libc = "0.2"
+
+[profile.release]
+lto = true
+strip = true
+panic = "abort"

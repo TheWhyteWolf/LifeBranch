@@ -1,0 +1,32 @@
+# Paper — an inverted light-mode take on slate.
+[palette]
+bg      = "#eaedf0"
+surface = "#dce0e5"
+border  = "#a9b8c6"
+text    = "#24384c"
+accent  = "#3473b2"
+warn    = "#b68420"
+urgent  = "#ab382b"
+
+[lifewall]
+mature  = "#415972"
+newborn = "#447fbb"
+
+# Derived from the seven palette roles via ansi16::derive_ansi16.
+[ansi]
+color0  = "#eceff2"
+color8  = "#a9b8c6"
+color1  = "#ab382b"
+color9  = "#bd645a"
+color2  = "#24384c"
+color10 = "#3473b2"
+color3  = "#6d5e36"
+color11 = "#b68420"
+color4  = "#8994a0"
+color12 = "#24507d"
+color5  = "#536577"
+color13 = "#455667"
+color6  = "#607283"
+color14 = "#3e5c7a"
+color7  = "#24384c"
+color15 = "#87929d"

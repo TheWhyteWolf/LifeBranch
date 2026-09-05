@@ -1,0 +1,29 @@
+# Local Claude Code settings (machine-specific permissions)
+.claude/settings.local.json
+
+# Rust build artifacts
+lifewall/target/
+lifelock/target/
+lifegreet/target/
+lifenote/target/
+lifeconf/target/
+
+# Zip/archive artifacts
+*.zip
+*.7z
+*.tar
+*.tar.*
+.7z
+
+# lifeconf-generated theme files: build artifacts, materialised per-machine by
+# `lifeconf --apply` (see lifeconf/README.md "Generated files & git")
+/waybar/style.css
+/kitty/olive.conf
+/fuzzel/fuzzel.ini
+/lifenote/config
+/swaylock/config
+
+# Installer backups (detect-trackpad.sh writes the previous config here before
+# rewriting the LIFEBRANCH:BEGIN touchpad region)
+*.pre-touchpad
+*.bak
