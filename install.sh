@@ -30,6 +30,8 @@ bash "$REPO/scripts/ensure-yay.sh"
 # and the whole thing is useless without the compositor.
 # rust is not optional either — lifelock (the screen locker) and lifenote (the
 # notification daemon) are built from source below and are wired into the config.
+# clang comes with it: lifelock's pam-client dependency pulls in bindgen, whose
+# clang-sys build script panics outright when it cannot find libclang.so.
 # kitty is the terminal the whole rice assumes: Mod+T, the Ctrl+Alt+Return
 # recovery bind, the waybar htop clicks, the cheat-sheet window and the
 # `kitten panel` Game of Life wallpaper all need it.
@@ -39,7 +41,7 @@ bash "$REPO/scripts/ensure-yay.sh"
 # (Supreeeme/xwayland-satellite#133), so drags out of Dolphin die at the border.
 # The platform variables that go with them live in
 # environment.d/50-niri-platform.conf, which documents the trade-off.
-PKGS=(niri rust
+PKGS=(niri rust clang
       kitty fuzzel waybar mako swaybg xwayland-satellite wl-clipboard cliphist wev
       adw-gtk-theme wob jq
       swaylock swayidle ttf-sharetech-mono-nerd ttf-cousine-nerd
