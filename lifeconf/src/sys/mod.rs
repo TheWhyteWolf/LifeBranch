@@ -17,6 +17,7 @@ pub mod datetime;
 pub mod desktop;
 pub mod display;
 pub mod kdl;
+pub mod mouse;
 pub mod keyboard;
 pub mod niri_input;
 pub mod nightlight;
@@ -29,7 +30,7 @@ pub mod vpn;
 mod common;
 pub use common::*;
 
-pub const PANELS: &[&str] = &["Display", "Network", "VPN", "Bluetooth", "Sound", "Keyboard", "Touchpad", "Power", "Night light", "Date & Time", "Apps", "Autostart", "About"];
+pub const PANELS: &[&str] = &["Display", "Network", "VPN", "Bluetooth", "Sound", "Keyboard", "Touchpad", "Mouse", "Power", "Night light", "Date & Time", "Apps", "Autostart", "About"];
 
 pub fn is_panel(name: &str) -> bool {
     PANELS.contains(&name)
@@ -44,6 +45,7 @@ pub fn labels(panel: &str) -> &'static [&'static str] {
         "Sound" => sound::LABELS,
         "Keyboard" => keyboard::LABELS,
         "Touchpad" => touchpad::LABELS,
+        "Mouse" => mouse::LABELS,
         "Date & Time" => datetime::LABELS,
         "About" => about::LABELS,
         "Power" => power::LABELS,
@@ -63,6 +65,7 @@ pub fn row_kind(panel: &str, field: usize) -> RowKind {
         "Sound" => sound::kind(field),
         "Keyboard" => keyboard::kind(field),
         "Touchpad" => touchpad::kind(field),
+        "Mouse" => mouse::kind(field),
         "Date & Time" => datetime::kind(field),
         "About" => about::kind(field),
         "Power" => power::kind(field),
@@ -82,6 +85,7 @@ pub fn load(panel: &str, run: Runner) -> Vec<Row> {
         "Sound" => sound::load(run),
         "Keyboard" => keyboard::load(run),
         "Touchpad" => touchpad::load(run),
+        "Mouse" => mouse::load(run),
         "Date & Time" => datetime::load(run),
         "About" => about::load(run),
         "Power" => power::load(run),
@@ -125,6 +129,7 @@ pub fn apply(panel: &str, field: usize, rows: &[Row], ch: Change, run: Runner) -
         "Sound" => sound::apply(field, rows, ch, run),
         "Keyboard" => keyboard::apply(field, rows, ch, run),
         "Touchpad" => touchpad::apply(field, rows, ch, run),
+        "Mouse" => mouse::apply(field, rows, ch, run),
         "Date & Time" => datetime::apply(field, rows, ch, run),
         "About" => about::apply(field, rows, ch, run),
         "Power" => power::apply(field, rows, ch, run),
