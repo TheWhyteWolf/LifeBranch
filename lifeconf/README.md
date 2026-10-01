@@ -107,7 +107,7 @@ finds Sound.
 | **Bluetooth** | `bluetoothctl` | power, pick a device, connect (pairing + trusting new ones first), disconnect, background scan. |
 | **Sound** | `wpctl` | default output/input device, volume, mute (right-click waybar `VOL`). |
 | **Keyboard** | niri config | layout (typed, checked against `localectl`), variant, options, numlock, key repeat. |
-| **Touchpad** | niri config | enabled, tap, natural scroll, disable-while-typing, click/scroll method, accel profile/speed, button map. |
+| **Touchpad** | niri config | enabled, tap, natural scroll up/down and sideways (separately: sideways is set apart by the sign of `scroll-factor horizontal=`, keeping any scroll speed), disable-while-typing, click/scroll method, accel profile/speed, button map. |
 | **Power** | `powerprofilesctl`, `brightnessctl`, `upower` | power profile, brightness (never below 1%), battery state. The lid-close behaviour is shown read-only: it lives in hand-tuned logind drop-ins under `/etc`, which lifeconf deliberately doesn't rewrite. Idle lock/screen-off timeouts are in the Idle category. |
 | **Date & Time** | `timedatectl` | timezone (type `Toronto` or `America/Toronto`), automatic time. Asks polkit. |
 | **Region** | `localectl`, `locale-gen` | system language (LANG) and formats for dates, numbers, money, measurements and paper (the LC_* set, changed together), from the locales generated here; "add a language" generates a new one (validated against glibc's list, run as root through pkexec). Takes effect at the next login. |
