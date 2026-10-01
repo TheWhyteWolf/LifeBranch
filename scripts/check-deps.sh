@@ -35,6 +35,7 @@ MAP=(wpctl:wireplumber
      swayidle:swayidle
      udiskie:udiskie
      udisksctl:udisks2
+     htop:htop
      kitty:kitty)
 
 # Code that runs on the user's machine. Comments count as uses too, which errs
