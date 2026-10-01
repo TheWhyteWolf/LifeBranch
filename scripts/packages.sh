@@ -38,6 +38,7 @@ PKGS=(niri rust clang
       udisks2                               # udisksctl: lifepanel's drives
       htop                                  # the bar's CPU/MEM click
       pacman-contrib                        # checkupdates: Settings > Updates
+      cups avahi                            # Settings > Printers (off until turned on there)
       power-profiles-daemon upower brightnessctl  # Power panel, bright-osd.sh
       libnotify                             # notify-send: the scripts' feedback
       xdg-utils                             # xdg-mime: Default apps panel
