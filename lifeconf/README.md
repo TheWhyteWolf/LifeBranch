@@ -101,6 +101,7 @@ finds Sound.
 | **Touchpad** | niri config | enabled, tap, natural scroll, disable-while-typing, click/scroll method, accel profile/speed, button map. |
 | **Power** | `powerprofilesctl`, `brightnessctl`, `upower` | power profile, brightness (never below 1%), battery state. The lid-close behaviour is shown read-only: it lives in hand-tuned logind drop-ins under `/etc`, which lifeconf deliberately doesn't rewrite. Idle lock/screen-off timeouts are in the Idle category. |
 | **Date & Time** | `timedatectl` | timezone (type `Toronto` or `America/Toronto`), automatic time. Asks polkit. |
+| **Region** | `localectl`, `locale-gen` | system language (LANG) and formats for dates, numbers, money, measurements and paper (the LC_* set, changed together), from the locales generated here; "add a language" generates a new one (validated against glibc's list, run as root through pkexec). Takes effect at the next login. |
 | **Apps** | `xdg-mime` | default browser, file manager, text editor, image/video/audio/pdf/archive handlers, email. Each role switches all its MIME types together. |
 | **Autostart** | XDG autostart | enable/disable login entries. Disabling a system entry writes a `Hidden=true` override in `~/.config/autostart`; nothing under `/etc` is touched. Takes effect at next login. |
 | **About** | — | device, OS, kernel, CPU, memory, uptime, niri and lifeconf versions. |

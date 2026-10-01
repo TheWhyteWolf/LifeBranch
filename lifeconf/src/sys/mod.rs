@@ -22,6 +22,7 @@ pub mod keyboard;
 pub mod niri_input;
 pub mod nightlight;
 pub mod power;
+pub mod region;
 pub mod net;
 pub mod sound;
 pub mod touchpad;
@@ -30,7 +31,7 @@ pub mod vpn;
 mod common;
 pub use common::*;
 
-pub const PANELS: &[&str] = &["Display", "Network", "VPN", "Bluetooth", "Sound", "Keyboard", "Touchpad", "Mouse", "Power", "Night light", "Date & Time", "Apps", "Autostart", "About"];
+pub const PANELS: &[&str] = &["Display", "Network", "VPN", "Bluetooth", "Sound", "Keyboard", "Touchpad", "Mouse", "Power", "Night light", "Date & Time", "Region", "Apps", "Autostart", "About"];
 
 pub fn is_panel(name: &str) -> bool {
     PANELS.contains(&name)
@@ -47,6 +48,7 @@ pub fn labels(panel: &str) -> &'static [&'static str] {
         "Touchpad" => touchpad::LABELS,
         "Mouse" => mouse::LABELS,
         "Date & Time" => datetime::LABELS,
+        "Region" => region::LABELS,
         "About" => about::LABELS,
         "Power" => power::LABELS,
         "Night light" => nightlight::LABELS,
@@ -67,6 +69,7 @@ pub fn row_kind(panel: &str, field: usize) -> RowKind {
         "Touchpad" => touchpad::kind(field),
         "Mouse" => mouse::kind(field),
         "Date & Time" => datetime::kind(field),
+        "Region" => region::kind(field),
         "About" => about::kind(field),
         "Power" => power::kind(field),
         "Night light" => nightlight::kind(field),
@@ -87,6 +90,7 @@ pub fn load(panel: &str, run: Runner) -> Vec<Row> {
         "Touchpad" => touchpad::load(run),
         "Mouse" => mouse::load(run),
         "Date & Time" => datetime::load(run),
+        "Region" => region::load(run),
         "About" => about::load(run),
         "Power" => power::load(run),
         "Night light" => nightlight::load(run),
@@ -131,6 +135,7 @@ pub fn apply(panel: &str, field: usize, rows: &[Row], ch: Change, run: Runner) -
         "Touchpad" => touchpad::apply(field, rows, ch, run),
         "Mouse" => mouse::apply(field, rows, ch, run),
         "Date & Time" => datetime::apply(field, rows, ch, run),
+        "Region" => region::apply(field, rows, ch, run),
         "About" => about::apply(field, rows, ch, run),
         "Power" => power::apply(field, rows, ch, run),
         "Night light" => nightlight::apply(field, rows, ch, run),
