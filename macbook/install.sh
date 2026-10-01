@@ -332,6 +332,9 @@ echo "==> lifepanel quick settings (~/.local/bin/lifepanel)"
 if command -v cargo >/dev/null 2>&1; then
   (cd "$REPO/lifepanel" && cargo build --release)
   ln -sfn "$REPO/lifepanel/target/release/lifepanel" "$HOME/.local/bin/lifepanel"
+  # Their packages also ship XDG autostart entries, which niri's session runs
+  # regardless of its own config: keep those out of niri (Plasma keeps them).
+  bash "$REPO/scripts/hide-autostart.sh" nm-applet blueman
 else
   echo "    WARNING: cargo not found — skipping lifepanel (the tray applets stay)."
 fi
