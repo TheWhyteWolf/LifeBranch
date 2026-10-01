@@ -296,6 +296,16 @@ else
   echo "    WARNING: cargo not found — skipping lifefiles (Mod+E will do nothing)."
 fi
 
+# lifeshot — screenshot + annotation overlay (Shift+Print). Themed by lifeconf
+# via ~/.config/lifeshot/theme; copies through wl-copy (wl-clipboard).
+echo "==> lifeshot screenshot tool (~/.local/bin/lifeshot)"
+if command -v cargo >/dev/null 2>&1; then
+  (cd "$REPO/lifeshot" && cargo build --release)
+  ln -sfn "$REPO/lifeshot/target/release/lifeshot" "$HOME/.local/bin/lifeshot"
+else
+  echo "    WARNING: cargo not found — skipping lifeshot (Shift+Print will do nothing)."
+fi
+
 # lifeconf — the theming/settings front-end (shared build from the repo root).
 # Drives the palette files (gitignored build artifacts — see lifeconf/README.md
 # "Generated files & git") + the niri regions in macbook/niri/config.kdl.
@@ -316,6 +326,7 @@ if command -v cargo >/dev/null 2>&1; then
   done
   # lifefiles' theme lives in ~/.config, not the repo.
   [[ -s "$HOME/.config/lifefiles/theme" ]] || theme_missing=1
+  [[ -s "$HOME/.config/lifeshot/theme" ]] || theme_missing=1
   if [[ ! -f "$HOME/.config/lifeconf/theme.toml" ]]; then
     echo "    seeding ~/.config/lifeconf/theme.toml (olive) and applying"
     "$HOME/.local/bin/lifeconf" --apply
