@@ -51,8 +51,11 @@ pub fn require_pam_service() {
 /// succeeds while the process is small, then later mmaps fail EAGAIN. The
 /// child is tiny but PAM still dlopens modules, and an auth child that can't
 /// authenticate is a session that never unlocks — so below the threshold,
-/// lock only what is already mapped; the per-buffer mlock in SecureBuf is
-/// the real backstop.
+/// lock only what is already mapped. That leaves a gap: this process holds
+/// the password in ordinary heap copies (the request Vec, the CString handed
+/// to PAM), and heap pages mapped after this call are not locked. The UI's
+/// SecureBuf is mlocked, but it lives in the other process. Raising
+/// RLIMIT_MEMLOCK to FULL_LOCK_MIN closes the gap.
 pub fn lock_all_memory() {
     // The auth child stays small: PAM modules + libc, well under 64 MiB.
     const FULL_LOCK_MIN: libc::rlim_t = 64 * 1024 * 1024;
@@ -72,14 +75,14 @@ pub fn lock_all_memory() {
                 libc::mlockall(libc::MCL_CURRENT);
                 eprintln!(
                     "lifelock: warning: RLIMIT_MEMLOCK is {} KiB — not arming MCL_FUTURE \
-                     (password buffer is still mlocked)",
+                     (password copies in the auth child may be swappable)",
                     rl.rlim_cur / 1024
                 );
                 return;
             }
         }
         if libc::mlockall(libc::MCL_CURRENT | libc::MCL_FUTURE) != 0 {
-            eprintln!("lifelock: warning: mlockall failed (password buffer is still mlocked)");
+            eprintln!("lifelock: warning: mlockall failed (password copies in the auth child may be swappable)");
         }
     }
 }
