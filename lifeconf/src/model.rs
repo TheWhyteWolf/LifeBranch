@@ -22,7 +22,7 @@ pub struct Pending {
 pub const CATS: &[&str] = &[
     "Presets", "Palette", "Lifewall", "Notifications", "Lifelock", "Lifegreet", "Idle", "Animations",
     "Cursor", "Font", "Accessibility", "Display", "Network", "VPN", "Bluetooth", "Sound", "Keyboard", "Touchpad", "Mouse", "Power", "Night light", "Date & Time", "Region", "Apps",
-    "Autostart", "Updates", "About",
+    "Autostart", "Updates", "Users", "About",
 ];
 /// Categories past the theme ones are system panels (sys/): they act on the
 /// running system the moment they change, with nothing to Save.
