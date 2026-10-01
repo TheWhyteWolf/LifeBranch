@@ -65,8 +65,9 @@ jobs:
         run: |
           # clang is not optional: lifelock's pam-client pulls in bindgen, whose
           # clang-sys build script needs libclang.so and panics without it.
+          # mesa/libglvnd: lifewall --layer links libEGL (and wayland-egl).
           pacman -Syu --noconfirm --needed \
-            base-devel git niri rust clang pam wayland libxkbcommon pkgconf
+            base-devel git niri rust clang pam wayland libxkbcommon pkgconf mesa libglvnd
 
       - uses: actions/checkout@v4
 

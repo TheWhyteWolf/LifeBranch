@@ -468,8 +468,8 @@ cat <<'EOF'
       reports; the settings live in the LIFEBRANCH:BEGIN touchpad region of
       ~/.config/niri/config.kdl and are ordinary niri options.
     - Game of Life wallpaper starts with niri. Preview in a terminal: `lifebg`
-      Restart it live:  pkill -f '[l]ifebg'; then re-run the kitten panel line
-      from niri/config.kdl. Flags: `lifebg --help` (tick/fps/fade/colours/char).
+      Restart it live:  pkill -f '[l]ifebg'; then re-run the lifebg line from
+      niri/config.kdl (or: lifeconf --apply). Flags: `lifebg --help` (tick/fps/fade/colours/char).
     - Restart kitty windows to pick up the transparency + font + olive palette.
     - Lock: Mod+Alt+Escape (or 10 min idle) -> lifelock, the Game of Life cube;
       the Mod+Shift+Alt+Escape recovery bind force-swaps in swaylock if it
