@@ -42,11 +42,14 @@ fn sanitize_glyphs(s: &str) -> String {
     }
 }
 
-/// The shell command that runs the Game-of-Life wallpaper inside a kitty panel.
-/// Single-quoted args (font_family, colours) are literal to both KDL's double
+/// The shell command that runs the Game-of-Life wallpaper on the background
+/// layer (lifewall --layer: GPU-drawn, no terminal in between). `exec` so the
+/// process IS lifebg, which lifebg-toggle.sh and the reset bind match by name.
+/// Single-quoted args (font family, colours) are literal to both KDL's double
 /// quotes and sh — plain_name and hash() strip anything that could break out
-/// of either, since theme.toml is hand-editable. font_size is a wallpaper-density knob, not the UI font size,
-/// so it stays fixed.
+/// of either, since theme.toml is hand-editable. font-size is a
+/// wallpaper-density knob (points, like kitty's), not the UI font size, so it
+/// stays fixed.
 pub fn lifewall_shell_cmd(t: &Theme) -> String {
     let w = &t.lifewall;
     let bg = hash(&t.palette.bg);
@@ -58,9 +61,8 @@ pub fn lifewall_shell_cmd(t: &Theme) -> String {
     };
     let glyph = sanitize_glyphs(&raw);
     format!(
-        "kitten panel --edge=background --config NONE \
-         -o font_size=8 -o font_family='{family}' -o background='{bg}' \
-         ~/.local/bin/lifebg --tick {tick} --fps {fps} --fade {fade} --density {density} \
+        "exec ~/.local/bin/lifebg --layer --font-family '{family}' --font-size 8 \
+         --tick {tick} --fps {fps} --fade {fade} --density {density} \
          --char '{glyph}' --bg '{bg}' --mature '{mature}' --newborn '{newborn}' \
          --glider-interval {glider_interval}",
         family = plain_name(&t.font.family),

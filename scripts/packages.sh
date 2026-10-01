@@ -25,7 +25,7 @@
 # environment.d/50-niri-platform.conf, which documents the trade-off.
 # shellcheck disable=SC2034  # read by the sourcing installer
 PKGS=(niri rust clang
-      kitty fuzzel waybar mako swaybg xwayland-satellite wl-clipboard cliphist wev
+      kitty fuzzel waybar mako xwayland-satellite wl-clipboard cliphist wev
       adw-gtk-theme wob jq
       swaylock swayidle ttf-sharetech-mono-nerd ttf-cousine-nerd
       xdg-desktop-portal-gnome qt6ct qt6-wayland qt5-wayland

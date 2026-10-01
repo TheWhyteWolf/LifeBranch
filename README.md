@@ -216,15 +216,16 @@ next time you open it.
   lifenote instantly and respawns the wallpaper/idle on commit; the lock/login
   screens (lifelock/lifegreet) can follow the palette or carry their own colours.
 - **Game of Life wallpaper** — [`lifewall/`](lifewall/README.md) (rust,
-  built by install.sh) runs in a `kitten panel --edge=background` on niri's
-  background layer as random printable ASCII: muted olive cells (`#66744c`), newborn
+  built by install.sh) draws itself on niri's background layer, on the GPU
+  (`lifebg --layer`; about a third of the CPU the old kitty panel took), as
+  random printable ASCII: muted olive cells (`#66744c`), newborn
   flashes (`#87a540`), and 30 fps colour interpolation — births fade in,
   deaths dissolve, generations tick every 0.3s. Auto-reseeds (crossfade)
   when the board settles or nearly dies. Flags: `lifebg --help`.
-  Kill/restart: `pkill -f '[l]ifebg'`, then re-run the panel line from
-  `niri/config.kdl`. Without cargo, install.sh falls back to the stdlib
-  Python original (`scripts/life.py`, discrete 3-frame fades).
-  swaybg stays underneath as a solid-colour fallback.
+  Kill/restart: `pkill -f '[l]ifebg'`, then re-run the lifebg line from
+  `niri/config.kdl` (or `lifeconf --apply`). Without cargo, install.sh falls
+  back to the stdlib Python original (`scripts/life.py`, discrete 3-frame
+  fades), which re-runs itself in a kitty panel.
 - **Kitty transparency + olive** — `kitty/rice.conf` sets `background_opacity
   0.93` so the Life board ghosts through terminals, and includes
   `kitty/olive.conf` — the full olive 16-colour palette (`include rice.conf`

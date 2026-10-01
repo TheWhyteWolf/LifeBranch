@@ -138,11 +138,9 @@ overview {
 // login environment — landing on XWayland while the same app started from
 // fuzzel is a Wayland client. Values come from niri's own env, i.e. environment.d.
 spawn-at-startup "dbus-update-activation-environment" "--systemd" "QT_QPA_PLATFORM" "QT_WAYLAND_DISABLE_WINDOWDECORATION" "ELECTRON_OZONE_PLATFORM_HINT"
-// swaybg stays as a solid-colour fallback beneath the Game of Life panel.
-spawn-at-startup "swaybg" "-c" "#121412"
 // Conway's Game of Life wallpaper (shared lifewall build; see install.sh).
 // LIFECONF:BEGIN lifewall
-spawn-sh-at-startup "kitten panel --edge=background --config NONE -o font_size=8 -o font_family='ShureTechMono Nerd Font' -o background='#150a0a' ~/.local/bin/lifebg --tick 0.2 --fps 15 --fade 3 --density 0.41 --char '!#$%&()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~' --bg '#150a0a' --mature '#7d3636' --newborn '#be1b1b' --glider-interval 90"
+spawn-sh-at-startup "exec ~/.local/bin/lifebg --layer --font-family 'ShureTechMono Nerd Font' --font-size 8 --tick 0.2 --fps 15 --fade 3 --density 0.41 --char '!#$%&()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~' --bg '#150a0a' --mature '#7d3636' --newborn '#be1b1b' --glider-interval 90"
 // LIFECONF:END lifewall
 // Idle chain: lock at 10 min, screens off at 15 min. Unlike the desktop, sleep
 // stays available on the laptop — before-sleep locks first (lid close, etc.).

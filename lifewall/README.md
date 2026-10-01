@@ -1,13 +1,15 @@
 # lifewall
 
-Conway's Game of Life as a smooth terminal wallpaper. The simulation ticks at
+Conway's Game of Life as a smooth wallpaper. The simulation ticks at
 a relaxed pace while rendering interpolates every cell's colour at 30 fps:
 births fade in, the newborn flash melts into the mature tone, deaths dissolve
 back into the background. Cells are drawn as random printable ASCII by
 default; `--char` takes a whole string, and each cell picks one glyph from it
 (stable until the cell dies and is reborn).
 
-A single ~400 KB binary; the only dependency is `libc`.
+A single ~1 MB binary. `--layer` draws the board on the Wayland background
+layer itself, on the GPU (EGL + GLES2); without it, the board goes to the
+terminal as escape codes.
 
 ## Build
 
@@ -17,17 +19,37 @@ cargo build --release        # -> target/release/lifewall
 
 ## Run
 
-As a wallpaper it rides inside [kitty](https://sw.kovidgoyal.net/kitty/)'s
-panel kitten on the desktop background layer:
+As the wallpaper, on any compositor with wlr-layer-shell (niri, sway,
+Hyprland, river, …):
 
 ```sh
-kitten panel --edge=background --config NONE -o font_size=8 \
-  -o background='#121412' lifewall
+lifewall --layer --font-family 'ShureTechMono Nerd Font' --font-size 8
 ```
 
-Smaller `font_size` = finer cells. This needs kitty ≥ 0.42 and either a
-Wayland compositor with layer-shell support (niri, sway, Hyprland, river, …)
-or macOS. It also runs in any plain terminal — nice for previewing.
+Smaller `--font-size` = finer cells. One surface per output, each its own
+board; outputs that come and go are followed. Fonts are found through
+fontconfig, with a per-glyph fallback (kana needs a CJK font such as
+noto-fonts-cjk), and are dropped once the glyphs are rasterized.
+
+In any plain terminal it draws there instead, which is handy for previewing.
+It also still runs inside `kitten panel --edge=background`, as it used to.
+
+### Cost
+
+Measured on a 3072x1920 panel at 30 fps, same flags, nothing covering it:
+
+| | wallpaper CPU | niri CPU | anonymous memory |
+|---|---|---|---|
+| inside `kitten panel` | 25% (kitty) + 7% | 10% | 50 MB |
+| `--layer` | 5% | 11% | 14 MB (mostly the GPU driver) |
+
+Per frame the CPU only computes each cell's colour and glyph slot and uploads
+that grid (4 bytes a cell); a shader draws the pixels. Frames follow the
+compositor's frame callbacks, so a covered or powered-off output costs nothing,
+and a frame where no cell changed is not drawn at all. CPU-drawn shm buffers
+were tried first and cost more than kitty: niri holds an attached shm buffer
+until another replaces it, and alternating buffers made it re-upload the whole
+frame every time.
 
 ## Flags
 
@@ -43,12 +65,16 @@ or macOS. It also runs in any plain terminal — nice for previewing.
 --newborn HEX   birth flash colour            (default #87a540)
 --glider-interval SECS  mean seconds between glider clusters;
                         0 disables                   (default 90)
+--layer             draw on the Wayland background layer (GPU)
+--font-family NAME  --layer: fontconfig family  (default ShureTechMono Nerd Font)
+--font-size PT      --layer: cell size in points, like kitty's font_size (default 8)
 ```
 
-Pick `--char` glyphs that render at one terminal column each, or they'll
+In a terminal, pick `--char` glyphs that render at one column each, or they'll
 smear into their neighbor — plain ASCII is safe, as are half-width katakana
 (U+FF66-FF9D, e.g. `ｱｶﾀﾅ`); full-width kana/kanji are double-width in most
-terminal fonts and will misalign the grid.
+terminal fonts and will misalign the grid. `--layer` has no such limit: a
+glyph wider than the cell is scaled down to fit it.
 
 The board is a torus (gliders wrap). Every minute or two (randomized, see
 `--glider-interval`) a small swarm of 1-3 gliders launches from a random edge
