@@ -13,6 +13,8 @@ pub fn apply(t: &Theme, r: &mut Report) {
     };
     let a = set("cursor-theme", &t.cursor.theme);
     let b = set("cursor-size", &t.cursor.size.to_string());
+    // GTK's own text scale follows Accessibility's.
+    let _ = set("text-scaling-factor", &format!("{}", t.accessibility.text_scale as f64 / 100.0));
     if a || b {
         r.notes.push("live: cursor updated (gsettings)".into());
     }

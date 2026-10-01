@@ -51,13 +51,19 @@ lifeconf --help
 ```
 
 Both UIs share one editing model: pick a category (Presets, Palette, Lifewall,
-Notifications, Lifelock, Lifegreet, Idle, Animations, Cursor, Font), edit a field,
+Notifications, Lifelock, Lifegreet, Idle, Animations, Cursor, Font, Accessibility), edit a field,
 and every change **previews live** — waybar/kitty/lifenote re-theme instantly
 as you move. `s` saves + applies (respawning the wallpaper/idle if those
 changed), `q` saves and quits, `Esc` cancels a field edit, `Ctrl+C` quits
 without saving (reverting the live preview). The GUI adds mouse
 click-to-select, a **Save** button (lit while there are unsaved changes), and
 mirrors the TUI 1:1.
+
+**Accessibility** scales the UI text the theme generates (the bar, lifemenu
+and everything that reads its config, lifenote, and GTK apps through
+`text-scaling-factor`; kitty keeps its own Ctrl+Shift+= zoom), and its reduce
+motion turns niri's animations off and slows the wallpaper to 2 fps. Cursor
+size is shown there too and edits the same setting as Cursor > size.
 
 Saving pops a **polkit password prompt** when (and only when) the login screen
 needs root: it installs the staged palette to `/etc/lifegreet/config` and

@@ -15,6 +15,9 @@ pub struct Theme {
     pub palette: Palette,
     pub lifewall: Lifewall,
     pub lifenote: Lifenote,
+    /// #[serde(default)]: older theme.toml files predate it (100%, motion on).
+    #[serde(default)]
+    pub accessibility: Accessibility,
     pub idle: Idle,
     pub animations: Animations,
     pub cursor: Cursor,
@@ -163,6 +166,28 @@ pub struct Idle {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Accessibility {
+    /// Percent applied to the UI text the theme generates: the bar, menus,
+    /// quick settings, OSD, notifications, and GTK apps (text-scaling-factor).
+    pub text_scale: u32,
+    /// niri's window animations off, and the wallpaper slowed to near-still.
+    pub reduce_motion: bool,
+}
+
+impl Default for Accessibility {
+    fn default() -> Self {
+        Accessibility { text_scale: 100, reduce_motion: false }
+    }
+}
+
+impl Accessibility {
+    /// `base` scaled by text_scale, rounded to a quarter.
+    pub fn scaled(&self, base: f64) -> f64 {
+        (base * self.text_scale as f64 / 100.0 * 4.0).round() / 4.0
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Animations {
     pub slowdown: f64,
 }
@@ -221,6 +246,7 @@ impl Default for Theme {
                 max_visible: 5,
                 muted_apps: String::new(),
             },
+            accessibility: Accessibility::default(),
             idle: Idle { lock_minutes: 10, screen_off_minutes: 15, suspend_minutes: 0 },
             animations: Animations { slowdown: 0.6 },
             cursor: Cursor { theme: "phinger-cursors-light".into(), size: 24 },
