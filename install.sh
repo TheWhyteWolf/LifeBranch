@@ -26,36 +26,11 @@ fi
 bash "$REPO/scripts/ensure-yay.sh"
 
 # --- Packages ----------------------------------------------------------------
-# niri itself heads the list: the installer validates a niri config at the end
-# and the whole thing is useless without the compositor.
-# rust is not optional either — lifelock (the screen locker) and lifenote (the
-# notification daemon) are built from source below and are wired into the config.
-# clang comes with it: lifelock's pam-client dependency pulls in bindgen, whose
-# clang-sys build script panics outright when it cannot find libclang.so.
-# kitty is the terminal the whole rice assumes: Mod+T, the Ctrl+Alt+Return
-# recovery bind, the waybar htop clicks, the cheat-sheet window and the
-# `kitten panel` Game of Life wallpaper all need it.
-# qt6-wayland/qt5-wayland are the Qt Wayland platform plugins — the actual fix
-# for drag-and-drop. Without the plugin Qt falls back to XWayland, and
-# xwayland-satellite can't bridge DnD across the X11/Wayland boundary
-# (Supreeeme/xwayland-satellite#133), so drags out of Dolphin die at the border.
-# The platform variables that go with them live in
-# environment.d/50-niri-platform.conf, which documents the trade-off.
-PKGS=(niri rust clang
-      kitty fuzzel waybar mako swaybg xwayland-satellite wl-clipboard cliphist wev
-      adw-gtk-theme wob jq
-      swaylock swayidle ttf-sharetech-mono-nerd ttf-cousine-nerd
-      xdg-desktop-portal-gnome qt6ct qt6-wayland qt5-wayland
-      network-manager-applet blueman
-      polkit-kde-agent udiskie wlsunset wf-recorder playerctl
-      # Everyday applications.
-      nano dolphin libreoffice-fresh element-desktop kleopatra)
-#     libreoffice-fresh is the current release; swap in libreoffice-still on
-#     older/slower hardware — it is the same suite, a version behind.
-
-# AUR. Kept separate so the bulk of the install goes through pacman directly
-# (faster, and a build failure here names itself instead of taking the lot down).
-AUR_PKGS=(phinger-cursors vesktop-bin)
+# The list lives in scripts/packages.sh, shared with the other installer, along
+# with why each package is there.
+# shellcheck source=scripts/packages.sh
+source "$REPO/scripts/packages.sh"
+drop_conflicts
 
 echo "==> Installing packages from the official repos"
 sudo pacman -S --needed "${PKGS[@]}"
@@ -67,6 +42,9 @@ else
   echo "    !! no AUR helper — skipping ${AUR_PKGS[*]}."
   echo "       The cursor theme and vesktop will be missing; install them later with yay."
 fi
+
+echo "==> Enabling the system services the Settings panels use"
+enable_services
 
 # Anything else this particular person wants, while we already have their
 # attention and a working AUR helper.

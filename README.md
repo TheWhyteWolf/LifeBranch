@@ -147,6 +147,8 @@ scripts/detect-trackpad.sh -> ~/.local/bin/detect-trackpad.sh (touchpad capabili
 scripts/setup-locale.sh -> ~/.local/bin/setup-locale.sh (keyboard layout + timezone -> niri config)
 scripts/lite-profile.sh -> ~/.local/bin/lite-profile.sh (turn the expensive parts down)
 scripts/ensure-yay.sh (AUR helper bootstrap; not linked — the installers call it)
+scripts/packages.sh (sourced: the one package list both installers use, plus service setup)
+scripts/check-deps.sh (CI: every command the code calls comes from a listed package)
 scripts/config-region.sh (sourced helper: rewrite fenced LIFEBRANCH regions safely)
 bootstrap.sh         (curl entry point: clone + install)
 lifeconf/            -> ~/.local/bin/lifeconf (rust build; the theming front-end)
