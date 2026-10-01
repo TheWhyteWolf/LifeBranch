@@ -20,7 +20,7 @@ pub struct Pending {
 }
 
 pub const CATS: &[&str] = &[
-    "Presets", "Palette", "Lifewall", "Lifenote", "Lifelock", "Lifegreet", "Idle", "Animations",
+    "Presets", "Palette", "Lifewall", "Notifications", "Lifelock", "Lifegreet", "Idle", "Animations",
     "Cursor", "Font", "Display", "Network", "VPN", "Bluetooth", "Sound", "Keyboard", "Touchpad", "Mouse", "Power", "Night light", "Date & Time", "Apps",
     "Autostart", "About",
 ];
@@ -100,12 +100,15 @@ pub fn field_labels(cat: usize) -> Vec<&'static str> {
             "glider_interval",
             "fps_battery",
         ],
-        "Lifenote" => vec![
+        "Notifications" => vec![
             "border_style",
             "critical_border_style",
             "opacity",
             "position",
             "dismiss_on_click_outside",
+            "popup seconds (0 = until dismissed)",
+            "max popups on screen",
+            "muted apps (comma-separated)",
         ],
         "Lifelock" | "Lifegreet" => SCREEN_FIELDS.to_vec(),
         "Idle" => vec!["lock_minutes", "screen_off_minutes", "suspend_minutes"],
@@ -137,10 +140,12 @@ pub fn kind(cat: usize, field: usize) -> Kind {
         ("Lifewall", 8) => Kind::Float(10.0), // glider_interval
         ("Lifewall", 9) => Kind::Int(1),      // fps_battery: a 5-step overshoots its range
         ("Lifewall", _) => Kind::Hex, // mature, newborn
-        ("Lifenote", 0) | ("Lifenote", 1) => Kind::Enum(STYLES),
-        ("Lifenote", 2) => Kind::Float(0.05),
-        ("Lifenote", 4) => Kind::Bool,
-        ("Lifenote", _) => Kind::Enum(ANCHORS),
+        ("Notifications", 0) | ("Notifications", 1) => Kind::Enum(STYLES),
+        ("Notifications", 2) => Kind::Float(0.05),
+        ("Notifications", 4) => Kind::Bool,
+        ("Notifications", 5) | ("Notifications", 6) => Kind::Int(1),
+        ("Notifications", 7) => Kind::Text,
+        ("Notifications", _) => Kind::Enum(ANCHORS),
         ("Lifelock", 0) | ("Lifegreet", 0) => Kind::Bool, // link
         ("Lifelock", _) | ("Lifegreet", _) => Kind::Hex,
         ("Idle", _) => Kind::Int(1),
@@ -223,11 +228,14 @@ impl Model {
             ("Lifewall", 7) => t.lifewall.newborn.clone(),
             ("Lifewall", 8) => fmtf(t.lifewall.glider_interval),
             ("Lifewall", 9) => t.lifewall.fps_battery.to_string(),
-            ("Lifenote", 0) => t.lifenote.border_style.clone(),
-            ("Lifenote", 1) => t.lifenote.critical_border_style.clone(),
-            ("Lifenote", 2) => fmtf(t.lifenote.opacity),
-            ("Lifenote", 3) => t.lifenote.position.clone(),
-            ("Lifenote", 4) => t.lifenote.dismiss_on_click_outside.to_string(),
+            ("Notifications", 0) => t.lifenote.border_style.clone(),
+            ("Notifications", 1) => t.lifenote.critical_border_style.clone(),
+            ("Notifications", 2) => fmtf(t.lifenote.opacity),
+            ("Notifications", 3) => t.lifenote.position.clone(),
+            ("Notifications", 4) => t.lifenote.dismiss_on_click_outside.to_string(),
+            ("Notifications", 5) => t.lifenote.timeout_seconds.to_string(),
+            ("Notifications", 6) => t.lifenote.max_visible.to_string(),
+            ("Notifications", 7) => t.lifenote.muted_apps.clone(),
             ("Lifelock", 0) => t.lifelock.link.to_string(),
             ("Lifelock", 1) => t.lifelock.mature.clone(),
             ("Lifelock", 2) => t.lifelock.newborn.clone(),
@@ -305,8 +313,23 @@ impl Model {
             ("Lifewall", 3) => {
                 t.lifewall.density = s.parse().unwrap_or(t.lifewall.density).clamp(0.01, 1.0)
             }
-            ("Lifenote", 2) => {
+            ("Notifications", 2) => {
                 t.lifenote.opacity = s.parse().unwrap_or(t.lifenote.opacity).clamp(0.0, 1.0)
+            }
+            ("Notifications", 5) => {
+                t.lifenote.timeout_seconds = s.parse().unwrap_or(t.lifenote.timeout_seconds).min(600)
+            }
+            ("Notifications", 6) => {
+                t.lifenote.max_visible = s.parse().unwrap_or(t.lifenote.max_visible).clamp(1, 20)
+            }
+            // Names as notify-send's -a / the app sends them; tidied to "a, b".
+            ("Notifications", 7) => {
+                t.lifenote.muted_apps = s
+                    .split(',')
+                    .map(|a| a.trim().chars().filter(|c| !c.is_control() && *c != '=').collect::<String>())
+                    .filter(|a| !a.is_empty())
+                    .collect::<Vec<_>>()
+                    .join(", ")
             }
             ("Idle", 0) => t.idle.lock_minutes = s.parse().unwrap_or(t.idle.lock_minutes).max(1),
             ("Idle", 1) => {
@@ -384,7 +407,7 @@ impl Model {
                 return;
             }
             Kind::Bool => match (CATS[self.cat], self.field) {
-                ("Lifenote", 4) => {
+                ("Notifications", 4) => {
                     let n = &mut self.theme.lifenote;
                     n.dismiss_on_click_outside = !n.dismiss_on_click_outside;
                 }
@@ -402,9 +425,9 @@ impl Model {
 
     fn set_enum(&mut self, v: &str) {
         match (CATS[self.cat], self.field) {
-            ("Lifenote", 0) => self.theme.lifenote.border_style = v.into(),
-            ("Lifenote", 1) => self.theme.lifenote.critical_border_style = v.into(),
-            ("Lifenote", 3) => self.theme.lifenote.position = v.into(),
+            ("Notifications", 0) => self.theme.lifenote.border_style = v.into(),
+            ("Notifications", 1) => self.theme.lifenote.critical_border_style = v.into(),
+            ("Notifications", 3) => self.theme.lifenote.position = v.into(),
             ("Lifewall", 4) => self.theme.lifewall.glyph_mode = v.into(),
             _ => {}
         }
@@ -637,11 +660,11 @@ mod tests {
         m.search = Some("volume".into()); // a field label inside Sound
         let hits: Vec<_> = m.visible_cats().into_iter().map(name).collect();
         assert_eq!(hits, ["Sound"]);
-        m.search = Some("LIFEN".into()); // case-insensitive category name
+        m.search = Some("NOTIF".into()); // case-insensitive category name
         let hits: Vec<_> = m.visible_cats().into_iter().map(name).collect();
-        assert_eq!(hits, ["Lifenote"]);
+        assert_eq!(hits, ["Notifications"]);
         m.search = Some("click_outside".into()); // field label with an underscore
-        assert!(m.visible_cats().into_iter().map(name).any(|n| n == "Lifenote"));
+        assert!(m.visible_cats().into_iter().map(name).any(|n| n == "Notifications"));
         m.search = Some("zzzz".into());
         assert!(m.visible_cats().is_empty());
     }
