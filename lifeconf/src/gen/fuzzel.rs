@@ -39,7 +39,7 @@ pub fn render(t: &Theme) -> String {
          [border]\n\
          width=1\n\
          radius=0\n",
-        family = t.font.family,
+        family = crate::theme::plain_name(&t.font.family),
         bg = c(&p.bg, "f2"),
         text = c(&p.text, "ff"),
         accent = c(&p.accent, "ff"),

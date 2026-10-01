@@ -14,6 +14,7 @@ mod live;
 mod model;
 mod paths;
 mod presets;
+mod sys;
 mod theme;
 mod tui;
 
@@ -27,6 +28,7 @@ const USAGE: &str = "lifeconf — settings/theming for the niri olive rice\n\n\
     lifeconf --preset NAME   switch palette preset (olive|slate|moss), save + apply\n\
     lifeconf --print         print the resolved theme.toml to stdout\n\
     lifeconf --gui           open the GUI explicitly\n\
+    lifeconf --panel NAME    open straight onto a panel (e.g. sound, palette)\n\
     lifeconf --apply-greeter install the staged greeter palette to /etc/lifegreet\n\
     \x20                       (pkexec, else sudo) — the login screen needs root\n\
     lifeconf --help          this text\n\n\
@@ -45,6 +47,8 @@ fn main() {
 
     // Optional preset switch, applied before everything else.
     let preset = arg_value(&args, "--preset");
+    // Open straight onto one category/panel, e.g. `--gui --panel sound`.
+    let panel = arg_value(&args, "--panel");
 
     // Debug-only: render one GUI frame to a PPM offline (no Wayland) — the
     // privacy-safe visual test for the paint path.
@@ -56,7 +60,7 @@ fn main() {
 
     if args.iter().any(|a| a == "--gui") {
         let theme = load_or_seed(&paths);
-        std::process::exit(gui::run(paths, theme));
+        std::process::exit(gui::run(paths, theme, panel.as_deref()));
     }
 
     if args.iter().any(|a| a == "--print") {
@@ -88,9 +92,9 @@ fn main() {
     // No actionable flag: open the interactive UI — TUI in a terminal, else GUI.
     let theme = load_or_seed(&paths);
     if std::io::stdin().is_terminal() {
-        std::process::exit(tui::run(paths, theme));
+        std::process::exit(tui::run(paths, theme, panel.as_deref()));
     }
-    std::process::exit(gui::run(paths, theme));
+    std::process::exit(gui::run(paths, theme, panel.as_deref()));
 }
 
 fn arg_value(args: &[String], flag: &str) -> Option<String> {

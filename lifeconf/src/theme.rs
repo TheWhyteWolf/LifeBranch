@@ -115,6 +115,9 @@ pub struct Lifenote {
     pub critical_border_style: String,
     pub opacity: f64,
     pub position: String,
+    /// A click anywhere outside the popups closes them all.
+    #[serde(default)]
+    pub dismiss_on_click_outside: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -171,6 +174,7 @@ impl Default for Theme {
                 critical_border_style: "double".into(),
                 opacity: 0.85,
                 position: "top-right".into(),
+                dismiss_on_click_outside: false,
             },
             idle: Idle { lock_minutes: 10, screen_off_minutes: 15 },
             animations: Animations { slowdown: 0.6 },
@@ -232,11 +236,29 @@ impl Theme {
 
 // --- hex helpers -------------------------------------------------------------
 
-/// "#rrggbb" or "rrggbb" -> "rrggbb" (lowercase, no hash). Falls back to the
-/// input trimmed of '#' if it isn't a clean 6-hex string, so a malformed value
-/// degrades visibly rather than silently.
+/// "#rrggbb" or "rrggbb" -> "rrggbb" (lowercase, no hash). Anything that is
+/// not a hex digit is dropped, so a malformed value degrades visibly (a short
+/// or empty colour the consumer rejects) but can never carry a quote or shell
+/// metacharacter into the generated configs and spawn commands.
 pub fn bare(hex: &str) -> String {
-    hex.trim().trim_start_matches('#').to_ascii_lowercase()
+    hex.trim()
+        .trim_start_matches('#')
+        .chars()
+        .filter(char::is_ascii_hexdigit)
+        .collect::<String>()
+        .to_ascii_lowercase()
+}
+
+/// A free-text name (font family, cursor theme) made safe to drop into the
+/// quoted strings of the generated configs: niri's KDL, CSS, and the
+/// single-quoted shell args of the lifewall spawn line. Quotes, backslashes
+/// and control characters are removed; real names never contain them.
+pub fn plain_name(s: &str) -> String {
+    s.chars()
+        .filter(|c| !c.is_control() && !matches!(c, '\'' | '"' | '\\'))
+        .collect::<String>()
+        .trim()
+        .to_string()
 }
 
 /// "rrggbb" or "#rrggbb" -> "#rrggbb".
@@ -252,4 +274,23 @@ pub fn rgb(hex: &str) -> Option<(u8, u8, u8)> {
     }
     let v = u32::from_str_radix(&s, 16).ok()?;
     Some(((v >> 16) as u8, (v >> 8) as u8, v as u8))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bare_keeps_only_hex_digits() {
+        assert_eq!(bare("#66744C"), "66744c");
+        assert_eq!(bare(" 121412 "), "121412");
+        assert_eq!(bare("12'; rm -rf ~ #"), "12f");
+        assert_eq!(hash("\"x\""), "#");
+    }
+
+    #[test]
+    fn plain_name_strips_quotes_and_controls() {
+        assert_eq!(plain_name("ShureTechMono Nerd Font"), "ShureTechMono Nerd Font");
+        assert_eq!(plain_name(" it's\"a\\b\nc "), "itsabc");
+    }
 }

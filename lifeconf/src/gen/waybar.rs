@@ -3,7 +3,7 @@
 // vars in a header block; every rule references them, so a re-theme only
 // rewrites the header values. The tray-recolor rule appears only when enabled.
 
-use crate::theme::{hash, Theme};
+use crate::theme::{hash, plain_name, Theme};
 
 pub fn render(t: &Theme) -> String {
     let p = &t.palette;
@@ -31,7 +31,7 @@ pub fn render(t: &Theme) -> String {
          \x20 border: none;\n\
          \x20 border-radius: 0;\n\
          }}\n\n",
-        t.font.family, t.font.size
+        plain_name(&t.font.family), t.font.size
     ));
 
     s.push_str(
