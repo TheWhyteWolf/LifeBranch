@@ -68,14 +68,15 @@ pub fn lifewall_shell_cmd(t: &Theme) -> String {
         family = plain_name(&t.font.family),
         bg = bg,
         tick = numf(w.tick),
-        fps = w.fps,
+        // Reduce motion: the board still lives, but barely moves.
+        fps = if t.accessibility.reduce_motion { w.fps.min(2) } else { w.fps },
         fade = numf(w.fade),
         density = numf(w.density),
         glyph = glyph,
         mature = hash(&w.mature),
         glider_interval = numf(w.glider_interval),
         newborn = hash(&w.newborn),
-        fps_battery = w.fps_battery,
+        fps_battery = if t.accessibility.reduce_motion { w.fps_battery.min(2) } else { w.fps_battery },
     )
 }
 
