@@ -108,7 +108,7 @@ pub fn field_labels(cat: usize) -> Vec<&'static str> {
             "dismiss_on_click_outside",
         ],
         "Lifelock" | "Lifegreet" => SCREEN_FIELDS.to_vec(),
-        "Idle" => vec!["lock_minutes", "screen_off_minutes"],
+        "Idle" => vec!["lock_minutes", "screen_off_minutes", "suspend_minutes"],
         "Animations" => vec!["slowdown"],
         "Cursor" => vec!["theme", "size"],
         "Font" => vec!["family", "size"],
@@ -242,6 +242,7 @@ impl Model {
             ("Lifegreet", 5) => t.lifegreet.text.clone(),
             ("Idle", 0) => t.idle.lock_minutes.to_string(),
             ("Idle", 1) => t.idle.screen_off_minutes.to_string(),
+            ("Idle", 2) => t.idle.suspend_minutes.to_string(),
             ("Animations", 0) => fmtf(t.animations.slowdown),
             ("Cursor", 0) => t.cursor.theme.clone(),
             ("Cursor", 1) => t.cursor.size.to_string(),
@@ -311,6 +312,8 @@ impl Model {
             ("Idle", 1) => {
                 t.idle.screen_off_minutes = s.parse().unwrap_or(t.idle.screen_off_minutes).max(1)
             }
+            // 0 means "never suspend" and is a real setting, so no .max(1) here.
+            ("Idle", 2) => t.idle.suspend_minutes = s.parse().unwrap_or(t.idle.suspend_minutes),
             ("Animations", 0) => {
                 t.animations.slowdown = s.parse().unwrap_or(t.animations.slowdown).clamp(0.0, 5.0)
             }

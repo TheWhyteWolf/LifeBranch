@@ -15,6 +15,12 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# EASY/CONFIRM/ask_yn. Easy mode still refuses to install an unverified PAM
+# stack below: that answer is "no" by default, and a login screen nobody can
+# get past is not something to default your way into.
+# shellcheck source=scripts/prompt.sh
+source "$REPO/scripts/prompt.sh"
+
 # id -un, not $USER: $USER is unset under `env -i` (fatal under `set -u`), and
 # it is `root` when the script is run with sudo — where the PAM verification
 # below would test root's password-locked account and fail a good stack.
@@ -30,9 +36,9 @@ bash "$REPO/scripts/ensure-yay.sh"
 
 echo "==> Installing greetd + tuigreet (fallback) + cage + rice font + pamtester"
 if command -v yay >/dev/null 2>&1; then
-  yay -S --needed greetd greetd-tuigreet cage ttf-sharetech-mono-nerd pamtester
+  yay -S --needed "${CONFIRM[@]}" greetd greetd-tuigreet cage ttf-sharetech-mono-nerd pamtester
 else
-  sudo pacman -S --needed greetd greetd-tuigreet cage ttf-sharetech-mono-nerd
+  sudo pacman -S --needed "${CONFIRM[@]}" greetd greetd-tuigreet cage ttf-sharetech-mono-nerd
   echo "    (no yay — pamtester skipped; the PAM stack cannot be verified)"
 fi
 
@@ -91,12 +97,7 @@ else
   echo "    !! pamtester is not installed, so the stack CANNOT be verified."
   echo "       A broken stack here means no graphical login. Keep a way back in"
   echo "       open first: a TTY (Ctrl+Alt+F3) or SSH from another machine."
-  if [[ -t 0 ]]; then
-    read -rp "    Install the UNVERIFIED PAM stack anyway? [y/N] " a
-    [[ ${a:-N} =~ ^[Yy]$ ]] && install_pam=1
-  else
-    echo "       Non-interactive run: skipping. Re-run from a terminal to confirm."
-  fi
+  ask_yn "Install the UNVERIFIED PAM stack anyway?" n && install_pam=1
   (( install_pam )) || echo "    skipped — /etc/pam.d/greetd left exactly as it was."
 fi
 

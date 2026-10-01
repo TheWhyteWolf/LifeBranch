@@ -1,7 +1,7 @@
 # lifewall
 
 Conway's Game of Life as a smooth wallpaper. The simulation ticks at
-a relaxed pace while rendering interpolates every cell's colour at 30 fps:
+a relaxed pace while rendering interpolates every cell's colour at 15 fps:
 births fade in, the newborn flash melts into the mature tone, deaths dissolve
 back into the background. Cells are drawn as random printable ASCII by
 default; `--char` takes a whole string, and each cell picks one glyph from it
@@ -55,7 +55,9 @@ frame every time.
 
 ```
 --tick SECS     seconds per generation        (default 0.3)
---fps N         render frames per second      (default 30)
+--fps N         render frames per second      (default 15)
+--fps-battery N frames per second while running on battery; 0 uses
+                --fps on battery too         (default 8)
 --fade GENS     fade length in generations    (default 3)
 --density F     seed fill fraction 0..1       (default 0.14)
 --char S        glyph(s) for live cells; 2+ chars picks randomly
@@ -91,3 +93,35 @@ Rust binaries are per-OS and per-architecture: build once per target
 and hand that file out, or just share this directory — anyone with rust runs
 `cargo build --release`. For a maximally portable Linux binary build against
 musl: `cargo build --release --target x86_64-unknown-linux-musl`.
+
+## Frame rate
+
+Frame rate is the knob that matters, in both modes. In a terminal it is nearly
+all of the cost: the renderer only emits cells whose quantized colour changed,
+but the terminal still has to parse and redraw them, and that costs several
+times what the simulation does. On a 2019 MacBook Pro the old kitty-panel
+wallpaper measured ~13% of a core, about two thirds of it in kitty. `--layer`
+is far cheaper per frame (see Cost above), but its frames still scale with fps.
+
+Terminal output, measured on a 256x76 panel with the board settled:
+
+| settings | output |
+|---|---|
+| `--fps 30 --tick 0.3` | ~1.0 MB/s |
+| `--fps 15 --tick 0.2` | ~640 KB/s |
+| `--fps 10 --tick 0.2` | ~350 KB/s |
+| `--fps 10 --tick 0.5` | ~240 KB/s |
+
+`--density` is not on that list on purpose: changing it from 0.41 to 0.14 moved
+the steady-state figure by under half a percent. Life converges on a similar
+population whatever soup it was seeded from, so density only really shows in
+the first seconds after a reseed. Turn down fps, not density.
+
+There is also a ceiling on useful fps: `blend()` quantizes each fade to 16
+steps over `fade * tick` seconds, so past roughly `16 / (fade * tick)` fps most
+cells produce a frame identical to the previous one and get diffed away — 30
+fps at the default tick was paying about double for that.
+
+`--fps-battery` is why lifewall reads `/sys/class/power_supply` itself: no
+upower, no D-Bus, no helper daemon, just two small sysfs reads a minute. A
+machine with no charger in sysfs is a desktop and never throttles.

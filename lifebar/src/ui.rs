@@ -511,7 +511,11 @@ impl Ui {
             }
             Act::NetSettings => spawn(&[&local("lifeconf"), "--gui", "--panel", "network"]),
             Act::SoundSettings => spawn(&[&local("lifeconf"), "--gui", "--panel", "sound"]),
-            Act::Top => spawn(&["kitty", "-e", "htop"]),
+            // sysmon.sh focuses the htop window if one is open, else opens it.
+            Act::Top => {
+                let s = local("sysmon.sh");
+                if std::path::Path::new(&s).is_file() { spawn(&[&s]) } else { spawn(&["kitty", "-e", "htop"]) }
+            }
             Act::Mute => self.then_refresh(&["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"]),
             Act::Volume(d) => self.then_refresh(&[&local("vol-osd.sh"), if *d > 0 { "up" } else { "down" }]),
             Act::Brightness(d) => self.then_refresh(&[&local("bright-osd.sh"), if *d > 0 { "up" } else { "down" }]),

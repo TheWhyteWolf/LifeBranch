@@ -17,6 +17,11 @@
 # Idempotent: exits immediately if yay is already on PATH.
 set -euo pipefail
 
+# EASY/CONFIRM/ask_yn: the installers export LIFEBRANCH_EASY, so an easy-mode
+# run does not stop here to ask about the yay handover either.
+# shellcheck source=scripts/prompt.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/prompt.sh"
+
 # Only used if the GitHub API cannot be reached (rate limit, no DNS yet).
 YAY_PINNED_VERSION=13.0.1
 
@@ -94,24 +99,20 @@ echo "    installed $(/usr/local/bin/yay --version | head -1)"
 # installed above never gets updates and would shadow a later /usr/bin/yay.
 # Installing the AUR package with itself fixes both; if it fails, the curl'd
 # binary is still there and working, so this is never fatal.
-if [[ -t 0 ]]; then
-  read -rp "==> Let pacman manage yay from now on (build yay-bin from the AUR)? [Y/n] " a
-  if [[ ${a:-Y} =~ ^[Yy]?$ ]]; then
-    if /usr/local/bin/yay -S --needed --removemake yay-bin && [[ -x /usr/bin/yay ]]; then
-      sudo rm -f /usr/local/bin/yay /usr/local/share/man/man8/yay.8 \
-                 /usr/local/share/bash-completion/completions/yay \
-                 /usr/local/share/zsh/site-functions/_yay \
-                 /usr/local/share/fish/vendor_completions.d/yay.fish
-      echo "    pacman owns yay now (/usr/bin/yay); removed the bootstrap copy."
-    else
-      echo "    AUR build did not complete — keeping the downloaded /usr/local/bin/yay."
-      echo "    (Re-try later with: yay -S yay-bin)"
-    fi
+echo "==> Handing yay over to pacman"
+if ask_yn "Let pacman manage yay from now on (build yay-bin from the AUR)?" y; then
+  if /usr/local/bin/yay -S --needed --removemake "${CONFIRM[@]}" yay-bin \
+     && [[ -x /usr/bin/yay ]]; then
+    sudo rm -f /usr/local/bin/yay /usr/local/share/man/man8/yay.8 \
+               /usr/local/share/bash-completion/completions/yay \
+               /usr/local/share/zsh/site-functions/_yay \
+               /usr/local/share/fish/vendor_completions.d/yay.fish
+    echo "    pacman owns yay now (/usr/bin/yay); removed the bootstrap copy."
   else
-    echo "    keeping /usr/local/bin/yay. It will NOT receive updates —"
-    echo "    run 'yay -S yay-bin' whenever you want pacman to take it over."
+    echo "    AUR build did not complete — keeping the downloaded /usr/local/bin/yay."
+    echo "    (Re-try later with: yay -S yay-bin)"
   fi
 else
-  echo "    non-interactive: keeping /usr/local/bin/yay (unmanaged)."
-  echo "    Run 'yay -S yay-bin' later to hand it to pacman."
+  echo "    keeping /usr/local/bin/yay. It will NOT receive updates —"
+  echo "    run 'yay -S yay-bin' whenever you want pacman to take it over."
 fi

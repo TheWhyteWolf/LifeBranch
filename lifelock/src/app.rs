@@ -54,6 +54,22 @@ use zeroize::Zeroize;
 /// while running purely on the watchdog.
 const FRAME_WATCHDOG: Duration = Duration::from_millis(250);
 
+/// The watchdog's ceiling once it is clear nobody is going to answer.
+///
+/// A lost callback and a monitor that has been powered off look identical from
+/// here — in both cases the callbacks simply stop — and the idle chain powers
+/// the monitors off five minutes after locking. At a flat 250 ms that left the
+/// locker doing four full-screen software repaints a second, forever, on a
+/// machine whose screen is dark: on a 3072x1920 output that is a ~24 MB buffer
+/// shaded and handed to the compositor 4x a second all night.
+///
+/// So the interval doubles on each unanswered repaint up to this cap, and
+/// resets the moment anything suggests someone is actually there: a real frame
+/// callback (the screen came back) or a keypress (they are typing a password).
+/// The BenQ case is unchanged for a user who is present, because touching the
+/// keyboard snaps the watchdog straight back to 250 ms.
+const FRAME_WATCHDOG_MAX: Duration = Duration::from_secs(4);
+
 struct LockOutput {
     output: wl_output::WlOutput,
     surface: SessionLockSurface,
@@ -64,7 +80,23 @@ struct LockOutput {
     frame_pending: bool,
     frame_pending_since: Option<Instant>,
     watchdog_tripped: bool,
+    /// Current watchdog wait, doubling from FRAME_WATCHDOG towards
+    /// FRAME_WATCHDOG_MAX for as long as repaints go unanswered.
+    watchdog_wait: Duration,
     configured: bool,
+}
+
+/// The wait after another unanswered repaint: double it, but never past the cap.
+fn watchdog_backoff(wait: Duration) -> Duration {
+    (wait * 2).min(FRAME_WATCHDOG_MAX)
+}
+
+impl LockOutput {
+    /// Something proved the output is alive and being watched: go back to
+    /// answering at full speed.
+    fn reset_watchdog(&mut self) {
+        self.watchdog_wait = FRAME_WATCHDOG;
+    }
 }
 
 pub struct App {
@@ -183,6 +215,7 @@ pub fn run(cfg: Cfg, auth: AuthProc) -> i32 {
             frame_pending: false,
             frame_pending_since: None,
             watchdog_tripped: false,
+            watchdog_wait: FRAME_WATCHDOG,
             configured: false,
         });
     }
@@ -221,7 +254,7 @@ pub fn run(cfg: Cfg, auth: AuthProc) -> i32 {
     app.loop_handle
         .insert_source(Timer::from_duration(frame), move |_, _, app: &mut App| {
             app.tick();
-            TimeoutAction::ToDuration(frame)
+            TimeoutAction::ToDuration(app.next_tick_delay(frame))
         })
         .expect("insert frame timer");
 
@@ -299,9 +332,9 @@ impl App {
             }
             if self.outputs[i].frame_pending {
                 // Frame-callback watchdog: see FRAME_WATCHDOG.
-                let stuck = self.outputs[i]
-                    .frame_pending_since
-                    .is_some_and(|since| since.elapsed() >= FRAME_WATCHDOG);
+                let wait = self.outputs[i].watchdog_wait;
+                let stuck =
+                    self.outputs[i].frame_pending_since.is_some_and(|since| since.elapsed() >= wait);
                 if !stuck {
                     continue;
                 }
@@ -309,6 +342,11 @@ impl App {
                     self.outputs[i].watchdog_tripped = true;
                     eprintln!("lifelock: frame callback lost on output {i} (DPMS/hotplug?) — repainting");
                 }
+                // Still nobody answering: wait twice as long before the next
+                // unanswered repaint, up to the cap. A powered-off monitor
+                // settles at FRAME_WATCHDOG_MAX instead of burning a
+                // full-screen render four times a second all night.
+                self.outputs[i].watchdog_wait = watchdog_backoff(wait);
                 self.outputs[i].frame_pending = false;
             }
             self.paint(i);
@@ -387,9 +425,43 @@ impl App {
         }
     }
 
+    /// How long until the next animation tick.
+    ///
+    /// Normally the frame interval. But while EVERY configured output is
+    /// sitting on an unanswered frame callback, there is no screen to animate
+    /// for, and ticking `fps` times a second only to `continue` out of the
+    /// loop keeps the CPU out of its deeper idle states for nothing. In that
+    /// state the timer stretches to whatever the soonest watchdog actually
+    /// needs — so a locked laptop with its monitors powered off goes from 30
+    /// wakeups a second to one every few seconds. Any live output, and it is
+    /// back to the frame interval immediately.
+    fn next_tick_delay(&self, frame: Duration) -> Duration {
+        let mut soonest: Option<Duration> = None;
+        for o in self.outputs.iter().filter(|o| o.configured) {
+            if !(o.frame_pending && o.watchdog_tripped) {
+                return frame; // something is still answering — animate normally
+            }
+            // Time left on this output's watchdog, not the whole interval:
+            // waiting the full amount again would double the latency of the
+            // repaint the watchdog is there to make.
+            let waited = o.frame_pending_since.map_or(Duration::ZERO, |s| s.elapsed());
+            let due = o.watchdog_wait.saturating_sub(waited);
+            soonest = Some(soonest.map_or(due, |s: Duration| s.min(due)));
+        }
+        soonest.unwrap_or(frame).max(frame)
+    }
+
     // ----- keyboard --------------------------------------------------------
 
     fn on_key(&mut self, event: KeyEvent) {
+        // Somebody is at the keyboard, so the screen is on (niri wakes the
+        // monitors on input) and the UI has to be responsive again right now:
+        // drop any watchdog backoff built up while it was dark. This is what
+        // keeps the lost-callback case — the reason the watchdog exists —
+        // fully responsive for a user who is actually present.
+        for o in &mut self.outputs {
+            o.reset_watchdog();
+        }
         if self.exit {
             return;
         }
@@ -637,6 +709,9 @@ impl CompositorHandler for App {
                 o.watchdog_tripped = false;
                 eprintln!("lifelock: frame callbacks resumed");
             }
+            // The compositor is answering again, so any backoff built up while
+            // it was not is stale.
+            o.reset_watchdog();
             o.frame_pending = false;
             o.frame_pending_since = None;
         }
@@ -673,6 +748,7 @@ impl OutputHandler for App {
                     frame_pending: false,
                     frame_pending_since: None,
                     watchdog_tripped: false,
+                    watchdog_wait: FRAME_WATCHDOG,
                     configured: false,
                 });
             }
@@ -775,3 +851,35 @@ smithay_client_toolkit::delegate_keyboard!(App);
 smithay_client_toolkit::delegate_shm!(App);
 smithay_client_toolkit::delegate_session_lock!(App);
 smithay_client_toolkit::delegate_registry!(App);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The watchdog must keep answering promptly at first (a genuinely lost
+    /// callback with someone watching) and then get out of the way (a monitor
+    /// that has been powered off for the night).
+    #[test]
+    fn watchdog_backs_off_by_doubling_and_stops_at_the_cap() {
+        let mut w = FRAME_WATCHDOG;
+        assert_eq!(w, Duration::from_millis(250));
+        w = watchdog_backoff(w);
+        assert_eq!(w, Duration::from_millis(500));
+        w = watchdog_backoff(w);
+        assert_eq!(w, Duration::from_secs(1));
+
+        // Whatever it climbed to, it settles at the cap and stays there.
+        for _ in 0..10 {
+            w = watchdog_backoff(w);
+        }
+        assert_eq!(w, FRAME_WATCHDOG_MAX);
+        assert_eq!(watchdog_backoff(w), FRAME_WATCHDOG_MAX);
+    }
+
+    /// At the cap, a dark screen costs a quarter of a repaint per second
+    /// instead of the four per second a flat 250 ms interval was doing.
+    #[test]
+    fn cap_is_a_large_multiple_of_the_base_interval() {
+        assert!(FRAME_WATCHDOG_MAX >= FRAME_WATCHDOG * 8);
+    }
+}
