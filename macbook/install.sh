@@ -60,7 +60,13 @@ sudo pacman -S --needed "${CONFIRM[@]}" "${PKGS[@]}"
 
 echo "==> Installing AUR packages: ${AUR_PKGS[*]}"
 if command -v yay >/dev/null 2>&1; then
-  yay -S --needed "${CONFIRM[@]}" "${AUR_PKGS[@]}"
+  clear_orphan_debug
+  # Not fatal: a cursor theme or a chat app that will not build is no reason
+  # to abandon the rest of the desktop. Retry later with yay -S <name>.
+  if ! yay -S --needed "${CONFIRM[@]}" "${AUR_PKGS[@]}"; then
+    echo "    !! AUR install failed (see above); carrying on without: ${AUR_PKGS[*]}"
+    echo "       retry later with: yay -S ${AUR_PKGS[*]}"
+  fi
 else
   echo "    !! no AUR helper — skipping ${AUR_PKGS[*]}."
 fi
