@@ -58,8 +58,8 @@ fi
 source "$REPO/scripts/prompt.sh"
 pick_mode
 
-# An AUR helper, bootstrapped by curl if it is missing (phinger-cursors and
-# vesktop-bin are AUR-only). No-op when yay is already installed.
+# An AUR helper, bootstrapped by curl if it is missing (the cursor theme,
+# phinger-cursors, is AUR-only). No-op when yay is already installed.
 bash "$REPO/scripts/ensure-yay.sh"
 
 # --- Packages ----------------------------------------------------------------
@@ -83,7 +83,7 @@ if command -v yay >/dev/null 2>&1; then
   fi
 else
   echo "    !! no AUR helper — skipping ${AUR_PKGS[*]}."
-  echo "       The cursor theme and vesktop will be missing; install them later with yay."
+  echo "       The cursor theme will be missing; install it later with yay."
 fi
 
 echo "==> Enabling the system services the Settings panels use"
@@ -110,6 +110,10 @@ if interactive; then
       echo "    skipping '$p' — that is not a package name."
     fi
   done
+  # Same conflict checks as the main list: a rival you already have is kept.
+  WANTED=("${wanted[@]}")
+  (( ${#WANTED[@]} )) && filter_wanted
+  wanted=("${WANTED[@]}")
   if (( ${#wanted[@]} )); then
     echo "    installing: ${wanted[*]}"
     # Never fatal: a typo in this list must not abort the whole install.
