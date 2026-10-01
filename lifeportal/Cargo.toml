@@ -1,0 +1,19 @@
+[package]
+name = "lifeportal"
+version = "0.1.0"
+edition = "2021"
+description = "xdg-desktop-portal FileChooser backend for LifeBranch: apps' Open/Save dialogs are lifefiles"
+license = "GPL-3.0-or-later"
+authors = ["Whyte Erminae"]
+
+[dependencies]
+# The portal backend interface is D-Bus (the exception lifenote, lifeauth and
+# lifebar make too). Blocking API; each dialog runs off zbus's executor.
+zbus = "5"
+blocking = "1"
+libc = "0.2"
+
+[profile.release]
+lto = true
+strip = true
+panic = "abort"
