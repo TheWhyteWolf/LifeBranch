@@ -26,12 +26,13 @@ pub mod region;
 pub mod net;
 pub mod sound;
 pub mod touchpad;
+pub mod updates;
 pub mod vpn;
 
 mod common;
 pub use common::*;
 
-pub const PANELS: &[&str] = &["Display", "Network", "VPN", "Bluetooth", "Sound", "Keyboard", "Touchpad", "Mouse", "Power", "Night light", "Date & Time", "Region", "Apps", "Autostart", "About"];
+pub const PANELS: &[&str] = &["Display", "Network", "VPN", "Bluetooth", "Sound", "Keyboard", "Touchpad", "Mouse", "Power", "Night light", "Date & Time", "Region", "Apps", "Autostart", "Updates", "About"];
 
 pub fn is_panel(name: &str) -> bool {
     PANELS.contains(&name)
@@ -54,6 +55,7 @@ pub fn labels(panel: &str) -> &'static [&'static str] {
         "Night light" => nightlight::LABELS,
         "Apps" => apps::LABELS,
         "Autostart" => autostart::LABELS,
+        "Updates" => updates::LABELS,
         _ => &[],
     }
 }
@@ -75,6 +77,7 @@ pub fn row_kind(panel: &str, field: usize) -> RowKind {
         "Night light" => nightlight::kind(field),
         "Apps" => apps::kind(field),
         "Autostart" => autostart::kind(field),
+        "Updates" => updates::kind(field),
         _ => RowKind::Info,
     }
 }
@@ -96,6 +99,7 @@ pub fn load(panel: &str, run: Runner) -> Vec<Row> {
         "Night light" => nightlight::load(run),
         "Apps" => apps::load(run),
         "Autostart" => autostart::load(run),
+        "Updates" => updates::load(run),
         _ => Vec::new(),
     }
 }
@@ -141,6 +145,7 @@ pub fn apply(panel: &str, field: usize, rows: &[Row], ch: Change, run: Runner) -
         "Night light" => nightlight::apply(field, rows, ch, run),
         "Apps" => apps::apply(field, rows, ch, run),
         "Autostart" => autostart::apply(field, rows, ch, run),
+        "Updates" => updates::apply(field, rows, ch, run),
         _ => Err("read-only".into()),
     }
 }
