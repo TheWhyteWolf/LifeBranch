@@ -1,0 +1,18 @@
+[package]
+name = "lifemenu"
+version = "0.1.0"
+edition = "2021"
+description = "Application launcher and dmenu for LifeBranch: fuzzel-compatible flags, pure text"
+license = "GPL-3.0-or-later"
+authors = ["Whyte Erminae"]
+
+[dependencies]
+# Pinned in lockstep with ../lifelock, ../lifenote, ../lifegreet and ../lifewall.
+smithay-client-toolkit = "=0.20.0"
+libc = "0.2"
+lifefont = { path = "../lifefont" }  # lazy glyphs; see lifefont/Cargo.toml
+
+[profile.release]
+lto = true
+strip = true
+panic = "abort"
