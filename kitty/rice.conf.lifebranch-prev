@@ -3,7 +3,7 @@
 # Compositing a translucent terminal over an animated background is one of the
 # few genuinely expensive things here, so the lite profile sets this to 1.0.
 # LIFEBRANCH:BEGIN opacity
-background_opacity 1.0
+background_opacity 0.93
 # LIFEBRANCH:END opacity
 
 # Live re-theming: lifeconf pushes new colours to running terminals via
