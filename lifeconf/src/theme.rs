@@ -126,6 +126,24 @@ pub struct Lifenote {
     /// A click anywhere outside the popups closes them all.
     #[serde(default)]
     pub dismiss_on_click_outside: bool,
+    /// Seconds a normal popup stays; 0 keeps it until dismissed. Critical
+    /// ones always stay. Older theme.toml files get lifenote's 3.
+    #[serde(default = "default_note_timeout")]
+    pub timeout_seconds: u32,
+    #[serde(default = "default_max_visible")]
+    pub max_visible: u32,
+    /// Comma-separated app names whose (non-critical) notifications go
+    /// straight to history, as under do-not-disturb.
+    #[serde(default)]
+    pub muted_apps: String,
+}
+
+fn default_note_timeout() -> u32 {
+    3
+}
+
+fn default_max_visible() -> u32 {
+    5
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -199,6 +217,9 @@ impl Default for Theme {
                 opacity: 0.85,
                 position: "top-right".into(),
                 dismiss_on_click_outside: false,
+                timeout_seconds: 3,
+                max_visible: 5,
+                muted_apps: String::new(),
             },
             idle: Idle { lock_minutes: 10, screen_off_minutes: 15, suspend_minutes: 0 },
             animations: Animations { slowdown: 0.6 },

@@ -63,6 +63,9 @@ pub struct Cfg {
     pub layer: LayerChoice,
     /// Dismiss every popup when the pointer clicks anywhere outside them.
     pub dismiss_on_click_outside: bool,
+    /// App names (lowercase) whose notifications skip the screen and go
+    /// straight to history, as under do-not-disturb. Critical ones still show.
+    pub muted_apps: Vec<String>,
 }
 
 impl Default for Cfg {
@@ -88,6 +91,7 @@ impl Default for Cfg {
             margin: 8,
             layer: LayerChoice::Top,
             dismiss_on_click_outside: false,
+            muted_apps: Vec::new(),
         }
     }
 }
@@ -138,7 +142,7 @@ fn parse_anchor(s: &str) -> Option<AnchorCorner> {
 impl Cfg {
     /// Apply one `key=value`. Returns false for an unknown key; a bad value
     /// for a known key keeps the previous setting (lifelock convention).
-    fn set(&mut self, key: &str, val: &str) -> bool {
+    pub(crate) fn set(&mut self, key: &str, val: &str) -> bool {
         let hex = |cur: Rgb| parse_hex(val).unwrap_or(cur);
         match key {
             "border-style" => self.border_style = parse_style(val).unwrap_or(self.border_style),
@@ -164,6 +168,10 @@ impl Cfg {
             }
             "max-width" => self.max_width = val.parse().unwrap_or(self.max_width),
             "max-visible" => self.max_visible = val.parse().unwrap_or(self.max_visible),
+            // Comma-separated; matched case-insensitively against the app name.
+            "mute-apps" => {
+                self.muted_apps = val.split(',').map(|a| a.trim().to_lowercase()).filter(|a| !a.is_empty()).collect()
+            }
             "max-lines" => self.max_lines = val.parse().unwrap_or(self.max_lines),
             "anchor" => self.anchor = parse_anchor(val).unwrap_or(self.anchor),
             "margin" => self.margin = val.parse().unwrap_or(self.margin),
