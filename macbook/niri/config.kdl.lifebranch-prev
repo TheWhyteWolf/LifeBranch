@@ -78,9 +78,9 @@ layout {
     // LIFECONF:BEGIN niri-border
     border {
         width 2
-        active-color "#00ff00"
-        inactive-color "#1f511f"
-        urgent-color "#f44125"
+        active-color "#ff0000"
+        inactive-color "#511f1f"
+        urgent-color "#f47b25"
     }
     // LIFECONF:END niri-border
 
@@ -91,16 +91,16 @@ layout {
     // LIFECONF:BEGIN niri-tab-indicator
     tab-indicator {
         hide-when-single-tab
-        active-color "#00ff00"
-        inactive-color "#1f511f"
-        urgent-color "#f44125"
+        active-color "#ff0000"
+        inactive-color "#511f1f"
+        urgent-color "#f47b25"
     }
     // LIFECONF:END niri-tab-indicator
 
     // Drop-target hint while moving windows: translucent accent, not default blue.
     // LIFECONF:BEGIN niri-insert-hint
     insert-hint {
-        color "#00ff0080"
+        color "#ff000080"
     }
     // LIFECONF:END niri-insert-hint
 
@@ -146,7 +146,7 @@ overview {
 spawn-at-startup "dbus-update-activation-environment" "--systemd" "QT_QPA_PLATFORM" "QT_WAYLAND_DISABLE_WINDOWDECORATION" "ELECTRON_OZONE_PLATFORM_HINT"
 // Conway's Game of Life wallpaper (shared lifewall build; see install.sh).
 // LIFECONF:BEGIN lifewall
-spawn-sh-at-startup "exec ~/.local/bin/lifebg --layer --font-family 'ShureTechMono Nerd Font' --font-size 8 --tick 0.5 --fps 10 --fade 2 --density 0.12 --char 'BUMFACEbumface' --bg '#0a150a' --mature '#367d36' --newborn '#1bbe1b' --glider-interval 90 --fps-battery 4"
+spawn-sh-at-startup "exec ~/.local/bin/lifebg --layer --font-family 'ShureTechMono Nerd Font' --font-size 8 --tick 0.2 --fps 15 --fade 3 --density 0.41 --char '!#$%&()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~' --bg '#150a0a' --mature '#7d3636' --newborn '#be1b1b' --glider-interval 90 --fps-battery 8"
 // LIFECONF:END lifewall
 // Idle chain: lock at 10 min, screens off at 15 min. Unlike the desktop, sleep
 // stays available on the laptop — before-sleep locks first (lid close, etc.).
@@ -155,7 +155,7 @@ spawn-sh-at-startup "exec ~/.local/bin/lifebg --layer --font-family 'ShureTechMo
 // systemd-cat: niri /dev/null's spawned processes' stderr, so without the
 // wrapper lifelock's diagnostics never reach the journal.
 // LIFECONF:BEGIN idle-timeouts
-spawn-at-startup "swayidle" "-w" "timeout" "600" "systemd-cat -t lifelock ~/.local/bin/lifelock -f" "timeout" "900" "niri msg action power-off-monitors; ~/.local/bin/lifebg-toggle.sh dpms-pause" "resume" "~/.local/bin/lifebg-toggle.sh dpms-resume" "timeout" "1800" "~/.local/bin/idle-suspend.sh" "lock" "systemd-cat -t lifelock ~/.local/bin/lifelock -f" "before-sleep" "systemd-cat -t lifelock ~/.local/bin/lifelock -f"
+spawn-at-startup "swayidle" "-w" "timeout" "600" "systemd-cat -t lifelock ~/.local/bin/lifelock -f" "timeout" "900" "niri msg action power-off-monitors; ~/.local/bin/lifebg-toggle.sh dpms-pause" "resume" "~/.local/bin/lifebg-toggle.sh dpms-resume" "lock" "systemd-cat -t lifelock ~/.local/bin/lifelock -f" "before-sleep" "systemd-cat -t lifelock ~/.local/bin/lifelock -f"
 // LIFECONF:END idle-timeouts
 // The bar is NOT spawned here — it runs as a supervised systemd user unit:
 // lifebar.service, or waybar.service until lifebar is built (both
@@ -175,8 +175,8 @@ spawn-sh-at-startup "[ -x ~/.local/bin/lifepanel ] || exec nm-applet --indicator
 spawn-sh-at-startup "[ -x ~/.local/bin/lifepanel ] || exec blueman-applet"
 // LIFEBRANCH:BEGIN nightlight
 // Night light: warms the gamma after sunset (wlr-gamma-control).
-// Coordinates come from your timezone via tzdata; -l is latitude, -L longitude.
-spawn-at-startup "wlsunset" "-l" "54.1500" "-L" "-4.4667"
+// Coordinates are London — adjust -l/-L for elsewhere.
+spawn-at-startup "wlsunset" "-l" "51.5" "-L" "-0.1"
 // LIFEBRANCH:END nightlight
 // Automount removable media through udisks2, with a lifenote popup for
 // each: lifepanel --watch (journalctl -t lifepanel), else udiskie.
@@ -211,7 +211,7 @@ screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
 // LIFECONF:BEGIN animations
 animations {
     // Crisper, less floaty (1.0 = niri default speed; lower = faster).
-    slowdown 0.35
+    slowdown 0.6
 }
 // LIFECONF:END animations
 
