@@ -180,6 +180,7 @@ scripts/detect-trackpad.sh -> ~/.local/bin/detect-trackpad.sh (touchpad capabili
 scripts/setup-locale.sh -> ~/.local/bin/setup-locale.sh (keyboard layout + timezone -> niri config)
 scripts/lite-profile.sh -> ~/.local/bin/lite-profile.sh (turn the expensive parts down)
 scripts/idle-suspend.sh -> ~/.local/bin/idle-suspend.sh (idle suspend, battery only)
+scripts/hide-autostart.sh (installer helper: keeps nm-applet/blueman's XDG autostart out of niri, not Plasma)
 scripts/ensure-yay.sh (AUR helper bootstrap; not linked — the installers call it)
 scripts/packages.sh (sourced: the one package list both installers use, plus service setup)
 scripts/check-deps.sh (CI: every command the code calls comes from a listed package)
