@@ -63,13 +63,16 @@ AUR_PKGS=(phinger-cursors vesktop-bin)
 # chose pulseaudio or tlp keeps it; the panel that needs the skipped package
 # says so itself.
 CONFLICTS=(pipewire-pulse:pulseaudio
+           # A source-built vesktop is the same app; keep it.
+           vesktop-bin:vesktop
            power-profiles-daemon:tlp
            power-profiles-daemon:auto-cpufreq
            power-profiles-daemon:tuned-ppd)
 
-# drop_conflicts: remove from PKGS anything whose rival is already installed.
+# drop_conflicts: remove from PKGS and AUR_PKGS anything whose rival is
+# already installed.
 drop_conflicts() {
-  local pair want rival keep=() p skip
+  local pair want rival keep=() keep_aur=() p
   local -A drop=()
   for pair in "${CONFLICTS[@]}"; do
     want=${pair%%:*} rival=${pair#*:}
@@ -78,15 +81,37 @@ drop_conflicts() {
       echo "    keeping your $rival, so skipping $want (they conflict)"
     fi
   done
-  for p in "${PKGS[@]}"; do
-    skip=${drop[$p]:-}
-    [[ -n $skip ]] || keep+=("$p")
-  done
+  for p in "${PKGS[@]}"; do [[ -n ${drop[$p]:-} ]] || keep+=("$p"); done
+  for p in "${AUR_PKGS[@]}"; do [[ -n ${drop[$p]:-} ]] || keep_aur+=("$p"); done
   PKGS=("${keep[@]}")
+  AUR_PKGS=("${keep_aur[@]}")
 }
 
-# enable_services: the system daemons the panels talk to. Installing a package
-# does not start its service on Arch.
+# clear_orphan_debug: with `debug` in makepkg.conf's OPTIONS (Arch's default
+# since 2024), every AUR build also installs a NAME-debug package, and removing
+# NAME later leaves NAME-debug behind. Installing a -bin build of the same app
+# then fails, because its own -debug package wants the same files:
+#   vesktop-bin-debug: /usr/lib/debug/.build-id/... exists in filesystem (owned by vesktop-debug)
+# Offer to remove such leftovers: BASE-debug installed, BASE not, nothing needs it.
+clear_orphan_debug() {
+  local p base dbg orphans=()
+  for p in "${AUR_PKGS[@]}"; do
+    base=${p%-bin}
+    dbg="$base-debug"
+    [[ $dbg == "$p-debug" && $base == "$p" ]] && continue   # not a -bin package
+    pacman -Qq "$dbg" >/dev/null 2>&1 || continue
+    pacman -Qq "$base" >/dev/null 2>&1 && continue          # its package is still here
+    [[ -z $(pacman -Qi "$dbg" | sed -n 's/^Required By *: //p' | grep -v '^None$') ]] || continue
+    orphans+=("$dbg")
+  done
+  (( ${#orphans[@]} )) || return 0
+  echo "    leftover debug package(s) from a removed build: ${orphans[*]}"
+  echo "    they own files the new builds' debug packages need, so yay would fail."
+  if ask_yn "Remove ${orphans[*]}?" y; then
+    sudo pacman -Rns "${CONFIRM[@]}" "${orphans[@]}" || true
+  fi
+}
+
 enable_services() {
   local other
   # NetworkManager only when nothing else already manages the network: two
