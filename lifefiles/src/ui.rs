@@ -249,6 +249,7 @@ fn draw_status(f: &mut Frame, app: &App, c: &Colors, r: Rect) {
                 crate::app::InputKind::Path => "go to",
                 crate::app::InputKind::Filter => "filter",
                 crate::app::InputKind::NewDir => "new folder",
+                crate::app::InputKind::SaveAs => "save as",
             };
             let text: String = i.buf.iter().collect();
             Line::from(vec![
@@ -258,6 +259,10 @@ fn draw_status(f: &mut Frame, app: &App, c: &Colors, r: Rect) {
         }
         Mode::Confirm(p) => Line::from(Span::styled(
             format!(" delete {} item(s) PERMANENTLY? y/n", p.len()),
+            Style::default().fg(c.warn).add_modifier(Modifier::BOLD),
+        )),
+        Mode::Overwrite(p) => Line::from(Span::styled(
+            format!(" {} exists. Replace it? y/n", p.file_name().map(|n| n.to_string_lossy()).unwrap_or_default()),
             Style::default().fg(c.warn).add_modifier(Modifier::BOLD),
         )),
         _ => {
@@ -279,7 +284,22 @@ fn draw_status(f: &mut Frame, app: &App, c: &Colors, r: Rect) {
                 }
                 s
             };
-            let hint = "F2 rename  Del trash  Ctrl+L path  / filter  q quit ";
+            let hint = match &app.pick {
+                None => "F2 rename  Del trash  Ctrl+L path  / filter  q quit ".to_string(),
+                Some(p) => {
+                    let what = if p.directory {
+                        "Ctrl+S choose this folder"
+                    } else if p.save.is_some() {
+                        "Ctrl+S save here"
+                    } else if p.multiple {
+                        "Enter choose  Space mark  Ctrl+S choose marked"
+                    } else {
+                        "Enter choose"
+                    };
+                    let title = if p.title.is_empty() { String::new() } else { format!("{}: ", p.title) };
+                    format!("{title}{what}  Esc cancel ")
+                }
+            };
             let gap = w.saturating_sub(left.chars().count() + hint.len());
             let right = if gap > 0 { format!("{}{hint}", " ".repeat(gap)) } else { String::new() };
             let st = if app.msg.is_empty() { Style::default().fg(c.text) } else { Style::default().fg(c.warn) };
@@ -299,6 +319,7 @@ fn draw_overlay(f: &mut Frame, app: &mut App, c: &Colors, area: Rect) {
                 crate::app::InputKind::Path => "go to",
                 crate::app::InputKind::Filter => "filter",
                 crate::app::InputKind::NewDir => "new folder",
+                crate::app::InputKind::SaveAs => "save as",
             };
             let x = (label.len() + 3 + i.cur) as u16;
             f.set_cursor_position((x.min(area.width - 1), area.height - 1));

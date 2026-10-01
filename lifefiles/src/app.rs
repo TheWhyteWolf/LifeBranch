@@ -34,6 +34,20 @@ pub enum InputKind {
     Path,
     Filter,
     NewDir,
+    /// --pick --save: the file name to save as.
+    SaveAs,
+}
+
+/// `--pick`: lifefiles as a file chooser (lifeportal runs it for apps'
+/// Open and Save dialogs). Browsing is unchanged; Enter, double-click and
+/// Ctrl+S choose, Esc or q cancels.
+#[derive(Clone, Debug, Default)]
+pub struct Pick {
+    pub multiple: bool,
+    pub directory: bool,
+    /// Save mode, with the suggested file name.
+    pub save: Option<String>,
+    pub title: String,
 }
 
 pub struct Input {
@@ -65,6 +79,8 @@ pub enum Mode {
     Input(Input),
     /// Permanent delete awaiting y/n.
     Confirm(Vec<PathBuf>),
+    /// --pick --save onto an existing file, awaiting y/n.
+    Overwrite(PathBuf),
     Menu(Menu),
 }
 
@@ -110,6 +126,9 @@ pub struct App {
     pub hits: Hits,
     pub drag: Option<Drag>,
     pub quit: bool,
+    pub pick: Option<Pick>,
+    /// What --pick chose; None when it was cancelled.
+    pub picked: Option<Vec<PathBuf>>,
     back: Vec<PathBuf>,
     fwd: Vec<PathBuf>,
     gen: u64,
@@ -171,6 +190,8 @@ impl App {
             hits: Hits::default(),
             drag: None,
             quit: false,
+            pick: None,
+            picked: None,
             back: Vec::new(),
             fwd: Vec::new(),
             gen: 0,
@@ -338,6 +359,16 @@ impl App {
     fn open(&mut self, e: &Entry) {
         if e.is_dir {
             self.go(&e.path, None);
+        } else if let Some(p) = self.pick.clone() {
+            // Picking: "opening" a file chooses it.
+            if p.directory {
+                self.msg = "choosing a folder: Ctrl+S takes this one".into();
+            } else if p.save.is_some() {
+                self.start_input(InputKind::SaveAs, e.name.clone());
+            } else {
+                let marked: Vec<PathBuf> = self.marks.iter().filter(|m| !m.is_dir()).cloned().collect();
+                self.choose(if p.multiple && !marked.is_empty() { marked } else { vec![e.path.clone()] });
+            }
         } else {
             match std::process::Command::new("xdg-open")
                 .arg(&e.path)
@@ -355,6 +386,31 @@ impl App {
                     self.msg = format!("opened {}", e.name);
                 }
                 Err(err) => self.msg = format!("xdg-open: {err}"),
+            }
+        }
+    }
+
+    fn choose(&mut self, paths: Vec<PathBuf>) {
+        self.picked = Some(paths);
+        self.quit = true;
+    }
+
+    /// Ctrl+S while picking: this folder, the marked files, or "save as".
+    fn pick_confirm(&mut self) {
+        let Some(p) = self.pick.clone() else { return };
+        if p.directory {
+            self.choose(vec![self.cwd.clone()]);
+        } else if let Some(name) = p.save {
+            let suggest = self.current().filter(|e| !e.is_dir).map(|e| e.name.clone()).unwrap_or(name);
+            self.start_input(InputKind::SaveAs, suggest);
+        } else {
+            let marked: Vec<PathBuf> = self.marks.iter().filter(|m| !m.is_dir()).cloned().collect();
+            if p.multiple && !marked.is_empty() {
+                self.choose(marked);
+            } else if let Some(e) = self.current().filter(|e| !e.is_dir).cloned() {
+                self.choose(vec![e.path]);
+            } else {
+                self.msg = "pick a file (Enter on it)".into();
             }
         }
     }
@@ -506,6 +562,21 @@ impl App {
                     self.go(par, Some(name.to_string_lossy().into_owned()));
                 }
             }
+            InputKind::SaveAs => {
+                if text.is_empty() || text.contains('/') || text == "." || text == ".." {
+                    self.msg = "invalid file name".into();
+                    self.start_input(InputKind::SaveAs, text);
+                } else {
+                    let dest = self.cwd.join(&text);
+                    if dest.is_dir() {
+                        self.go(&dest, None);
+                    } else if std::fs::symlink_metadata(&dest).is_ok() {
+                        self.mode = Mode::Overwrite(dest);
+                    } else {
+                        self.choose(vec![dest]);
+                    }
+                }
+            }
             InputKind::NewDir => {
                 if text.is_empty() || text.contains('/') {
                     self.msg = "invalid folder name".into();
@@ -574,6 +645,10 @@ impl App {
                 KeyCode::Char('y') => self.delete_forever(p),
                 _ => self.msg = "cancelled".into(),
             },
+            Mode::Overwrite(p) => match k.code {
+                KeyCode::Char('y') => self.choose(vec![p]),
+                _ => self.msg = "not saved".into(),
+            },
             Mode::Menu(m) => self.key_menu(k, m),
         }
     }
@@ -641,6 +716,17 @@ impl App {
         let alt = k.modifiers.contains(KeyModifiers::ALT);
         let shift = k.modifiers.contains(KeyModifiers::SHIFT);
         let page = self.hits.height.max(2) as isize - 1;
+        if self.pick.is_some() {
+            match k.code {
+                KeyCode::Char('s') if ctrl => return self.pick_confirm(),
+                // Nothing marked or filtered to clear: Esc cancels the dialog.
+                KeyCode::Esc if self.marks.is_empty() && self.filter.is_empty() => {
+                    self.quit = true;
+                    return;
+                }
+                _ => {}
+            }
+        }
         match k.code {
             KeyCode::Char('q') | KeyCode::Char('Q') => self.quit = true,
             KeyCode::Up | KeyCode::Char('k') if !ctrl => self.move_sel(-1),
@@ -994,6 +1080,89 @@ mod tests {
         assert_eq!(ok, 0);
         assert!(err.is_some());
         assert!(sub.exists());
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    fn ctrl(c: char) -> KeyEvent {
+        KeyEvent::new(KeyCode::Char(c), KeyModifiers::CONTROL)
+    }
+
+    fn picker(tag: &str, pick: Pick) -> (PathBuf, App) {
+        let d = tree(tag);
+        let mut app = App::new(d.clone());
+        app.pick = Some(pick);
+        settle(&mut app);
+        (d.canonicalize().unwrap(), app)
+    }
+
+    #[test]
+    fn pick_open_chooses_the_file_under_the_cursor() {
+        let (d, mut app) = picker("pick-open", Pick::default());
+        app.on_key(key(KeyCode::Down)); // past "sub" to a.txt
+        app.on_key(key(KeyCode::Enter));
+        assert!(app.quit);
+        assert_eq!(app.picked, Some(vec![d.join("a.txt")]));
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn pick_multiple_takes_the_marked_files_and_dirs_still_navigate() {
+        let (d, mut app) = picker("pick-multi", Pick { multiple: true, ..Pick::default() });
+        std::fs::write(d.join("b.txt"), "").unwrap();
+        app.reload();
+        settle(&mut app);
+        app.on_key(key(KeyCode::Down));
+        app.on_key(key(KeyCode::Char(' '))); // mark a.txt, cursor to b.txt
+        app.on_key(key(KeyCode::Char(' '))); // mark b.txt
+        app.on_key(ctrl('s'));
+        let mut got = app.picked.clone().unwrap();
+        got.sort();
+        assert_eq!(got, [d.join("a.txt"), d.join("b.txt")]);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn pick_directory_enters_folders_and_ctrl_s_takes_the_current_one() {
+        let (d, mut app) = picker("pick-dir", Pick { directory: true, ..Pick::default() });
+        app.on_key(key(KeyCode::Enter)); // into sub
+        settle(&mut app);
+        assert!(!app.quit);
+        app.on_key(ctrl('s'));
+        assert_eq!(app.picked, Some(vec![d.join("sub")]));
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn pick_save_asks_the_name_and_confirms_an_overwrite() {
+        let (d, mut app) = picker("pick-save", Pick { save: Some("new.txt".into()), ..Pick::default() });
+        app.on_key(ctrl('s'));
+        assert!(matches!(app.mode, Mode::Input(Input { kind: InputKind::SaveAs, .. })));
+        app.on_key(key(KeyCode::Enter));
+        assert_eq!(app.picked, Some(vec![d.join("new.txt")]));
+
+        let (d2, mut app) = picker("pick-save2", Pick { save: Some("x".into()), ..Pick::default() });
+        app.on_key(key(KeyCode::Down));
+        app.on_key(key(KeyCode::Enter)); // Enter on a.txt: save as a.txt
+        app.on_key(key(KeyCode::Enter));
+        assert!(matches!(app.mode, Mode::Overwrite(_)), "a.txt exists");
+        app.on_key(key(KeyCode::Char('n')));
+        assert!(app.picked.is_none() && !app.quit);
+        app.on_key(key(KeyCode::Enter));
+        app.on_key(key(KeyCode::Enter));
+        app.on_key(key(KeyCode::Char('y')));
+        assert_eq!(app.picked, Some(vec![d2.join("a.txt")]));
+        let _ = std::fs::remove_dir_all(&d);
+        let _ = std::fs::remove_dir_all(&d2);
+    }
+
+    #[test]
+    fn pick_escape_cancels_once_nothing_is_left_to_clear() {
+        let (d, mut app) = picker("pick-esc", Pick::default());
+        app.on_key(key(KeyCode::Char(' ')));
+        app.on_key(key(KeyCode::Esc));
+        assert!(!app.quit, "the first Esc clears the marks");
+        app.on_key(key(KeyCode::Esc));
+        assert!(app.quit && app.picked.is_none());
         let _ = std::fs::remove_dir_all(&d);
     }
 }
