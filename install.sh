@@ -380,6 +380,16 @@ else
   echo "    WARNING: cargo not found — skipping lifepanel (the tray applets stay)."
 fi
 
+# lifeosd — the volume/brightness OSD (a labelled text bar), replacing wob,
+# which niri still starts when this isn't built.
+echo "==> lifeosd volume/brightness OSD (~/.local/bin/lifeosd)"
+if command -v cargo >/dev/null 2>&1; then
+  (cd "$REPO/lifeosd" && cargo build --release)
+  ln -sfn "$REPO/lifeosd/target/release/lifeosd" "$HOME/.local/bin/lifeosd"
+else
+  echo "    WARNING: cargo not found — skipping lifeosd (wob stays the OSD)."
+fi
+
 # lifefiles — mouse-driven terminal file browser (Mod+E). Themed by lifeconf via
 # ~/.config/lifefiles/theme, and registered as the folder handler.
 echo "==> lifefiles file browser (~/.local/bin/lifefiles)"
@@ -509,7 +519,7 @@ cat <<'EOF'
     - Lock: Mod+Alt+Escape (or 10 min idle) -> lifelock, the Game of Life cube;
       the Mod+Shift+Alt+Escape recovery bind force-swaps in swaylock if it
       ever wedges. Power menu: Mod+Shift+E.
-    - Volume keys flash a wob OSD bar (~/.config/wob/wob.ini).
+    - Volume keys flash the lifeosd bar (wob if lifeosd isn't built).
     - Notifications: lifenote — pure-text popups in box-drawing frames, top
       right. Style/colours/alpha: ~/.config/lifenote/config. The waybar #
       button counts unseen notifications; mako stays installed as the fallback

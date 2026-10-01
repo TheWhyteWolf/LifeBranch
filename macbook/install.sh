@@ -292,6 +292,16 @@ else
   echo "    WARNING: cargo not found — skipping lifepanel (the tray applets stay)."
 fi
 
+# lifeosd — the volume/brightness OSD (a labelled text bar), replacing wob,
+# which niri still starts when this isn't built.
+echo "==> lifeosd volume/brightness OSD (~/.local/bin/lifeosd)"
+if command -v cargo >/dev/null 2>&1; then
+  (cd "$REPO/lifeosd" && cargo build --release)
+  ln -sfn "$REPO/lifeosd/target/release/lifeosd" "$HOME/.local/bin/lifeosd"
+else
+  echo "    WARNING: cargo not found — skipping lifeosd (wob stays the OSD)."
+fi
+
 # lifefiles — mouse-driven terminal file browser (Mod+E). Themed by lifeconf via
 # ~/.config/lifefiles/theme, and registered as the folder handler.
 echo "==> lifefiles file browser (~/.local/bin/lifefiles)"
@@ -422,7 +432,7 @@ cat <<'EOF'
       Hibernate stays masked on purpose: the T2 cannot survive it.
     - Power menu: Mod+Shift+E (lock/suspend/logout/reboot/poweroff — Suspend
       shows here because sleep.target isn't masked).
-    - Volume/brightness keys flash a wob OSD bar (olive; ~/.config/wob/wob.ini).
+    - Volume/brightness keys flash the lifeosd bar (wob if lifeosd isn't built).
     - Do-not-disturb: Mod+N (or click the DND label in waybar).
     - swayidle starts with niri — log out/in (or run the spawn line by hand) to arm it.
     - Restart kitty windows to pick up transparency + font + olive palette (rice.conf).
