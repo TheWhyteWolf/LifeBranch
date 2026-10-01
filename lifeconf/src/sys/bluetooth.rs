@@ -119,7 +119,7 @@ fn scan_row() -> Row {
 }
 
 /// bluetoothctl exits 0 even when the operation failed; the verdict is in text.
-fn check(out: &str, ok_marker: &str) -> Result<(), String> {
+pub fn check(out: &str, ok_marker: &str) -> Result<(), String> {
     if let Some(l) = out.lines().find(|l| l.contains("Failed") || l.contains("not available")) {
         return Err(l.trim().to_string());
     }

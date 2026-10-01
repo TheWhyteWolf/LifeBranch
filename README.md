@@ -27,6 +27,7 @@ Rust components, built from source by the installer:
 | [`lifeshot`](lifeshot/README.md) | screenshot + annotation overlay |
 | [`lifemenu`](lifemenu/README.md) | launcher + dmenu (fuzzel-compatible flags; the scripts' menus) |
 | [`lifeauth`](lifeauth/README.md) | polkit authentication agent (asks through lifemenu) |
+| [`lifepanel`](lifepanel/README.md) | quick settings: wifi, bluetooth, sound, brightness, power, drives; USB automount |
 | [`lifefont`](lifefont/README.md) | shared glyph rasterizer (library; lazy, ~37 MB less per process than fontdue) |
 
 ## Install
@@ -190,6 +191,7 @@ greetd/greetd.service.d/lifegreet.conf -> /etc/systemd/system/greetd.service.d/ 
 | `Mod+E` | file manager (lifefiles, in kitty) |
 | `Shift+Print` | screenshot + annotate (lifeshot); `Print`/`Ctrl+Print`/`Alt+Print` are niri's own |
 | `Mod+S` | settings (lifeconf GUI) |
+| `Mod+A` | quick settings (lifepanel) |
 | `Mod+Alt+Escape` | lock screen (moved from `Mod+Alt+L` for the snap mirror) |
 | `Mod+Shift+E` | power menu |
 | `Mod+Shift+G` | pause/resume wallpaper |
@@ -265,10 +267,10 @@ next time you open it.
   current workspace, again to stash it away (it parks on the trailing empty
   workspace — deliberately not a named workspace, which would sort first and
   steal `Mod+1`). If it's visible but unfocused, `Mod+Grave` focuses it.
-- **DE plumbing** — the invisible bits a full DE ships: polkit-kde-agent
-  (GUI privilege prompts — without it GParted/Dolphin-mounts fail silently),
-  wlsunset night light (London coords in config.kdl), udiskie USB automount
-  (mount events arrive as lifenote popups), a waybar caffeine toggle (IDLE
+- **DE plumbing** — the invisible bits a full DE ships: lifeauth
+  (GUI privilege prompts — without one GParted/Dolphin-mounts fail silently),
+  wlsunset night light (London coords in config.kdl), `lifepanel --watch` USB
+  automount (mount events arrive as lifenote popups), a waybar caffeine toggle (IDLE
   label → click → warn-tinted WAKE holds off the idle lock), `Mod+Print`
   wf-recorder screen capture, and `Mod+KP_Divide` media play/pause
   (playerctl, MPRIS).
