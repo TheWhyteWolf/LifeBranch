@@ -38,6 +38,11 @@ jobs:
           shellcheck -S warning -x \
             bootstrap.sh install.sh greeter-install.sh macbook/install.sh scripts/*.sh
 
+      # Every external command the code calls must be installed by the
+      # installers, not just present on the dev machine.
+      - name: external commands are in the package list
+        run: bash scripts/check-deps.sh
+
       # The cheat sheet parses the niri config with awk. If that parser breaks,
       # the window silently comes up empty — so render both configs and insist
       # there is something in them.
