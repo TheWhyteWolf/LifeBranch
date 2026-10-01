@@ -265,17 +265,17 @@ binds {
     Mod+Slash hotkey-overlay-title="Keyboard shortcuts (LifeBranch)" { spawn-sh "~/.local/bin/shortcuts-window.sh"; }
 
     // --- Applications ---
-    Mod+Return hotkey-overlay-title="Launcher: fuzzel"       { spawn "fuzzel"; }
+    Mod+Return hotkey-overlay-title="Launcher"               { spawn-sh "[ -x ~/.local/bin/lifemenu ] && exec ~/.local/bin/lifemenu || exec fuzzel"; }
     Mod+T      hotkey-overlay-title="Terminal: kitty"        { spawn "kitty"; }
-    Mod+D      hotkey-overlay-title="Launcher: fuzzel"       { spawn "fuzzel"; }
-    Mod+Space  hotkey-overlay-title="Launcher: fuzzel"       { spawn "fuzzel"; }
+    Mod+D      hotkey-overlay-title="Launcher"               { spawn-sh "[ -x ~/.local/bin/lifemenu ] && exec ~/.local/bin/lifemenu || exec fuzzel"; }
+    Mod+Space  hotkey-overlay-title="Launcher"               { spawn-sh "[ -x ~/.local/bin/lifemenu ] && exec ~/.local/bin/lifemenu || exec fuzzel"; }
     Mod+P      hotkey-overlay-title="Clipboard history"      { spawn-sh "~/.local/bin/clip-menu.sh"; }
     Mod+Grave  hotkey-overlay-title="Dropdown terminal"      { spawn-sh "~/.local/bin/scratch-term.sh"; }
 
     // --- Non-Super fallbacks ---
     // Ctrl+Alt provably reaches niri, so the desktop stays usable even if Super misbehaves.
     Ctrl+Alt+Return { spawn "kitty"; }
-    Ctrl+Alt+Space  { spawn "fuzzel"; }
+    Ctrl+Alt+Space  { spawn-sh "[ -x ~/.local/bin/lifemenu ] && exec ~/.local/bin/lifemenu || exec fuzzel"; }
     Ctrl+Alt+O      { toggle-overview; }
     Ctrl+Alt+Q      { close-window; }
 

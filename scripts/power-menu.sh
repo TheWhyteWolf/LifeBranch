@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Power menu: fuzzel dmenu, olive-styled via fuzzel.ini.
+# Power menu: lifemenu (or fuzzel) in dmenu mode, olive-styled via fuzzel.ini.
 # Bound to Mod+Shift+E in niri (Ctrl+Alt+Delete stays as the raw quit fallback).
 # Suspend appears only where sleep is allowed — the desktop masks sleep.target
 # (live services, must never sleep), the laptop doesn't. before-sleep locks first.
 set -euo pipefail
+
+# lifemenu (LifeBranch's own) with fuzzel as the fallback; same flags.
+menu=$(command -v lifemenu || command -v "$HOME/.local/bin/lifemenu" || echo fuzzel)
 
 opts=(Lock "Log out" Reboot "Power off")
 if ! systemctl is-enabled sleep.target 2>/dev/null | grep -qx masked; then
@@ -12,7 +15,7 @@ if ! systemctl is-enabled sleep.target 2>/dev/null | grep -qx masked; then
 fi
 
 choice=$(printf '%s\n' "${opts[@]}" \
-  | fuzzel --dmenu --prompt "power> " --lines "${#opts[@]}") || exit 0
+  | "$menu" --dmenu --prompt "power> " --lines "${#opts[@]}") || exit 0
 
 case "$choice" in
   "Lock")      loginctl lock-session ;;
