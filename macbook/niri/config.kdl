@@ -1,5 +1,5 @@
 // niri config — 2019 MacBook Pro (T2) on Arch, minimal muted olive.
-// Managed in ~/niri/macbook (git). Symlinked to ~/.config/niri/config.kdl by macbook/install.sh.
+// Managed in ~/LifeBranch/macbook (git). Symlinked to ~/.config/niri/config.kdl by macbook/install.sh.
 //
 // Shares the olive palette with the desktop config, tweaked for laptop hardware:
 //   - internal Retina panel  -> HiDPI scale 2 on eDP-1
@@ -176,7 +176,7 @@ spawn-at-startup "wlsunset" "-l" "51.5" "-L" "-0.1"
 // Automount removable media (udisks2); mount/unmount events show up as
 // lifenote popups via libnotify.
 spawn-at-startup "udiskie"
-// Notifications: lifenote (box-drawing frames, ~/niri/lifenote). systemd-cat so
+// Notifications: lifenote (box-drawing frames, ~/LifeBranch/lifenote). systemd-cat so
 // its stderr reaches the journal. mako stays installed as the fallback on this
 // laptop too: pkill lifenote && mako.
 spawn-sh-at-startup "systemd-cat -t lifenote ~/.local/bin/lifenote"
@@ -313,6 +313,14 @@ binds {
     XF86KbdBrightnessDown allow-when-locked=true { spawn-sh "brightnessctl -d ':white:kbd_backlight' set 10%-"; }
     Mod+F6 allow-when-locked=true { spawn-sh "brightnessctl -d ':white:kbd_backlight' set 10%+"; }
     Mod+F5 allow-when-locked=true { spawn-sh "brightnessctl -d ':white:kbd_backlight' set 10%-"; }
+
+    // --- Settings ---
+    // lifeconf GUI: theme + system panels (sound, …).
+    Mod+S hotkey-overlay-title="Settings" { spawn-sh "~/.local/bin/lifeconf --gui"; }
+
+    // --- Files ---
+    // lifefiles: mouse-driven terminal file browser (yazi-style columns).
+    Mod+E hotkey-overlay-title="File manager" { spawn-sh "kitty --class lifefiles -e ~/.local/bin/lifefiles"; }
 
     // --- Notifications ---
     // Do-not-disturb toggle (lifenote ctl dnd; the waybar DND label mirrors it).
