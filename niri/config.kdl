@@ -132,7 +132,7 @@ overview {
 // D-Bus service files on an Arch/KDE box carry no SystemdService=, so they are
 // activated by dbus-broker directly and would otherwise inherit the pre-session
 // login environment — landing on XWayland while the same app started from
-// fuzzel is a Wayland client. Values come from niri's own env, i.e. environment.d.
+// lifemenu is a Wayland client. Values come from niri's own env, i.e. environment.d.
 spawn-at-startup "dbus-update-activation-environment" "--systemd" "QT_QPA_PLATFORM" "QT_WAYLAND_DISABLE_WINDOWDECORATION" "ELECTRON_OZONE_PLATFORM_HINT"
 // Conway's Game of Life wallpaper, drawn by lifewall itself on the background
 // layer (--layer, GPU-rendered). lifebg -> lifewall, or the scripts/life.py
@@ -162,34 +162,27 @@ spawn-at-startup "swayidle" "-w" "timeout" "600" "systemd-cat -t lifelock ~/.loc
 // libgdk-3 while dispatching a Wayland output event; that is why.)
 //   journalctl --user -u lifebar -b    systemctl --user reload lifebar
 // Notifications: lifenote (box-drawing frames, ~/LifeBranch/lifenote). systemd-cat
-// for the same stderr reason as lifelock above. mako stays installed as the
-// fallback: pkill lifenote && mako.
+// for the same stderr reason as lifelock above.
 spawn-sh-at-startup "systemd-cat -t lifenote ~/.local/bin/lifenote"
 // Volume OSD: lifeosd flashes a labelled bar for each line scripts/vol-osd.sh
-// writes to its FIFO (journalctl -t lifeosd). wob is the fallback until
-// lifeosd is built.
-spawn-sh-at-startup "if [ -x ~/.local/bin/lifeosd ]; then exec systemd-cat -t lifeosd ~/.local/bin/lifeosd; else f=$XDG_RUNTIME_DIR/wob.sock; rm -f $f; mkfifo $f; tail -f $f | wob; fi"
+// writes to its FIFO (journalctl -t lifeosd)..
+spawn-sh-at-startup "exec systemd-cat -t lifeosd ~/.local/bin/lifeosd"
 // Clipboard-history watchers (cliphist).
 spawn-at-startup "wl-paste" "--watch" "cliphist" "store"
 spawn-at-startup "wl-paste" "--type" "image" "--watch" "cliphist" "store"
-// Network and bluetooth: lifepanel (Mod+A, or click NET in the bar) replaces
-// the nm-applet and blueman tray applets. They still start until it's built.
-spawn-sh-at-startup "[ -x ~/.local/bin/lifepanel ] || exec nm-applet --indicator"
-spawn-sh-at-startup "[ -x ~/.local/bin/lifepanel ] || exec blueman-applet"
 // Polkit authentication agent — without one, GUI privilege prompts (GParted,
 // Dolphin mounting internal disks, firmware updates, lifeconf applying the
 // root-owned greeter config) never appear and the action silently fails.
 // lifeauth asks through lifemenu's password box (journalctl -t lifeauth);
-// KDE's agent stays installed as the fallback until lifeauth is built.
-spawn-sh-at-startup "if [ -x ~/.local/bin/lifeauth ]; then exec systemd-cat -t lifeauth ~/.local/bin/lifeauth; else exec /usr/lib/polkit-kde-authentication-agent-1; fi"
+spawn-sh-at-startup "exec systemd-cat -t lifeauth ~/.local/bin/lifeauth"
 // LIFEBRANCH:BEGIN nightlight
 // Night light: warms the gamma after sunset (wlr-gamma-control).
 // Coordinates are London — adjust -l/-L for elsewhere.
 spawn-at-startup "wlsunset" "-l" "51.5" "-L" "-0.1"
 // LIFEBRANCH:END nightlight
 // Automount removable media through udisks2, with a lifenote popup for
-// each: lifepanel --watch (journalctl -t lifepanel), else udiskie.
-spawn-sh-at-startup "if [ -x ~/.local/bin/lifepanel ]; then exec systemd-cat -t lifepanel ~/.local/bin/lifepanel --watch; else exec udiskie; fi"
+// each: lifepanel --watch (journalctl -t lifepanel).
+spawn-sh-at-startup "exec systemd-cat -t lifepanel ~/.local/bin/lifepanel --watch"
 // Note: xwayland-satellite is auto-managed by niri 26.04 once the binary is installed —
 // no manual spawn or DISPLAY export needed.
 
@@ -276,17 +269,17 @@ binds {
     Mod+Slash hotkey-overlay-title="Keyboard shortcuts (LifeBranch)" { spawn-sh "~/.local/bin/shortcuts-window.sh"; }
 
     // --- Applications ---
-    Mod+Return hotkey-overlay-title="Launcher"               { spawn-sh "[ -x ~/.local/bin/lifemenu ] && exec ~/.local/bin/lifemenu || exec fuzzel"; }
+    Mod+Return hotkey-overlay-title="Launcher"               { spawn-sh "~/.local/bin/lifemenu"; }
     Mod+T      hotkey-overlay-title="Terminal: kitty"        { spawn "kitty"; }
-    Mod+D      hotkey-overlay-title="Launcher"               { spawn-sh "[ -x ~/.local/bin/lifemenu ] && exec ~/.local/bin/lifemenu || exec fuzzel"; }
-    Mod+Space  hotkey-overlay-title="Launcher"               { spawn-sh "[ -x ~/.local/bin/lifemenu ] && exec ~/.local/bin/lifemenu || exec fuzzel"; }
+    Mod+D      hotkey-overlay-title="Launcher"               { spawn-sh "~/.local/bin/lifemenu"; }
+    Mod+Space  hotkey-overlay-title="Launcher"               { spawn-sh "~/.local/bin/lifemenu"; }
     Mod+P      hotkey-overlay-title="Clipboard history"      { spawn-sh "~/.local/bin/clip-menu.sh"; }
     Mod+Grave  hotkey-overlay-title="Dropdown terminal"      { spawn-sh "~/.local/bin/scratch-term.sh"; }
 
     // --- Non-Super fallbacks ---
     // Ctrl+Alt provably reaches niri, so the desktop stays usable even if Super misbehaves.
     Ctrl+Alt+Return { spawn "kitty"; }
-    Ctrl+Alt+Space  { spawn-sh "[ -x ~/.local/bin/lifemenu ] && exec ~/.local/bin/lifemenu || exec fuzzel"; }
+    Ctrl+Alt+Space  { spawn-sh "~/.local/bin/lifemenu"; }
     Ctrl+Alt+O      { toggle-overview; }
     Ctrl+Alt+Q      { close-window; }
 

@@ -27,13 +27,10 @@ MAP=(wpctl:wireplumber
      wl-copy:wl-clipboard
      wl-paste:wl-clipboard
      cliphist:cliphist
-     fuzzel:fuzzel
      jq:jq
-     wob:wob
      wf-recorder:wf-recorder
      swaylock:swaylock
      swayidle:swayidle
-     udiskie:udiskie
      udisksctl:udisks2
      htop:htop
      kitty:kitty)
