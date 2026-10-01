@@ -9,11 +9,13 @@
 // refactoring four already-working crates into a workspace for no user-facing
 // gain, so that cleanup is deferred (see README milestones).
 
+mod preview;
 mod render;
 
 use crate::model::{field_labels, is_system, kind, Focus, Kind, Model, CATS};
 use crate::paths::Paths;
 use crate::theme::{rgb, Theme};
+use preview::Previews;
 use render::Atlas;
 
 use smithay_client_toolkit::{
@@ -107,6 +109,7 @@ pub fn run(paths: Paths, theme: Theme, panel: Option<&str>) -> i32 {
         height: 640,
         configured: false,
         atlas,
+        previews: Previews::default(),
         cell_w,
         cell_h,
         m: {
@@ -153,6 +156,7 @@ struct Gui {
     height: u32,
     configured: bool,
     atlas: Atlas,
+    previews: Previews,
     cell_w: usize,
     cell_h: usize,
     m: Model,
@@ -238,6 +242,7 @@ fn save_btn_rect(w: usize, h: usize, cell_w: usize, cell_h: usize) -> (usize, us
 fn paint_scene(
     m: &Model,
     atlas: &mut Atlas,
+    pv: &mut Previews,
     px: &mut [u32],
     stride: usize,
     h: usize,
@@ -317,6 +322,64 @@ fn paint_scene(
                 render::fill_rect(px, stride, h, after + cell_w, y, cell_h, cell_h, c);
             }
         }
+    }
+
+    // Previews under the fields, down to just above the status line.
+    let top = row_y(cell_h, labels.len()) + cell_h;
+    let bottom = save_btn_rect(stride, h, cell_w, cell_h).1.saturating_sub(cell_h);
+    let pw = stride.saturating_sub(fx + 2 * cell_w);
+    match CATS[m.cat] {
+        "Cursor" if bottom > top + 2 * cell_h => {
+            let t = &m.theme.cursor;
+            atlas.draw_str(px, stride, h, fx, top, "preview", dim);
+            let cursors = pv.cursors(&t.theme, t.size);
+            if cursors.is_empty() {
+                atlas.draw_str(px, stride, h, fx, top + cell_h + 4, "nothing to show: this theme has none of the usual cursors", dim);
+            }
+            let size = cursors.iter().map(|c| c.h).max().unwrap_or(0);
+            let strip = size + 16;
+            // Once on light and once on dark: an outline has to read on both.
+            for (k, back) in [(0, (230, 230, 230)), (1, (24, 24, 24))] {
+                let y0 = top + cell_h + 4 + k * strip;
+                if y0 + strip > bottom {
+                    break;
+                }
+                render::fill_rect(px, stride, h, fx, y0, pw, strip, back);
+                let mut x = fx + 8;
+                for c in cursors {
+                    if x + c.w > fx + pw {
+                        break;
+                    }
+                    preview::blit_cursor(px, stride, h, x, y0 + 8, c);
+                    x += c.w + 12;
+                }
+            }
+        }
+        "Font" if bottom > top + 2 * cell_h => {
+            let f = &m.theme.font;
+            atlas.draw_str(px, stride, h, fx, top, "preview", dim);
+            let y0 = top + cell_h + 4;
+            match pv.font(&f.family, f.size) {
+                Some(lf) => {
+                    let room = (bottom.saturating_sub(y0 + 2 * cell_h + 16) / lf.line_h().max(1)).max(1);
+                    let mut lines = lf.wrap(preview::PANGRAM, pw.saturating_sub(16));
+                    lines.truncate(room);
+                    let used = lines.len() * lf.line_h();
+                    render::fill_rect(px, stride, h, fx, y0, pw, used + 16, surface);
+                    lf.draw_lines(px, stride, h, fx + 8, y0 + 8, pw.saturating_sub(16), &lines, text);
+                    render::fill_rect(px, stride, h, fx, y0, pw, 1, border);
+                    render::fill_rect(px, stride, h, fx, y0 + used + 16, pw, 1, border);
+                    if !lf.family.eq_ignore_ascii_case(f.family.trim()) {
+                        let note = format!("\"{}\" isn't installed: this is {}", f.family.trim(), lf.family);
+                        atlas.draw_str(px, stride, h, fx, y0 + used + 24, &note, warn);
+                    }
+                }
+                None => {
+                    atlas.draw_str(px, stride, h, fx, y0, "fontconfig found no font to show (is fc-match installed?)", warn);
+                }
+            }
+        }
+        _ => {}
     }
 
     let sy = h.saturating_sub(cell_h + 4);
@@ -406,7 +469,7 @@ pub fn render_ppm(paths: Paths, theme: Theme, out: &str) -> i32 {
         m.searching = true;
         m.clamp_to_search();
     }
-    paint_scene(&m, &mut atlas, &mut px, w, h, cell_w, cell_h);
+    paint_scene(&m, &mut atlas, &mut Previews::default(), &mut px, w, h, cell_w, cell_h);
 
     let mut ppm = format!("P6\n{w} {h}\n255\n").into_bytes();
     for pixel in &px {
@@ -467,7 +530,7 @@ impl Gui {
     }
 
     fn paint(&mut self, px: &mut [u32], stride: usize, h: usize) {
-        paint_scene(&self.m, &mut self.atlas, px, stride, h, self.cell_w, self.cell_h);
+        paint_scene(&self.m, &mut self.atlas, &mut self.previews, px, stride, h, self.cell_w, self.cell_h);
     }
 
     fn redraw(&mut self) {

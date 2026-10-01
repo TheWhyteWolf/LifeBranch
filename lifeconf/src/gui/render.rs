@@ -120,7 +120,7 @@ impl Atlas {
 }
 
 /// Src-over composite of `rgb` at coverage `a` onto an existing ARGB pixel.
-fn blend(dst: u32, rgb: (u8, u8, u8), a: u8) -> u32 {
+pub fn blend(dst: u32, rgb: (u8, u8, u8), a: u8) -> u32 {
     let a = a as u32;
     let inv = 255 - a;
     let dr = (dst >> 16) & 0xff;
