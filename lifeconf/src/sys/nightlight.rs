@@ -232,7 +232,7 @@ mod tests {
     use super::*;
     use std::cell::RefCell;
 
-    static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    use crate::sys::ENV_LOCK as SERIAL;
 
     fn cfg(tag: &str, line: &str) -> String {
         let dir = std::env::temp_dir().join(format!("lc-night-{tag}-{}", std::process::id()));
