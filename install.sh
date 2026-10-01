@@ -151,18 +151,13 @@ echo "==> Symlinking configs into ~/.config"
 # Create them before linking: the symlinks below point into the repo, and
 # `lifeconf --apply` writes through them, so a missing directory turns into a
 # write failure and a dangling symlink (unthemed bar/launcher/locker).
-mkdir -p "$REPO/waybar" "$REPO/fuzzel" "$REPO/kitty" "$REPO/lifenote" "$REPO/swaylock"
+mkdir -p "$REPO/fuzzel" "$REPO/kitty" "$REPO/lifenote" "$REPO/swaylock"
 link "$REPO/niri/config.kdl"     "$HOME/.config/niri/config.kdl"
-link "$REPO/waybar/config.jsonc" "$HOME/.config/waybar/config.jsonc"
-link "$REPO/waybar/style.css"    "$HOME/.config/waybar/style.css"
 link "$REPO/fuzzel/fuzzel.ini"   "$HOME/.config/fuzzel/fuzzel.ini"
-link "$REPO/mako/config"         "$HOME/.config/mako/config"     # fallback daemon
 link "$REPO/lifenote/config"     "$HOME/.config/lifenote/config"
 link "$REPO/kitty/rice.conf"     "$HOME/.config/kitty/rice.conf"
 link "$REPO/kitty/olive.conf"    "$HOME/.config/kitty/olive.conf"
 link "$REPO/tmpfiles/kitty.conf" "$HOME/.config/user-tmpfiles.d/kitty.conf"
-link "$REPO/systemd/waybar.service" "$HOME/.config/systemd/user/waybar.service"
-link "$REPO/wob/wob.ini"         "$HOME/.config/wob/wob.ini"
 link "$REPO/swaylock/config"     "$HOME/.config/swaylock/config"
 link "$REPO/xdg/portals.conf"    "$HOME/.config/xdg-desktop-portal/portals.conf"
 link "$REPO/qt6ct/qt6ct.conf"    "$HOME/.config/qt6ct/qt6ct.conf"
@@ -221,14 +216,6 @@ echo "==> GPG passphrase prompts (pinentry-fuzzel: installed, NOT enabled)"
 # To back out, delete that line and run gpgconf --kill gpg-agent.
 echo "    linked ~/.local/bin/pinentry-fuzzel.sh (inert until gpg-agent.conf points at it)"
 
-# waybar runs supervised, not from niri's spawn-at-startup: a scope that exits
-# leaves no bar and no log. Restart=always brings it back; the journal keeps the
-# evidence (journalctl --user -u waybar -b).
-echo "==> Enabling the waybar user unit"
-systemctl --user daemon-reload
-systemctl --user enable waybar.service
-echo "    enabled (starts with graphical-session.target; start now with"
-echo "     systemctl --user start waybar.service)"
 
 # --- Hardware and locale -----------------------------------------------------
 # Everything in this section is a fenced LIFEBRANCH:BEGIN region in the niri
@@ -371,14 +358,14 @@ else
 fi
 
 # lifenote — box-drawing-framed notification daemon. Replaces mako in
-# spawn-at-startup; mako stays installed as the fallback (pkill lifenote && mako).
+# spawn-at-startup.
 echo "==> lifenote notification daemon (~/.local/bin/lifenote)"
 if command -v cargo >/dev/null 2>&1; then
   (cd "$REPO/lifenote" && cargo build --release)
   ln -sfn "$REPO/lifenote/target/release/lifenote" "$HOME/.local/bin/lifenote"
 else
   echo "    ERROR: cargo not found — niri spawns lifenote for notifications."
-  echo "    Install rust, or point the spawn-at-startup line back at mako."
+  echo "    Install rust and run this again."
   exit 1
 fi
 # KDE ships a DBus activation file for org.freedesktop.Notifications that
@@ -436,12 +423,12 @@ if command -v cargo >/dev/null 2>&1; then
   (cd "$REPO/lifeosd" && cargo build --release)
   ln -sfn "$REPO/lifeosd/target/release/lifeosd" "$HOME/.local/bin/lifeosd"
 else
-  echo "    WARNING: cargo not found — skipping lifeosd (wob stays the OSD)."
+  echo "    WARNING: cargo not found — skipping lifeosd (no volume OSD)."
 fi
 
 # lifebar — the status bar (workspaces, clock, readings, a text tray),
-# replacing waybar. Built here, it takes over from the waybar unit; without
-# cargo the waybar unit enabled above stays the bar.
+# replacing waybar. A machine upgraded from the waybar days gets that unit
+# disabled here.
 echo "==> lifebar status bar (~/.local/bin/lifebar)"
 if command -v cargo >/dev/null 2>&1; then
   (cd "$REPO/lifebar" && cargo build --release)
@@ -450,10 +437,9 @@ if command -v cargo >/dev/null 2>&1; then
   systemctl --user daemon-reload
   systemctl --user disable waybar.service 2>/dev/null || true
   systemctl --user enable lifebar.service
-  echo "    lifebar.service enabled in place of waybar.service (takes effect at next login;"
-  echo "     now: systemctl --user stop waybar && systemctl --user start lifebar)"
+  echo "    lifebar.service enabled (starts at next login; now: systemctl --user start lifebar)"
 else
-  echo "    WARNING: cargo not found — skipping lifebar (waybar stays the bar)."
+  echo "    WARNING: cargo not found — skipping lifebar (there will be no bar)."
 fi
 
 # lifeportal — apps' Open/Save dialogs become lifefiles (--pick), through
@@ -525,7 +511,7 @@ if command -v cargo >/dev/null 2>&1; then
   # the old first-run-only test left a fresh clone's symlinks dangling and the
   # bar fell back to waybar's built-in stylesheet.
   theme_missing=0
-  for gen in waybar/style.css fuzzel/fuzzel.ini kitty/olive.conf \
+  for gen in fuzzel/fuzzel.ini kitty/olive.conf \
              lifenote/config swaylock/config; do
     [[ -s "$REPO/$gen" ]] || theme_missing=1
   done
@@ -564,6 +550,10 @@ fi
 # lifeconf is what creates it. The step itself (scripts/idle-suspend.sh) fires
 # only while discharging, so saying yes on a docked laptop costs nothing.
 offer_idle_suspend "$HOME/.config/lifeconf/theme.toml"
+
+# The tray applets, waybar, wob, udiskie, fuzzel, mako and polkit-kde-agent that
+# the life* components replaced: offer to remove what is left of them.
+offer_remove_legacy
 
 echo "==> GTK dark theme + cursor (GTK apps; Qt/KDE keeps its own settings)"
 if command -v gsettings >/dev/null 2>&1; then
@@ -617,11 +607,10 @@ cat <<'EOF'
     - Lock: Mod+Alt+Escape (or 10 min idle) -> lifelock, the Game of Life cube;
       the Mod+Shift+Alt+Escape recovery bind force-swaps in swaylock if it
       ever wedges. Power menu: Mod+Shift+E.
-    - Volume keys flash the lifeosd bar (wob if lifeosd isn't built).
+    - Volume keys flash the lifeosd bar.
     - Notifications: lifenote — pure-text popups in box-drawing frames, top
-      right. Style/colours/alpha: ~/.config/lifenote/config. The waybar #
-      button counts unseen notifications; mako stays installed as the fallback
-      (pkill lifenote && mako). Do-not-disturb: Mod+N.
+      right. Style/colours/alpha: ~/.config/lifenote/config. The bar's #
+      button counts unseen notifications. Do-not-disturb: Mod+N.
     - Theming: run `lifeconf` (TUI) or `lifeconf --gui` to change the palette.
     - Optional, deliberate extras:
         bash greeter-install.sh   replace the login screen with lifegreet

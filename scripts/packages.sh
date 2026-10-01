@@ -25,12 +25,11 @@
 # environment.d/50-niri-platform.conf, which documents the trade-off.
 # shellcheck disable=SC2034  # read by the sourcing installer
 PKGS=(niri rust clang
-      kitty fuzzel waybar mako xwayland-satellite wl-clipboard cliphist wev
-      adw-gtk-theme wob jq
+      kitty xwayland-satellite wl-clipboard cliphist wev
+      adw-gtk-theme jq
       swaylock swayidle ttf-sharetech-mono-nerd ttf-cousine-nerd
       xdg-desktop-portal-gnome qt6ct qt6-wayland qt5-wayland
-      network-manager-applet blueman
-      polkit-kde-agent udiskie wlsunset wf-recorder playerctl
+      wlsunset wf-recorder playerctl
       # Plumbing the Settings panels and scripts call into. niri only pulls in
       # libpipewire, so the sound server itself has to be asked for.
       pipewire pipewire-pulse wireplumber   # wpctl: Sound panel, vol-osd.sh
@@ -231,6 +230,37 @@ offer_tailscale_operator() {
   echo "==> Tailscale: let $me switch it on and off and pick exit nodes (Settings > VPN)"
   if ask_yn "Make $me Tailscale's operator?" y; then
     sudo tailscale set --operator="$me" && echo "    done" || echo "    !! tailscale set --operator failed; carrying on"
+  fi
+  return 0
+}
+
+# What the life* components replaced, by the binary that replaced each. The
+# installers stopped installing these; offer_remove_legacy offers to remove
+# them from machines that still have them.
+LEGACY=(waybar:lifebar wob:lifeosd mako:lifenote fuzzel:lifemenu udiskie:lifepanel
+        network-manager-applet:lifepanel blueman:lifepanel polkit-kde-agent:lifeauth)
+
+# offer_remove_legacy: remove the replaced packages that are installed, whose
+# replacement is built, and that nothing else requires (Plasma needs
+# polkit-kde-agent, for one, so it stays wherever Plasma is). Default no: they
+# may have been installed for their own sake before LifeBranch.
+offer_remove_legacy() {
+  local pair pkg repl req drop=()
+  for pair in "${LEGACY[@]}"; do
+    pkg=${pair%%:*} repl=${pair#*:}
+    pacman -Qq "$pkg" >/dev/null 2>&1 || continue
+    [[ -x $HOME/.local/bin/$repl ]] || continue
+    req=$(LC_ALL=C pacman -Qi "$pkg" | sed -n 's/^Required By *: //p')
+    if [[ $req != None ]]; then
+      echo "    keeping $pkg: $req needs it"
+      continue
+    fi
+    drop+=("$pkg")
+  done
+  (( ${#drop[@]} )) || return 0
+  echo "==> No longer needed (replaced by the life* components): ${drop[*]}"
+  if ask_yn "Remove them?" n; then
+    sudo pacman -Rns "${CONFIRM[@]}" "${drop[@]}" || echo "    !! removal failed; carrying on"
   fi
   return 0
 }
