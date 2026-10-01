@@ -10,9 +10,12 @@
 //     from the baseline, positive up.
 //
 // What changed is memory: ab_glyph keeps the font as bytes and reads one
-// outline when asked, where fontdue built all of them at load.
+// outline when asked, where fontdue built all of them at load. A font opened
+// from a path is memory-mapped, not read: its pages are the shared page cache,
+// only the glyphs drawn are ever touched, and a 20 MB CJK fallback costs a
+// few pages rather than 20 MB of heap per process.
 
-use ab_glyph::{Font as _, FontVec, GlyphId, PxScale};
+use ab_glyph::{Font as _, FontRef, FontVec, GlyphId, PxScale};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Metrics {
@@ -33,8 +36,56 @@ pub struct LineMetrics {
     pub new_line_size: f32,
 }
 
+/// A read-only private mapping of a whole font file.
+struct Map {
+    ptr: *mut libc::c_void,
+    len: usize,
+}
+
+// SAFETY: the mapping is read-only and never written through, so sharing it
+// across threads is sharing immutable bytes.
+unsafe impl Send for Map {}
+unsafe impl Sync for Map {}
+
+impl Map {
+    fn open(path: &str) -> std::io::Result<Map> {
+        use std::os::fd::AsRawFd;
+        let f = std::fs::File::open(path)?;
+        let len = f.metadata()?.len() as usize;
+        if len == 0 {
+            return Err(std::io::Error::other("empty file"));
+        }
+        // SAFETY: a fresh PROT_READ/MAP_PRIVATE mapping of a file we opened;
+        // checked for MAP_FAILED below. The fd may close once it's mapped.
+        let ptr = unsafe { libc::mmap(std::ptr::null_mut(), len, libc::PROT_READ, libc::MAP_PRIVATE, f.as_raw_fd(), 0) };
+        if ptr == libc::MAP_FAILED {
+            return Err(std::io::Error::last_os_error());
+        }
+        Ok(Map { ptr, len })
+    }
+
+    /// SAFETY: the slice must not outlive `self` (Face drops it first).
+    unsafe fn bytes(&self) -> &'static [u8] {
+        std::slice::from_raw_parts(self.ptr as *const u8, self.len)
+    }
+}
+
+impl Drop for Map {
+    fn drop(&mut self) {
+        // SAFETY: unmapping exactly what open() mapped, once.
+        unsafe { libc::munmap(self.ptr, self.len) };
+    }
+}
+
+enum Face {
+    Owned(FontVec),
+    /// Fields drop in order: the font borrowing the map goes first.
+    #[allow(dead_code)] // the Map is held only to unmap on drop
+    Mapped(FontRef<'static>, Map),
+}
+
 pub struct Font {
-    font: FontVec,
+    face: Face,
     units_per_em: f32,
 }
 
@@ -46,8 +97,7 @@ impl Font {
     /// `index` picks a face inside a collection (.ttc), as fontconfig reports it.
     pub fn from_bytes_index(bytes: Vec<u8>, index: u32) -> Result<Font, String> {
         let font = FontVec::try_from_vec_and_index(bytes, index).map_err(|e| e.to_string())?;
-        let units_per_em = font.units_per_em().filter(|u| *u > 0.0).ok_or("font has no units-per-em")?;
-        Ok(Font { font, units_per_em })
+        Font::new(Face::Owned(font))
     }
 
     pub fn from_path(path: &str) -> Result<Font, String> {
@@ -55,8 +105,24 @@ impl Font {
     }
 
     pub fn from_path_index(path: &str, index: u32) -> Result<Font, String> {
-        let bytes = std::fs::read(path).map_err(|e| format!("cannot read font {path}: {e}"))?;
-        Font::from_bytes_index(bytes, index).map_err(|e| format!("cannot parse font {path}: {e}"))
+        let map = Map::open(path).map_err(|e| format!("cannot read font {path}: {e}"))?;
+        // SAFETY: Face::Mapped keeps the map alive for as long as the font.
+        let bytes = unsafe { map.bytes() };
+        let font = FontRef::try_from_slice_and_index(bytes, index).map_err(|e| format!("cannot parse font {path}: {e}"))?;
+        Font::new(Face::Mapped(font, map))
+    }
+
+    fn new(face: Face) -> Result<Font, String> {
+        let mut f = Font { face, units_per_em: 1.0 };
+        f.units_per_em = f.f().units_per_em().filter(|u| *u > 0.0).ok_or("font has no units-per-em")?;
+        Ok(f)
+    }
+
+    fn f(&self) -> &dyn ab_glyph::Font {
+        match &self.face {
+            Face::Owned(v) => v,
+            Face::Mapped(r, _) => r,
+        }
     }
 
     /// Whether the font draws `ch` itself (rather than its .notdef box).
@@ -71,17 +137,17 @@ impl Font {
 
     /// ab_glyph scales by ascent-to-descent height; convert from em size.
     fn scale(&self, px: f32) -> PxScale {
-        PxScale::from(self.font.height_unscaled() * self.k(px))
+        PxScale::from(self.f().height_unscaled() * self.k(px))
     }
 
     fn id(&self, ch: char) -> GlyphId {
-        self.font.glyph_id(ch)
+        self.f().glyph_id(ch)
     }
 
     pub fn horizontal_line_metrics(&self, px: f32) -> Option<LineMetrics> {
         let k = self.k(px);
-        let (ascent, descent) = (self.font.ascent_unscaled() * k, self.font.descent_unscaled() * k);
-        let line_gap = self.font.line_gap_unscaled() * k;
+        let (ascent, descent) = (self.f().ascent_unscaled() * k, self.f().descent_unscaled() * k);
+        let line_gap = self.f().line_gap_unscaled() * k;
         (ascent != 0.0 || descent != 0.0).then_some(LineMetrics {
             ascent,
             descent,
@@ -100,8 +166,14 @@ impl Font {
 
     fn rasterize_inner(&self, ch: char, px: f32, draw: bool) -> (Metrics, Vec<u8>) {
         let id = self.id(ch);
-        let advance_width = self.font.h_advance_unscaled(id) * self.k(px);
-        let Some(outlined) = self.font.outline_glyph(id.with_scale(self.scale(px))) else {
+        let advance_width = self.f().h_advance_unscaled(id) * self.k(px);
+        let glyph = id.with_scale(self.scale(px));
+        // outline_glyph is generic, so not callable through `dyn Font`.
+        let outlined = match &self.face {
+            Face::Owned(v) => v.outline_glyph(glyph),
+            Face::Mapped(r, _) => r.outline_glyph(glyph),
+        };
+        let Some(outlined) = outlined else {
             // Whitespace and empty glyphs: an advance and nothing to draw.
             return (Metrics { advance_width, ..Metrics::default() }, Vec::new());
         };
@@ -193,5 +265,17 @@ mod tests {
     #[test]
     fn rejects_garbage() {
         assert!(Font::from_bytes(vec![0; 16]).is_err());
+    }
+
+    #[test]
+    fn a_mapped_font_draws_exactly_what_a_read_one_does() {
+        let Ok(bytes) = std::fs::read(NERD) else { return }; // not installed (CI)
+        let owned = Font::from_bytes(bytes).unwrap();
+        let mapped = Font::from_path(NERD).unwrap();
+        for c in ['A', 'g', '#', '█'] {
+            assert_eq!(owned.rasterize(c, 21.0), mapped.rasterize(c, 21.0), "{c}");
+            assert_eq!(owned.metrics(c, 21.0), mapped.metrics(c, 21.0));
+        }
+        assert!(Font::from_path("/nonexistent.ttf").is_err());
     }
 }
