@@ -57,9 +57,33 @@ git clone https://github.com/TheWhyteWolf/LifeBranch.git ~/LifeBranch
 bash ~/LifeBranch/install.sh
 ```
 
-`bootstrap.sh` installs git, clones to `~/LifeBranch` and runs `install.sh`. It
-reattaches your terminal first, so the installer's questions still reach you
-through a `curl | bash` pipe.
+`bootstrap.sh` installs git, clones to `~/LifeBranch` and runs `install.sh`,
+handing it your terminal so the installer's questions still reach you through a
+`curl | bash` pipe.
+
+Beyond a base Arch install this needs `sudo`, with your user in the `wheel`
+group and the `%wheel` line uncommented in `/etc/sudoers`. `bootstrap.sh` checks
+that before it does anything else and prints the three commands that fix it.
+Every run is written to `~/lifebranch-install.log` (`LIFEBRANCH_LOG=none` to
+turn that off), so if something stops halfway the log says where.
+
+Updating an existing install is `git -C ~/LifeBranch pull` and then the same
+`bash ~/LifeBranch/install.sh`. It is idempotent, and re-running it is also what
+links any script added since you last ran it.
+
+### Easy or full control
+
+The installer's first question is which of the two it is:
+
+- **Easy** takes the recommended answer to everything: your detected keyboard
+  and touchpad, no extra packages, `pacman` and `yay` with `--noconfirm`.
+- **Full control** asks about each step (extra packages, touchpad, keyboard
+  layout, suspend policy, performance profile), which is what it always did.
+
+Both end at the same desktop, and nothing either one decides is permanent:
+re-run the installer, or change it in `lifeconf`. `LIFEBRANCH_EASY=1` (easy) or
+`LIFEBRANCH_EASY=0` (full) skips the question, and a run with no terminal behind
+it is always easy, since there is nobody there to answer.
 
 The installer bootstraps `yay` if it is missing, installs the stack and the
 everyday applications, detects your touchpad and keyboard layout and offers
@@ -148,16 +172,19 @@ scripts/notif-menu.sh -> ~/.local/bin/notif-menu.sh (waybar # button: notificati
 scripts/float-snap.sh -> ~/.local/bin/float-snap.sh (floating window snapping, Mod+Alt+arrows)
 scripts/scratch-term.sh -> ~/.local/bin/scratch-term.sh (dropdown terminal, Mod+Grave)
 scripts/rec-toggle.sh -> ~/.local/bin/rec-toggle.sh (screen-record toggle, Mod+Print)
+scripts/sysmon.sh    -> ~/.local/bin/sysmon.sh (the bar's CPU/MEM click: focuses the one htop, never opens a second)
 scripts/bright-osd.sh -> ~/.local/bin/bright-osd.sh (laptop only: brightness + lifeosd)
 scripts/pinentry-fuzzel.sh -> ~/.local/bin/pinentry-fuzzel.sh (GPG passphrase prompts via lifemenu, else fuzzel)
 scripts/shortcuts-window.sh -> ~/.local/bin/shortcuts-window.sh (the login cheat sheet, Mod+Slash)
 scripts/detect-trackpad.sh -> ~/.local/bin/detect-trackpad.sh (touchpad capabilities -> niri config)
 scripts/setup-locale.sh -> ~/.local/bin/setup-locale.sh (keyboard layout + timezone -> niri config)
 scripts/lite-profile.sh -> ~/.local/bin/lite-profile.sh (turn the expensive parts down)
+scripts/idle-suspend.sh -> ~/.local/bin/idle-suspend.sh (idle suspend, battery only)
 scripts/ensure-yay.sh (AUR helper bootstrap; not linked — the installers call it)
 scripts/packages.sh (sourced: the one package list both installers use, plus service setup)
 scripts/check-deps.sh (CI: every command the code calls comes from a listed package)
 scripts/config-region.sh (sourced helper: rewrite fenced LIFEBRANCH regions safely)
+scripts/prompt.sh (sourced helper: easy mode vs full control, and every installer question)
 bootstrap.sh         (curl entry point: clone + install)
 lifeconf/            -> ~/.local/bin/lifeconf (rust build; the theming front-end)
 lifenote/            -> ~/.local/bin/lifenote (rust build; the notification daemon)
@@ -227,9 +254,13 @@ next time you open it.
   built by install.sh) draws itself on niri's background layer, on the GPU
   (`lifebg --layer`; about a third of the CPU the old kitty panel took), as
   random printable ASCII: muted olive cells (`#66744c`), newborn
-  flashes (`#87a540`), and 30 fps colour interpolation — births fade in,
+  flashes (`#87a540`), and 15 fps colour interpolation — births fade in,
   deaths dissolve, generations tick every 0.3s. Auto-reseeds (crossfade)
-  when the board settles or nearly dies. Flags: `lifebg --help`.
+  when the board settles or nearly dies. It drops to 8 fps on battery
+  (`--fps-battery`, read straight off `/sys/class/power_supply`), because the
+  frame rate is where essentially all of its cost lives — see
+  [lifewall's Cost section](lifewall/README.md#cost) for the measurements.
+  Flags: `lifebg --help`.
   Kill/restart: `pkill -f '[l]ifebg'`, then re-run the lifebg line from
   `niri/config.kdl` (or `lifeconf --apply`). Without cargo, install.sh falls
   back to the stdlib Python original (`scripts/life.py`, discrete 3-frame
@@ -378,10 +409,17 @@ next time you open it.
   fallback (`Mod+Shift+Alt+Escape`). The lock shows clock + date, counts failed
   attempts in rust red, and carries a frame-callback watchdog so a monitor
   that drops its HDMI connector waking from deep standby can no longer freeze
-  it. The desktop this grew up on runs live services and masks
+  it. That watchdog backs off (250 ms, doubling to 4 s) while nothing answers,
+  since a powered-off monitor looks exactly like a lost callback from inside
+  the locker and repainting a full screen four times a second all night is not
+  free; a keypress or a real frame callback snaps it back to 250 ms.
+  The desktop this grew up on runs live services and masks
   `sleep/suspend/hibernate/hybrid-sleep.target` system-wide — but that is a
   policy, not a default: install.sh detects a battery and leaves suspend alone
-  on laptops, and asks before masking anything on a desktop.
+  on laptops, and asks before masking anything on a desktop. On a laptop it
+  also offers a fourth idle step — suspend after 30 min — which
+  `scripts/idle-suspend.sh` then applies only while actually discharging
+  (`lifeconf` → Idle → `suspend_minutes`; 0 is off, and is the default).
 - **Power menu** — `Mod+Shift+E` opens a fuzzel menu (Lock / Log out /
   Reboot / Power off). A Suspend entry appears only on machines where
   `sleep.target` isn't masked, so it shows up on a laptop and not on a

@@ -5,10 +5,40 @@
 #
 #     bash ~/LifeBranch/install.sh
 #
+# It asks first whether to run in easy mode (take the recommended answer to
+# everything) or full control (ask about each step). To skip that question:
+#
+#     LIFEBRANCH_EASY=1 bash ~/LifeBranch/install.sh   # easy
+#     LIFEBRANCH_EASY=0 bash ~/LifeBranch/install.sh   # full control
+#
 # Arch (or an Arch derivative) only: everything here goes through pacman/yay.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# A `set -e` exit prints nothing at all, which is how a failed install ends up
+# described as "it didn't appear to do anything". Name the line that stopped,
+# and point at bootstrap.sh's transcript when there is one.
+fail_line=
+
+on_exit() {
+  local rc=$? log
+  (( rc )) || return 0
+  echo
+  if [[ -n $fail_line ]]; then
+    echo "!! install.sh stopped at line $fail_line (exit $rc)."
+  else
+    echo "!! install.sh stopped (exit $rc)."
+  fi
+  echo "   Fix what the error above says and run it again: this installer is"
+  echo "   idempotent, so a second run picks up where this one stopped."
+  log=${LIFEBRANCH_LOG:-$HOME/lifebranch-install.log}
+  [[ $log != none && -f $log ]] && echo "   Transcript: $log"
+  return 0
+}
+
+trap 'fail_line=$LINENO' ERR
+trap on_exit EXIT
 
 # --- Preflight ---------------------------------------------------------------
 if ! command -v pacman >/dev/null 2>&1; then
@@ -20,6 +50,13 @@ if [[ $(id -u) -eq 0 ]]; then
   echo "   and everything else belongs in YOUR home directory." >&2
   exit 1
 fi
+
+# Easy or full control. Sets EASY, CONFIRM (pacman/yay --noconfirm in easy
+# mode) and interactive(), and exports LIFEBRANCH_EASY so the scripts this one
+# calls make the same choice.
+# shellcheck source=scripts/prompt.sh
+source "$REPO/scripts/prompt.sh"
+pick_mode
 
 # An AUR helper, bootstrapped by curl if it is missing (phinger-cursors and
 # vesktop-bin are AUR-only). No-op when yay is already installed.
@@ -33,11 +70,11 @@ source "$REPO/scripts/packages.sh"
 drop_conflicts
 
 echo "==> Installing packages from the official repos"
-sudo pacman -S --needed "${PKGS[@]}"
+sudo pacman -S --needed "${CONFIRM[@]}" "${PKGS[@]}"
 
 echo "==> Installing AUR packages: ${AUR_PKGS[*]}"
 if command -v yay >/dev/null 2>&1; then
-  yay -S --needed "${AUR_PKGS[@]}"
+  yay -S --needed "${CONFIRM[@]}" "${AUR_PKGS[@]}"
 else
   echo "    !! no AUR helper — skipping ${AUR_PKGS[*]}."
   echo "       The cursor theme and vesktop will be missing; install them later with yay."
@@ -47,8 +84,10 @@ echo "==> Enabling the system services the Settings panels use"
 enable_services
 
 # Anything else this particular person wants, while we already have their
-# attention and a working AUR helper.
-if [[ -t 0 ]]; then
+# attention and a working AUR helper. Easy mode installs nothing extra: the
+# desktop is complete without it, and anything can be added later with
+# `yay -S <package>`.
+if interactive; then
   echo
   echo "==> Anything else you want installed?"
   echo "    Both repos and the AUR are available. Common picks:"
@@ -150,8 +189,8 @@ echo "==> Installing scripts into ~/.local/bin"
 # but only linked (as lifebg) in the no-cargo fallback below.
 SCRIPTS=(clip-menu.sh power-menu.sh lifebg-toggle.sh vol-osd.sh
          dnd-toggle.sh float-snap.sh scratch-term.sh notif-menu.sh net-menu.sh
-         rec-toggle.sh pinentry-fuzzel.sh shortcuts-window.sh
-         detect-trackpad.sh setup-locale.sh lite-profile.sh)
+         rec-toggle.sh pinentry-fuzzel.sh shortcuts-window.sh sysmon.sh
+         detect-trackpad.sh setup-locale.sh lite-profile.sh idle-suspend.sh)
 chmod +x "$REPO/scripts/life.py"
 for s in "${SCRIPTS[@]}"; do
   chmod +x "$REPO/scripts/$s"
@@ -199,11 +238,10 @@ if bash "$REPO/scripts/detect-trackpad.sh" && has_region "$(readlink -f "$NIRI_C
   echo "    Proposed niri settings:"
   sed 's/^/    /' "$tp_block"
   echo
-  if [[ -t 0 ]]; then
-    read -rp "    Write these into your niri config? [Y/n] " a
-    [[ ${a:-Y} =~ ^[Yy]?$ ]] && write_region "$NIRI_CFG" touchpad "$tp_block" niri validate --config
-  else
-    echo "    (non-interactive — not writing; re-run from a terminal to apply)"
+  if ask_yn "Write these into your niri config?" y; then
+    # Never fatal: write_region has already put the previous config back, and
+    # a block that will not validate is no reason to abandon the whole install.
+    write_region "$NIRI_CFG" touchpad "$tp_block" niri validate --config || true
   fi
   rm -f "$tp_block"
 fi
@@ -227,8 +265,8 @@ done < <(bash "$REPO/scripts/setup-locale.sh" --detect)
 
 kb_layout=$det_layout kb_variant=$det_variant
 kb_numlock=$det_numlock kb_lat=$det_lat kb_lon=$det_lon
-if [[ -t 0 ]]; then
-  echo "    Detected from this system: layout '${det_layout}'${det_variant:+ (variant ${det_variant})}, timezone ${det_tz:-unknown}"
+echo "    Detected from this system: layout '${det_layout}'${det_variant:+ (variant ${det_variant})}, timezone ${det_tz:-unknown}"
+if interactive; then
   read -rp "    Keyboard layout [${det_layout}]: " a; kb_layout=${a:-$det_layout}
   read -rp "    Layout variant, or 'none' [${det_variant:-none}]: " a
   case ${a:-keep} in
@@ -262,7 +300,7 @@ if has_region "$(readlink -f "$NIRI_CFG")" keyboard; then
   bash "$REPO/scripts/setup-locale.sh" --keyboard-block \
        "$kb_layout" "$kb_variant" pc105 "$kb_numlock" > "$kb_block"
   echo "    keyboard: layout '${kb_layout}'${kb_variant:+ variant '${kb_variant}'}, numlock $(( kb_numlock )) "
-  write_region "$NIRI_CFG" keyboard "$kb_block" niri validate --config
+  write_region "$NIRI_CFG" keyboard "$kb_block" niri validate --config || true
   rm -f "$kb_block"
 fi
 
@@ -270,7 +308,7 @@ if [[ -n $kb_lat && -n $kb_lon ]] && has_region "$(readlink -f "$NIRI_CFG")" nig
   nl_block=$(mktemp)
   bash "$REPO/scripts/setup-locale.sh" --nightlight-block "$kb_lat" "$kb_lon" > "$nl_block"
   echo "    night light: ${kb_lat}, ${kb_lon}"
-  write_region "$NIRI_CFG" nightlight "$nl_block" niri validate --config
+  write_region "$NIRI_CFG" nightlight "$nl_block" niri validate --config || true
   rm -f "$nl_block"
 fi
 
@@ -285,13 +323,10 @@ if compgen -G "/sys/class/power_supply/BAT*" >/dev/null; then
   echo "      sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target"
 else
   echo "==> Suspend: no battery detected (desktop?)"
+  # Default no, in both modes: a machine that must never sleep is a deliberate
+  # choice, never something an installer should decide for you.
   mask_sleep=n
-  if [[ -t 0 ]]; then
-    read -rp "    Mask sleep/suspend/hibernate so this machine never sleeps? [y/N] " a
-    [[ ${a:-N} =~ ^[Yy]$ ]] && mask_sleep=y
-  else
-    echo "    (non-interactive — leaving sleep enabled)"
-  fi
+  ask_yn "Mask sleep/suspend/hibernate so this machine never sleeps?" n && mask_sleep=y
   if [[ $mask_sleep == y ]]; then
     sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
     echo "    masked (undo: sudo systemctl unmask sleep.target suspend.target hibernate.target hybrid-sleep.target)"
@@ -503,6 +538,19 @@ else
   echo "    cargo not found — skipping lifeconf (optional; configs stay as-is)."
 fi
 
+# --- Idle suspend ------------------------------------------------------------
+# The idle chain locks at 10 minutes and blanks the screens at 15, and then
+# stops: the desktop this rice grew up on runs services and must never sleep.
+# On a laptop that means an idle machine with the lid open stays fully awake
+# until the battery is flat, which is the same wrong default the sleep-target
+# question above already corrects for — so correct it here too, by the same
+# rule: let the hardware pick the answer.
+#
+# This has to run after lifeconf, because theme.toml is what it edits and
+# lifeconf is what creates it. The step itself (scripts/idle-suspend.sh) fires
+# only while discharging, so saying yes on a docked laptop costs nothing.
+offer_idle_suspend "$HOME/.config/lifeconf/theme.toml"
+
 echo "==> GTK dark theme + cursor (GTK apps; Qt/KDE keeps its own settings)"
 if command -v gsettings >/dev/null 2>&1; then
   gsettings set org.gnome.desktop.interface gtk-theme "adw-gtk3-dark"
@@ -520,11 +568,8 @@ if bash "$REPO/scripts/lite-profile.sh" --check; then
   bash "$REPO/scripts/lite-profile.sh" --why
   echo "    The lite profile changes:"
   bash "$REPO/scripts/lite-profile.sh" --report
-  if [[ -t 0 ]]; then
-    read -rp "    Apply the lite profile? [Y/n] " a
-    [[ ${a:-Y} =~ ^[Yy]?$ ]] && bash "$REPO/scripts/lite-profile.sh" --apply
-  else
-    echo "    (non-interactive — not applied; run: lite-profile.sh --apply)"
+  if ask_yn "Apply the lite profile?" y; then
+    bash "$REPO/scripts/lite-profile.sh" --apply
   fi
 else
   echo "    hardware looks comfortable — keeping the full look."

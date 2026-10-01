@@ -132,6 +132,16 @@ pub struct Lifenote {
 pub struct Idle {
     pub lock_minutes: u32,
     pub screen_off_minutes: u32,
+    /// Minutes of idle before the machine suspends; 0 disables the step
+    /// entirely and is the shipped default, because this rice grew up on a
+    /// desktop that runs services and must never sleep.
+    ///
+    /// install.sh turns it on when it finds a battery — the same "let the
+    /// hardware pick the default" rule it already applies to the sleep
+    /// targets. Even then the suspend only fires while discharging: see
+    /// scripts/idle-suspend.sh, which is what the timeout actually runs.
+    #[serde(default)]
+    pub suspend_minutes: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -166,7 +176,12 @@ impl Default for Theme {
             },
             lifewall: Lifewall {
                 tick: 0.3,
-                fps: 30,
+                // A fade phase is quantized to 16 colour steps over fade*tick
+                // seconds, so past ~18 fps the extra frames are mostly
+                // identical to their predecessor. 15 costs about half of what
+                // 30 did and looks the same. Existing installs keep whatever
+                // their theme.toml already says; this only moves fresh ones.
+                fps: 15,
                 fade: 3.0,
                 density: 0.14,
                 glyph_mode: "ascii".into(),
@@ -185,7 +200,7 @@ impl Default for Theme {
                 position: "top-right".into(),
                 dismiss_on_click_outside: false,
             },
-            idle: Idle { lock_minutes: 10, screen_off_minutes: 15 },
+            idle: Idle { lock_minutes: 10, screen_off_minutes: 15, suspend_minutes: 0 },
             animations: Animations { slowdown: 0.6 },
             cursor: Cursor { theme: "phinger-cursors-light".into(), size: 24 },
             font: Font { family: "ShureTechMono Nerd Font".into(), size: 12 },
