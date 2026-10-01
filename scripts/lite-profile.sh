@@ -3,7 +3,7 @@
 # lite-profile.sh: turn the expensive parts down on hardware that cannot spare it.
 #
 # The default look assumes a machine with cycles to burn: a full-screen Game of
-# Life at 30 fps in a terminal panel, translucent terminals composited over it,
+# Life redrawn 15 times a second, translucent terminals composited over it,
 # and eased animations. On an old laptop that is the difference between a
 # desktop that feels instant and one that feels like treacle.
 #
@@ -44,13 +44,20 @@ check() {
   awk -v m="$mem" 'BEGIN { exit !(m < 6) }' && REASONS+=("${mem} GiB of RAM")
   (( cores <= 2 )) && REASONS+=("$cores CPU core(s)")
   root_rotational && REASONS+=("a spinning disk on /")
+  # "Slow" and "battery-powered" are different problems and this used to test
+  # only for the first, so a current laptop — plenty of cores, plenty of RAM,
+  # an NVMe — was never even offered the profile despite being the machine
+  # where the wallpaper's cost is actually charged to something finite. The
+  # wallpaper measured ~13% of a core continuously on a 2019 MacBook Pro.
+  compgen -G "/sys/class/power_supply/BAT*" >/dev/null && REASONS+=("a battery to run down")
   (( ${#REASONS[@]} ))
 }
 
 report() {
   cat <<EOF
-    Game of Life wallpaper : 30 fps -> 10 fps, 0.3s tick -> 0.5s, sparser board
-                             (a full-screen terminal animation is the big one)
+    Game of Life wallpaper : fps -> 10 (4 on battery), 0.3s tick -> 0.5s
+                             (frame rate is what the wallpaper costs: every
+                             frame is a redraw of the whole background)
     Terminal transparency  : 0.93 -> 1.0 (no compositing over a moving background)
     Window animations      : slowdown 0.6 -> 0.35 (shorter, not disabled)
     Everything else — colours, keybinds, layout — is untouched.
@@ -60,11 +67,16 @@ EOF
 apply() {
   local changed=0
   if [[ -f $THEME ]]; then
-    set_toml "$THEME" lifewall   tick     0.5
-    set_toml "$THEME" lifewall   fps      10
-    set_toml "$THEME" lifewall   fade     2.0
-    set_toml "$THEME" lifewall   density  0.12
-    set_toml "$THEME" animations slowdown 0.35
+    set_toml "$THEME" lifewall   tick        0.5
+    set_toml "$THEME" lifewall   fps         10
+    set_toml "$THEME" lifewall   fps_battery 4
+    set_toml "$THEME" lifewall   fade        2.0
+    # Kept for the look (a sparser board suits the lite profile), NOT as a
+    # saving: measured at a settled steady state, density barely moves the
+    # output at all — Life converges on a similar population whatever soup it
+    # was seeded from, so this only changes the first seconds after a reseed.
+    set_toml "$THEME" lifewall   density     0.12
+    set_toml "$THEME" animations slowdown    0.35
     echo "    theme.toml: lifewall turned down, animations shortened"
     changed=1
   else

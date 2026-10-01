@@ -82,11 +82,17 @@ pub fn lifewall_shell_cmd(t: &Theme) -> String {
 /// The swayidle process argv (element 0 is "swayidle"). Timeouts come from the
 /// theme; the rest of the idle chain is fixed (lifelock at lock, dpms + wallpaper
 /// freeze at screen-off, thaw on resume).
+///
+/// The optional last step is suspend, which is off unless `idle.suspend_minutes`
+/// says otherwise. It runs idle-suspend.sh rather than `systemctl suspend`
+/// directly: the script no-ops on mains power, so a plugged-in laptop still
+/// only locks and blanks. swayidle's own `before-sleep` locks on the way down,
+/// so the suspend step deliberately does not lock again.
 pub fn swayidle_argv(t: &Theme) -> Vec<String> {
     let lock = (t.idle.lock_minutes * 60).to_string();
     let off = (t.idle.screen_off_minutes * 60).to_string();
     let lifelock = "systemd-cat -t lifelock ~/.local/bin/lifelock -f".to_string();
-    vec![
+    let mut argv: Vec<String> = vec![
         "swayidle".into(),
         "-w".into(),
         "timeout".into(),
@@ -95,13 +101,19 @@ pub fn swayidle_argv(t: &Theme) -> Vec<String> {
         "timeout".into(),
         off,
         "niri msg action power-off-monitors; ~/.local/bin/lifebg-toggle.sh dpms-pause".into(),
+        // Binds to the screen-off timeout immediately above: swayidle attaches
+        // a `resume` clause to the timeout that precedes it, which is why the
+        // suspend step below has to come AFTER this pair and not between them.
         "resume".into(),
         "~/.local/bin/lifebg-toggle.sh dpms-resume".into(),
-        "lock".into(),
-        lifelock.clone(),
-        "before-sleep".into(),
-        lifelock,
-    ]
+    ];
+    if t.idle.suspend_minutes > 0 {
+        argv.push("timeout".into());
+        argv.push((t.idle.suspend_minutes * 60).to_string());
+        argv.push("~/.local/bin/idle-suspend.sh".into());
+    }
+    argv.extend(["lock".into(), lifelock.clone(), "before-sleep".into(), lifelock]);
+    argv
 }
 
 #[cfg(test)]
@@ -113,8 +125,41 @@ mod tests {
         let mut t = Theme::default();
         t.lifewall.fps_battery = 8;
         let cmd = lifewall_shell_cmd(&t);
-        assert!(cmd.contains("--fps 30 ") && cmd.ends_with("--fps-battery 8"), "{cmd}");
+        assert!(cmd.contains("--fps 15 ") && cmd.ends_with("--fps-battery 8"), "{cmd}");
         t.lifewall.fps_battery = 0;
         assert!(lifewall_shell_cmd(&t).ends_with("--fps-battery 0"), "0 = don't throttle");
+    }
+
+    fn pos(argv: &[String], needle: &str) -> usize {
+        argv.iter().position(|a| a.contains(needle)).unwrap_or_else(|| panic!("{needle:?} not in {argv:?}"))
+    }
+
+    /// swayidle attaches a `resume` clause to the timeout immediately before
+    /// it, so "resume" must stay adjacent to the screen-off step. Slipping the
+    /// suspend timeout between them would silently re-point the wallpaper thaw
+    /// at the wrong event and leave the board frozen after a wake.
+    #[test]
+    fn resume_stays_attached_to_the_screen_off_timeout() {
+        for suspend_minutes in [0, 30] {
+            let mut t = Theme::default();
+            t.idle.suspend_minutes = suspend_minutes;
+            let argv = swayidle_argv(&t);
+            let off = pos(&argv, "power-off-monitors");
+            assert_eq!(argv[off + 1], "resume", "suspend_minutes={suspend_minutes}");
+            assert!(argv[off + 2].contains("dpms-resume"));
+        }
+    }
+
+    #[test]
+    fn suspend_step_is_off_by_default_and_lands_after_the_resume_pair() {
+        let t = Theme::default();
+        assert_eq!(t.idle.suspend_minutes, 0);
+        assert!(!swayidle_argv(&t).iter().any(|a| a.contains("idle-suspend")));
+        let mut t = Theme::default();
+        t.idle.suspend_minutes = 30;
+        let argv = swayidle_argv(&t);
+        let sus = pos(&argv, "idle-suspend.sh");
+        assert_eq!((argv[sus - 2].as_str(), argv[sus - 1].as_str()), ("timeout", "1800"));
+        assert!(sus > pos(&argv, "dpms-resume"));
     }
 }

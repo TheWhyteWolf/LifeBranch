@@ -109,3 +109,18 @@ jobs:
             cargo build --release --manifest-path "$c/Cargo.toml"
             echo "::endgroup::"
           done
+
+      # The crates carry unit tests for the parts that are easy to get subtly
+      # wrong and impossible to eyeball: the Life rules, the cube geometry, the
+      # password buffer's zeroing, and the swayidle argv ordering (a `resume`
+      # clause binds to the timeout before it, so inserting a step in the wrong
+      # place silently re-points it). Building them without running them left
+      # all of that unchecked.
+      - name: cargo test
+        run: |
+          for c in lifefont lifewall lifelock lifenote lifeconf lifegreet lifefiles lifeshot \
+                   lifemenu lifeauth lifepanel lifeosd lifebar lifeportal; do
+            echo "::group::$c"
+            cargo test --release --manifest-path "$c/Cargo.toml"
+            echo "::endgroup::"
+          done

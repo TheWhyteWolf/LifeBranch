@@ -50,7 +50,9 @@ impl Default for Config {
     fn default() -> Self {
         Config {
             tick: 0.3,
-            fps: 30.0,
+            // Fades are 16 colour steps over fade*tick seconds, so past ~18
+            // fps most frames repeat the last one; 15 looks the same as 30.
+            fps: 15.0,
             fps_battery: 8.0,
             fade: 3.0,
             density: 0.14,
