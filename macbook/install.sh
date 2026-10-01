@@ -16,28 +16,11 @@ fi
 # AUR helper, bootstrapped by curl when missing. No-op if yay is present.
 bash "$REPO/scripts/ensure-yay.sh"
 
-# Shared stack + brightnessctl for the backlight keys/module.
-# phinger-cursors is AUR-only; the rest are official repos (adw-gtk-theme is in extra).
-# kitty is the terminal the whole rice assumes: Mod+T, the Ctrl+Alt+Return
-# recovery bind, the waybar htop clicks, and the `kitten panel` Game of Life
-# wallpaper all need it.
-# qt6-wayland/qt5-wayland are the Qt Wayland platform plugins — the actual fix
-# for drag-and-drop. Without the plugin Qt falls back to XWayland, and
-# xwayland-satellite can't bridge DnD across the X11/Wayland boundary
-# (Supreeeme/xwayland-satellite#133), so drags out of Dolphin die at the border.
-# The platform variables that go with them live in
-# environment.d/50-niri-platform.conf, which documents the trade-off.
-PKGS=(niri rust
-      kitty fuzzel waybar mako swaybg xwayland-satellite wl-clipboard cliphist wev brightnessctl
-      adw-gtk-theme wob jq
-      swaylock swayidle ttf-sharetech-mono-nerd ttf-cousine-nerd
-      xdg-desktop-portal-gnome qt6ct qt6-wayland qt5-wayland polkit-kde-agent
-      network-manager-applet blueman udiskie wlsunset wf-recorder playerctl
-      # Everyday applications (same set as the desktop installer).
-      nano dolphin libreoffice-fresh element-desktop kleopatra)
-
-# AUR-only, kept separate so a build failure names itself.
-AUR_PKGS=(phinger-cursors vesktop-bin)
+# The package list (and why each one is there) is shared with the desktop
+# installer in scripts/packages.sh, so the two machines cannot drift.
+# shellcheck source=scripts/packages.sh
+source "$REPO/scripts/packages.sh"
+drop_conflicts
 
 echo "==> Installing packages from the official repos"
 sudo pacman -S --needed "${PKGS[@]}"
@@ -48,6 +31,9 @@ if command -v yay >/dev/null 2>&1; then
 else
   echo "    !! no AUR helper — skipping ${AUR_PKGS[*]}."
 fi
+
+echo "==> Enabling the system services the Settings panels use"
+enable_services
 
 if [[ -t 0 ]]; then
   echo
