@@ -78,6 +78,8 @@ pub struct Model {
     /// Set while a Display change awaits keep/revert; front ends go modal.
     pub pending: Option<Pending>,
     pub status: String,
+    /// Installed cursor themes, which Cursor's theme row steps through.
+    pub cursor_themes: Vec<String>,
     pub dirty: bool,
     pub quit: bool,
 }
@@ -154,7 +156,7 @@ pub fn kind(cat: usize, field: usize) -> Kind {
         ("Accessibility", 0) => Kind::Int(10),
         ("Accessibility", 1) => Kind::Bool,
         ("Accessibility", _) => Kind::Int(2),
-        ("Cursor", 0) => Kind::Text,
+        ("Cursor", 0) => Kind::Choice, // one of the installed themes
         ("Cursor", _) => Kind::Int(2),
         ("Font", 0) => Kind::Text,
         ("Font", _) => Kind::Int(1),
@@ -197,6 +199,7 @@ impl Model {
             status: "j/k move · Tab pane · Enter edit · +/- adjust · s save · q quit".into(),
             dirty: false,
             quit: false,
+            cursor_themes: crate::cursors::installed(),
         }
     }
 
@@ -431,6 +434,19 @@ impl Model {
                 ("Lifegreet", 0) => self.theme.lifegreet.link = !self.theme.lifegreet.link,
                 _ => {}
             },
+            Kind::Choice if (CATS[self.cat], self.field) == ("Cursor", 0) => {
+                let names = &self.cursor_themes;
+                if names.is_empty() {
+                    self.status = "no cursor themes found in ~/.local/share/icons or /usr/share/icons".into();
+                    return;
+                }
+                let cur = names.iter().position(|n| *n == self.theme.cursor.theme);
+                let next = match cur {
+                    Some(i) => (i as i32 + dir).rem_euclid(names.len() as i32) as usize,
+                    None => 0,
+                };
+                self.theme.cursor.theme = names[next].clone();
+            }
             Kind::Float(step) => return self.step_num(dir as f64 * step),
             Kind::Int(step) => return self.step_num(dir as f64 * step as f64),
             _ => return,
@@ -511,6 +527,7 @@ impl Model {
     /// Select a category, (re)reading the system's current values when it is a
     /// system panel — they can change behind our back (volume keys, hotplug).
     pub fn enter_cat(&mut self, i: usize) {
+        self.editing = None; // a buffer must never outlive its field
         self.cat = i;
         self.field = 0;
         self.refresh_sys();
@@ -659,6 +676,18 @@ mod tests {
     fn model() -> Model {
         // Nothing here writes: only navigation/search, never preview/commit.
         Model::new(Paths { home: "/nonexistent-lifeconf-test".into() }, Theme::default())
+    }
+
+    #[test]
+    fn changing_category_drops_an_open_edit() {
+        let mut m = model();
+        let cursor = CATS.iter().position(|c| *c == "Cursor").unwrap();
+        m.enter_cat(cursor);
+        m.begin_edit();
+        assert!(m.editing.is_some());
+        m.enter_cat(0);
+        assert!(m.editing.is_none(), "the old field's text must not carry over");
+        assert!(matches!(kind(cursor, 0), Kind::Choice), "the theme is picked from a list, not typed");
     }
 
     fn name(c: usize) -> &'static str {
