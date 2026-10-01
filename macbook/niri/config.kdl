@@ -36,7 +36,6 @@ input {
         click-method "clickfinger"
         accel-profile "adaptive"
         scroll-method "two-finger"
-        scroll-factor vertical=1.0 horizontal=-1.0
     }
     // LIFEBRANCH:END touchpad
 
