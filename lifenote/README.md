@@ -56,6 +56,10 @@ annotated olive defaults. Notables: `border-style single|rounded|heavy|double|
 ascii`, `background-alpha 0.85`, `layer top|overlay` (overlay punches through
 fullscreen apps), `anchor`, `max-width` (columns), `dismiss-on-click-outside
 true|false` (default false; also a toggle in `lifeconf`).
+`mute-apps vesktop, element` sends those apps' notifications straight to the
+history, as do-not-disturb does, except critical ones, which still show.
+Settings > Notifications sets it, along with `default-timeout` (popup seconds)
+and `max-visible`.
 
 ## Known limitations
 

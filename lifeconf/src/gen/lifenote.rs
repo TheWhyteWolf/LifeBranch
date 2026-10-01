@@ -23,15 +23,16 @@ pub fn render(t: &Theme) -> String {
          title-color={accent}\n\
          warn-color={warn}\n\
          urgent-color={urgent}\n\n\
-         default-timeout=3000\n\
+         default-timeout={timeout_ms}\n\
          critical-timeout=0\n\n\
          max-width=40\n\
-         max-visible=5\n\
+         max-visible={max_visible}\n\
          max-lines=6\n\n\
          anchor={anchor}\n\
          margin=8\n\
          layer=top\n\n\
-         dismiss-on-click-outside={click_out}\n",
+         dismiss-on-click-outside={click_out}\n\
+         mute-apps={muted}\n",
         border_style = n.border_style,
         crit_style = n.critical_border_style,
         surface = hash(&p.surface),
@@ -43,12 +44,28 @@ pub fn render(t: &Theme) -> String {
         urgent = hash(&p.urgent),
         anchor = n.position,
         click_out = n.dismiss_on_click_outside,
+        timeout_ms = n.timeout_seconds as u64 * 1000,
+        max_visible = n.max_visible.clamp(1, 20),
+        // One line, commas only: a newline would start a new config key.
+        muted = n.muted_apps.replace(['\n', '\r', '='], " "),
     )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn timeout_count_and_muted_apps_are_emitted() {
+        let mut t = Theme::default();
+        let r = render(&t);
+        assert!(r.contains("default-timeout=3000") && r.contains("max-visible=5") && r.contains("mute-apps=\n"));
+        t.lifenote.timeout_seconds = 0;
+        t.lifenote.muted_apps = "vesktop, element\nlayer=overlay".into();
+        let r = render(&t);
+        assert!(r.contains("default-timeout=0\n"));
+        assert!(r.contains("mute-apps=vesktop, element layer overlay\n"), "no key injection: {r}");
+    }
 
     #[test]
     fn click_outside_is_emitted() {
