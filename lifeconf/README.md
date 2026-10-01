@@ -65,6 +65,13 @@ and everything that reads its config, lifenote, and GTK apps through
 motion turns niri's animations off and slows the wallpaper to 2 fps. Cursor
 size is shown there too and edits the same setting as Cursor > size.
 
+The Cursor and Font pages preview their setting in the GUI. Cursor shows the
+chosen theme's main cursors at the chosen size, once on light and once on dark,
+and its theme row steps through the cursor themes installed. Font shows
+"Amazingly few discotheques provide jukeboxes" in the chosen family and size
+(through fontconfig), and says so when that family isn't installed and
+fontconfig substituted another.
+
 Saving pops a **polkit password prompt** when (and only when) the login screen
 needs root: it installs the staged palette to `/etc/lifegreet/config` and
 refreshes `/usr/local/bin/lifegreet` if the repo build is newer than the
