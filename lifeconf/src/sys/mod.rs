@@ -19,6 +19,7 @@ pub mod display;
 pub mod kdl;
 pub mod keyboard;
 pub mod niri_input;
+pub mod nightlight;
 pub mod power;
 pub mod net;
 pub mod sound;
@@ -28,7 +29,7 @@ pub mod vpn;
 mod common;
 pub use common::*;
 
-pub const PANELS: &[&str] = &["Display", "Network", "VPN", "Bluetooth", "Sound", "Keyboard", "Touchpad", "Power", "Date & Time", "Apps", "Autostart", "About"];
+pub const PANELS: &[&str] = &["Display", "Network", "VPN", "Bluetooth", "Sound", "Keyboard", "Touchpad", "Power", "Night light", "Date & Time", "Apps", "Autostart", "About"];
 
 pub fn is_panel(name: &str) -> bool {
     PANELS.contains(&name)
@@ -46,6 +47,7 @@ pub fn labels(panel: &str) -> &'static [&'static str] {
         "Date & Time" => datetime::LABELS,
         "About" => about::LABELS,
         "Power" => power::LABELS,
+        "Night light" => nightlight::LABELS,
         "Apps" => apps::LABELS,
         "Autostart" => autostart::LABELS,
         _ => &[],
@@ -64,6 +66,7 @@ pub fn row_kind(panel: &str, field: usize) -> RowKind {
         "Date & Time" => datetime::kind(field),
         "About" => about::kind(field),
         "Power" => power::kind(field),
+        "Night light" => nightlight::kind(field),
         "Apps" => apps::kind(field),
         "Autostart" => autostart::kind(field),
         _ => RowKind::Info,
@@ -82,6 +85,7 @@ pub fn load(panel: &str, run: Runner) -> Vec<Row> {
         "Date & Time" => datetime::load(run),
         "About" => about::load(run),
         "Power" => power::load(run),
+        "Night light" => nightlight::load(run),
         "Apps" => apps::load(run),
         "Autostart" => autostart::load(run),
         _ => Vec::new(),
@@ -124,6 +128,7 @@ pub fn apply(panel: &str, field: usize, rows: &[Row], ch: Change, run: Runner) -
         "Date & Time" => datetime::apply(field, rows, ch, run),
         "About" => about::apply(field, rows, ch, run),
         "Power" => power::apply(field, rows, ch, run),
+        "Night light" => nightlight::apply(field, rows, ch, run),
         "Apps" => apps::apply(field, rows, ch, run),
         "Autostart" => autostart::apply(field, rows, ch, run),
         _ => Err("read-only".into()),

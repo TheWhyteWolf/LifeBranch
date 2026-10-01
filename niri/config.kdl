@@ -177,7 +177,7 @@ spawn-at-startup "wl-paste" "--type" "image" "--watch" "cliphist" "store"
 spawn-sh-at-startup "exec systemd-cat -t lifeauth ~/.local/bin/lifeauth"
 // LIFEBRANCH:BEGIN nightlight
 // Night light: warms the gamma after sunset (wlr-gamma-control).
-// Coordinates are London — adjust -l/-L for elsewhere.
+// Settings > Night light edits this region (location, temperatures, times).
 spawn-at-startup "wlsunset" "-l" "51.5" "-L" "-0.1"
 // LIFEBRANCH:END nightlight
 // Automount removable media through udisks2, with a lifenote popup for

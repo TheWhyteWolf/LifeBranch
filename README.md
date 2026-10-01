@@ -299,7 +299,7 @@ next time you open it.
   steal `Mod+1`). If it's visible but unfocused, `Mod+Grave` focuses it.
 - **DE plumbing** — the invisible bits a full DE ships: lifeauth
   (GUI privilege prompts — without one GParted/Dolphin-mounts fail silently),
-  wlsunset night light (London coords in config.kdl), `lifepanel --watch` USB
+  wlsunset night light (location and temperatures in Settings > Night light), `lifepanel --watch` USB
   automount (mount events arrive as lifenote popups), a caffeine toggle in the bar (IDLE
   label → click → warn-tinted WAKE holds off the idle lock), `Mod+Print`
   wf-recorder screen capture, and `Mod+KP_Divide` media play/pause
