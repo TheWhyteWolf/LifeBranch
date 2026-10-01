@@ -165,9 +165,10 @@ spawn-at-startup "swayidle" "-w" "timeout" "600" "systemd-cat -t lifelock ~/.loc
 // for the same stderr reason as lifelock above. mako stays installed as the
 // fallback: pkill lifenote && mako.
 spawn-sh-at-startup "systemd-cat -t lifenote ~/.local/bin/lifenote"
-// Volume OSD: wob draws a bar for whatever percentage lands in its FIFO
-// (scripts/vol-osd.sh writes there). Olive-themed via ~/.config/wob/wob.ini.
-spawn-sh-at-startup "f=$XDG_RUNTIME_DIR/wob.sock; rm -f $f; mkfifo $f; tail -f $f | wob"
+// Volume OSD: lifeosd flashes a labelled bar for each line scripts/vol-osd.sh
+// writes to its FIFO (journalctl -t lifeosd). wob is the fallback until
+// lifeosd is built.
+spawn-sh-at-startup "if [ -x ~/.local/bin/lifeosd ]; then exec systemd-cat -t lifeosd ~/.local/bin/lifeosd; else f=$XDG_RUNTIME_DIR/wob.sock; rm -f $f; mkfifo $f; tail -f $f | wob; fi"
 // Clipboard-history watchers (cliphist).
 spawn-at-startup "wl-paste" "--watch" "cliphist" "store"
 spawn-at-startup "wl-paste" "--type" "image" "--watch" "cliphist" "store"
@@ -295,7 +296,7 @@ binds {
     // --- Volume ---
     // For keyboards with no media keys: the numpad doubles as volume control,
     // with the XF86 keys bound underneath for the boards that do have them.
-    // vol-osd.sh = wpctl + a wob OSD flash (keys still work while locked; the
+    // vol-osd.sh = wpctl + an OSD flash (lifeosd) (keys still work while locked; the
     // bar itself can't render over the lock surface).
     Mod+KP_Add      allow-when-locked=true { spawn-sh "~/.local/bin/vol-osd.sh up"; }
     Mod+KP_Subtract allow-when-locked=true { spawn-sh "~/.local/bin/vol-osd.sh down"; }
