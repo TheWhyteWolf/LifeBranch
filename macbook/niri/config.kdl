@@ -125,7 +125,7 @@ environment {
 // LIFECONF:BEGIN cursor
 cursor {
     xcursor-theme "LifeBranch-dark"
-    xcursor-size 24
+    xcursor-size 18
 }
 // LIFECONF:END cursor
 

@@ -311,7 +311,7 @@ fn paint_scene(
         let vx = fx + 24 * cell_w;
         let editing_here = selected && m.editing.is_some();
         let val = if editing_here {
-            format!("{}_", m.editing.as_deref().unwrap_or(""))
+            format!("{}_{}", m.editing.as_deref().unwrap_or(""), m.search_hint().unwrap_or_default())
         } else {
             m.value(m.cat, i)
         };
@@ -464,6 +464,11 @@ pub fn render_ppm(paths: Paths, theme: Theme, out: &str) -> i32 {
             what: "eDP-1 scale 1.5".into(),
         });
     }
+    // A field mid-edit, e.g. a choice search (LIFECONF_PPM_EDIT=ubu).
+    if let Ok(t) = std::env::var("LIFECONF_PPM_EDIT") {
+        m.focus = crate::model::Focus::Fields;
+        m.editing = Some(t);
+    }
     if let Ok(q) = std::env::var("LIFECONF_PPM_SEARCH") {
         m.search = Some(q);
         m.searching = true;
@@ -591,7 +596,10 @@ impl Gui {
                 return;
             }
             let s = self.m.editing.take().unwrap();
-            self.m.set_text(&s);
+            // A half-typed choice search is dropped, not resolved to a guess.
+            if !matches!(self.m.kind_here(), Kind::Choice) {
+                self.m.set_text(&s);
+            }
         }
         let (bx, by, bw, bh) =
             save_btn_rect(self.width as usize, self.height as usize, self.cell_w, self.cell_h);
@@ -761,10 +769,9 @@ impl Gui {
             }
             Keysym::Return | Keysym::KP_Enter | Keysym::space => match self.m.focus {
                 Focus::Cats => self.m.focus = Focus::Fields,
-                Focus::Fields => match self.m.kind_here() {
-                    Kind::Hex | Kind::Text | Kind::Float(_) | Kind::Int(_) => self.m.begin_edit(),
-                    _ => self.m.nudge(1),
-                },
+                // Space steps a choice; Enter searches it.
+                Focus::Fields if sym == Keysym::space && matches!(self.m.kind_here(), Kind::Choice) => self.m.nudge(1),
+                Focus::Fields => self.m.activate(),
             },
             _ => {}
         }

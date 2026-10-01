@@ -161,10 +161,9 @@ fn handle_key(m: &mut Model, code: KeyCode, mods: KeyModifiers) {
         }
         KeyCode::Enter | KeyCode::Char(' ') => match m.focus {
             Focus::Cats => m.focus = Focus::Fields,
-            Focus::Fields => match m.kind_here() {
-                Kind::Hex | Kind::Text | Kind::Float(_) | Kind::Int(_) => m.begin_edit(),
-                _ => m.nudge(1),
-            },
+            // Space steps a choice; Enter searches it.
+            Focus::Fields if code == KeyCode::Char(' ') && matches!(m.kind_here(), Kind::Choice) => m.nudge(1),
+            Focus::Fields => m.activate(),
         },
         _ => {}
     }
@@ -227,7 +226,7 @@ fn draw_fields(f: &mut Frame, m: &Model, area: Rect) {
     for (i, label) in labels.iter().enumerate() {
         let editing_here = active && i == m.field && m.editing.is_some();
         let val = if editing_here {
-            format!("{}▏", m.editing.as_deref().unwrap_or(""))
+            format!("{}▏{}", m.editing.as_deref().unwrap_or(""), m.search_hint().unwrap_or_default())
         } else {
             m.value(m.cat, i)
         };

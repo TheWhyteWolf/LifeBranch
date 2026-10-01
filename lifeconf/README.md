@@ -59,6 +59,13 @@ without saving (reverting the live preview). The GUI adds mouse
 click-to-select, a **Save** button (lit while there are unsaved changes), and
 mirrors the TUI 1:1.
 
+Rows that pick from a list (Cursor's theme, Font's family, and the system
+panels' choices) step with a click, Space or `+`/`-`. Enter opens a search
+instead: type part of a name, the row shows what it would pick
+(`mono_ -> Adwaita Mono (+10 more)`), Enter takes it and Esc cancels. Font
+offers the installed monospace families only, because the bar, menus,
+notifications and terminal all draw on a fixed grid.
+
 **Accessibility** scales the UI text the theme generates (the bar, lifemenu
 and everything that reads its config, lifenote, and GTK apps through
 `text-scaling-factor`; kitty keeps its own Ctrl+Shift+= zoom), and its reduce
@@ -113,7 +120,7 @@ finds Sound.
 | **VPN** | `nmcli`, `tailscale`, `protonvpn`, `mullvad` | every tunnel in one list: connect/disconnect; NetworkManager profiles (WireGuard `.conf`, OpenVPN `.ovpn`) can be imported, set to autoconnect, or deleted (type the name to confirm); Tailscale exit node; Proton and Mullvad location. A provider that isn't installed isn't listed. Proton's status comes from NetworkManager; its CLI connects when it runs, else its app opens. |
 | **Bluetooth** | `bluetoothctl` | power, pick a device, connect (pairing + trusting new ones first), disconnect, background scan. |
 | **Sound** | `wpctl` | default output/input device, volume, mute (right-click waybar `VOL`). |
-| **Keyboard** | niri config | layout (typed, checked against `localectl`), variant, options, numlock, key repeat. |
+| **Keyboard** | niri config | layout and variant (typed as a code, `gb`, or xkb's name for it, `English (UK)`; checked against xkb's own list, and a variant the new layout lacks is reset), options (codes such as `ctrl:nocaps`; an unknown one gets suggestions), numlock, key repeat. |
 | **Touchpad** | niri config | enabled, tap, natural scroll up/down and sideways (separately: sideways is set apart by the sign of `scroll-factor horizontal=`, keeping any scroll speed), disable-while-typing, click/scroll method, accel profile/speed, button map. |
 | **Power** | `powerprofilesctl`, `brightnessctl`, `upower` | power profile, brightness (never below 1%), battery state. The lid-close behaviour is shown read-only: it lives in hand-tuned logind drop-ins under `/etc`, which lifeconf deliberately doesn't rewrite. Idle lock/screen-off timeouts are in the Idle category. |
 | **Date & Time** | `timedatectl` | timezone (type `Toronto` or `America/Toronto`), automatic time. Asks polkit. |

@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Keyboard panel: layout, variant, xkb options, numlock and key repeat, written
-// into the `keyboard` region of niri's config (see niri_input). Layouts are
-// typed (`gb`, `us,ru`) and checked against `localectl list-x11-keymap-layouts`
-// so a typo can't produce a keymap niri refuses to start with.
+// into the `keyboard` region of niri's config (see niri_input). Layouts and
+// variants are typed as codes (`gb`, `us,ru`) or names ("british", "dvorak")
+// and resolved against xkb's own list (see xkb.rs); options must be codes from
+// it. Without that list, layouts fall back to `localectl
+// list-x11-keymap-layouts`. Either way a typo can't produce a keymap niri
+// refuses to start with.
 
 use super::kdl::{self, Node};
 use super::niri_input::{config_path, read, write, xkb_name_ok};
+use super::xkb::{self as xkbl, Xkb};
 use super::{Change, Row, RowKind, Runner};
 
 pub const LABELS: &[&str] = &["layout", "variant", "options", "numlock", "repeat delay ms", "repeat rate /s"];
@@ -52,6 +56,10 @@ pub fn apply(field: usize, rows: &[Row], ch: Change, run: Runner) -> Result<Stri
 }
 
 pub fn apply_at(path: &str, field: usize, rows: &[Row], ch: Change, run: Runner) -> Result<String, String> {
+    apply_with(path, field, rows, ch, run, super::xkb::Xkb::load().as_ref())
+}
+
+fn apply_with(path: &str, field: usize, rows: &[Row], ch: Change, run: Runner, xkb: Option<&Xkb>) -> Result<String, String> {
     let row = rows.get(field).ok_or("no such row")?;
     let mut nodes = read(path, "keyboard")?;
     let msg;
@@ -63,20 +71,42 @@ pub fn apply_at(path: &str, field: usize, rows: &[Row], ch: Change, run: Runner)
                 let t = t.trim();
                 let clear = t.is_empty() || t == NONE || t == SYSTEM;
                 let (key, what) = [("layout", "layout"), ("variant", "variant"), ("options", "options")][field];
+                let layout_now = Some(rows[0].value.as_str()).filter(|v| *v != SYSTEM && !v.contains(' '));
+                let mut t = t.to_string();
+                let mut note = String::new();
                 if !clear {
-                    if !xkb_name_ok(t) {
+                    // Names resolve to codes first; the codes are what must be safe.
+                    t = match (field, xkb) {
+                        (0, Some(x)) => xkbl::layouts(x, &t)?,
+                        (1, Some(x)) => match layout_now {
+                            Some(l) => xkbl::variants(x, l, &t)?,
+                            None => t,
+                        },
+                        (2, Some(x)) => xkbl::options(x, &t)?,
+                        _ => t,
+                    };
+                    if !xkb_name_ok(&t) {
                         return Err(format!("{what}: only letters, digits and : , + - ( ) _ are allowed"));
                     }
-                    if field == 0 {
-                        check_layouts(t, run)?;
+                    if field == 0 && xkb.is_none() {
+                        check_layouts(&t, run)?;
                     }
                 }
-                let xkb = kdl::block_mut(kb, "xkb");
-                kdl::put(xkb, key, (!clear).then(|| Node::str(key, t)));
-                if xkb.is_empty() {
+                let xkb_block = kdl::block_mut(kb, "xkb");
+                kdl::put(xkb_block, key, (!clear).then(|| Node::str(key, &t)));
+                // A new layout keeps its variant only if that variant exists for it.
+                if let (0, Some(x), false) = (field, xkb, clear) {
+                    if let Some(v) = kdl::get_str(xkb_block, "variant") {
+                        if xkbl::variants(x, &t, &v).is_err() {
+                            kdl::put(xkb_block, "variant", None);
+                            note = format!(" (variant {v} doesn't fit it, so it was reset)");
+                        }
+                    }
+                }
+                if xkb_block.is_empty() {
                     kdl::put(kb, "xkb", None); // don't leave an empty xkb {} behind
                 }
-                msg = format!("{what} {}", if clear { "reset" } else { t });
+                msg = format!("{what} {}{note}", if clear { "reset" } else { &t });
             }
             3 => {
                 let on = row.value == "true";
@@ -131,6 +161,36 @@ mod tests {
 
     const REGION: &str = "    keyboard {\n        // note\n        xkb {\n            layout \"gb\"\n            model \"pc105\"\n            options \"terminate:ctrl_alt_bksp\"\n        }\n        numlock\n    }";
 
+    fn ap(p: &str, field: usize, rows: &[Row], ch: Change) -> Result<String, String> {
+        apply_with(p, field, rows, ch, &layouts, Some(&super::super::xkb::fixture()))
+    }
+
+    #[test]
+    fn layouts_and_variants_by_name_and_a_stale_variant_is_dropped() {
+        let p = test_config("kb-names", "keyboard", REGION);
+        let rows = load_at(&p);
+        ap(&p, 0, &rows, Change::Text("English (US), russian".into())).unwrap();
+        assert!(std::fs::read_to_string(&p).unwrap().contains("layout \"us,ru\""));
+        let rows = load_at(&p);
+        ap(&p, 1, &rows, Change::Text("dvorak,phonetic".into())).unwrap();
+        assert!(std::fs::read_to_string(&p).unwrap().contains("variant \"dvorak,phonetic\""));
+        // German has no dvorak in the fixture: the variant goes with the change.
+        let msg = ap(&p, 0, &load_at(&p), Change::Text("de".into())).unwrap();
+        assert!(msg.contains("reset"), "{msg}");
+        assert_eq!(load_at(&p)[1].value, "(none)");
+        let e = ap(&p, 2, &load_at(&p), Change::Text("caps lock".into())).unwrap_err();
+        assert!(e.contains("ctrl:nocaps"), "{e}");
+    }
+
+    /// The localectl fallback, used when xkb's list is missing.
+    #[test]
+    fn without_the_xkb_list_layouts_are_checked_by_localectl() {
+        let p = test_config("kb-lctl", "keyboard", REGION);
+        let rows = load_at(&p);
+        assert!(apply_with(&p, 0, &rows, Change::Text("zz".into()), &layouts, None).unwrap_err().contains("unknown layout"));
+        apply_with(&p, 0, &rows, Change::Text("de".into()), &layouts, None).unwrap();
+    }
+
     fn layouts(_: &str, a: &[&str]) -> Result<String, String> {
         assert_eq!(a, ["list-x11-keymap-layouts"]);
         Ok("us\ngb\nru\nde\n".into())
@@ -148,8 +208,8 @@ mod tests {
     fn change_keeps_unknown_settings_and_other_regions() {
         let p = test_config("kb-set", "keyboard", REGION);
         let rows = load_at(&p);
-        apply_at(&p, 0, &rows, Change::Text("us,ru".into()), &layouts).unwrap();
-        apply_at(&p, 4, &rows, Change::Step(1), &layouts).unwrap();
+        ap(&p, 0, &rows, Change::Text("us,ru".into())).unwrap();
+        ap(&p, 4, &rows, Change::Step(1)).unwrap();
         let out = std::fs::read_to_string(&p).unwrap();
         assert!(out.contains("layout \"us,ru\""));
         assert!(out.contains("model \"pc105\""), "unknown xkb setting kept");
@@ -164,11 +224,14 @@ mod tests {
         let p = test_config("kb-bad", "keyboard", REGION);
         let before = std::fs::read_to_string(&p).unwrap();
         let rows = load_at(&p);
-        let e = apply_at(&p, 0, &rows, Change::Text("zz".into()), &layouts).unwrap_err();
-        assert!(e.contains("unknown layout"));
-        let e = apply_at(&p, 2, &rows, Change::Text("x\" } evil {".into()), &layouts).unwrap_err();
+        let e = ap(&p, 0, &rows, Change::Text("zz".into())).unwrap_err();
+        assert!(e.contains("no layout"), "{e}");
+        let e = ap(&p, 2, &rows, Change::Text("x\" } evil {".into())).unwrap_err();
+        assert!(e.contains("no xkb option"), "{e}");
+        // Without xkb's list nothing resolves it, and the character check refuses it.
+        let e = apply_with(&p, 2, &rows, Change::Text("x\" } evil {".into()), &layouts, None).unwrap_err();
         assert!(e.contains("only letters"));
-        assert!(apply_at(&p, 0, &rows, Change::Step(1), &layouts).is_err());
+        assert!(ap(&p, 0, &rows, Change::Step(1)).is_err());
         assert_eq!(std::fs::read_to_string(&p).unwrap(), before);
     }
 
@@ -176,7 +239,7 @@ mod tests {
     fn clearing_everything_removes_empty_blocks() {
         let p = test_config("kb-clear", "keyboard", "    keyboard {\n        xkb {\n            layout \"gb\"\n        }\n    }");
         let rows = load_at(&p);
-        apply_at(&p, 0, &rows, Change::Text("(none)".into()), &layouts).unwrap();
+        ap(&p, 0, &rows, Change::Text("(none)".into())).unwrap();
         let out = std::fs::read_to_string(&p).unwrap();
         assert!(!out.contains("keyboard {") && !out.contains("xkb"));
         assert_eq!(load_at(&p)[0].value, "(system default)");
@@ -186,8 +249,8 @@ mod tests {
     fn numlock_and_repeat_clamp() {
         let p = test_config("kb-num", "keyboard", REGION);
         let rows = load_at(&p);
-        apply_at(&p, 3, &rows, Change::Toggle, &layouts).unwrap(); // on -> off
-        apply_at(&p, 5, &rows, Change::Text("9999".into()), &layouts).unwrap();
+        ap(&p, 3, &rows, Change::Toggle).unwrap(); // on -> off
+        ap(&p, 5, &rows, Change::Text("9999".into())).unwrap();
         let rows = load_at(&p);
         assert_eq!(rows[3].value, "false");
         assert_eq!(rows[5].value, "100");
@@ -198,7 +261,7 @@ mod tests {
         let p = test_config("kb-odd", "keyboard", "    keyboard { repeat-delay 300; numlock }");
         let rows = load_at(&p);
         assert!(rows[0].value.contains("edit config.kdl by hand"));
-        assert!(apply_at(&p, 3, &rows, Change::Toggle, &layouts).is_err());
+        assert!(ap(&p, 3, &rows, Change::Toggle).is_err());
     }
 
     #[test]

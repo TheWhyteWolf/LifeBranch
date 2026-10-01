@@ -30,6 +30,7 @@ pub mod touchpad;
 pub mod updates;
 pub mod users;
 pub mod vpn;
+pub mod xkb;
 
 mod common;
 pub use common::*;

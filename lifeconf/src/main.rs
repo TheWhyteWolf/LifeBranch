@@ -9,6 +9,7 @@
 mod ansi16;
 mod cmd;
 mod cursors;
+mod fonts;
 mod gen;
 mod gui;
 mod live;
