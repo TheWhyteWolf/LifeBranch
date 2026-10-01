@@ -426,6 +426,16 @@ else
   echo "    WARNING: cargo not found — skipping lifeosd (no volume OSD)."
 fi
 
+# lifecursor — LifeBranch's own cursor themes (LifeBranch-dark, -light), drawn
+# from shapes and written to ~/.local/share/icons. Settings > Cursor picks one.
+echo "==> lifecursor cursor themes (~/.local/share/icons/LifeBranch-{dark,light})"
+if command -v cargo >/dev/null 2>&1; then
+  (cd "$REPO/lifecursor" && cargo build --release)
+  "$REPO/lifecursor/target/release/lifecursor"
+else
+  echo "    WARNING: cargo not found — skipping lifecursor (no LifeBranch cursors)."
+fi
+
 # lifebar — the status bar (workspaces, clock, readings, a text tray),
 # replacing waybar. A machine upgraded from the waybar days gets that unit
 # disabled here.
