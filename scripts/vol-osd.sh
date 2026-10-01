@@ -13,6 +13,9 @@ case "${1:-}" in
   *)    echo "usage: vol-osd.sh up|down|mute" >&2; exit 2 ;;
 esac
 
+# lifebar re-reads VOL now rather than at its next 5 s poll.
+pkill -RTMIN+10 -x lifebar 2>/dev/null || true
+
 run="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 osd="$run/lifeosd.fifo" sock="$run/wob.sock"
 [[ -p "$osd" || -p "$sock" ]] || exit 0   # no OSD running; volume changed anyway

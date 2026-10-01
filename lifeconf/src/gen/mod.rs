@@ -13,6 +13,7 @@ pub mod lifenote;
 pub mod lifeshot;
 pub mod niri_kdl;
 pub mod swaylock;
+pub mod lifebar;
 pub mod waybar;
 
 use crate::paths::Paths;
@@ -91,6 +92,7 @@ fn write(report: &mut Report, path: String, body: String) {
 /// enough to re-run on every TUI keystroke for live preview.
 pub fn generate_theme_files(theme: &Theme, paths: &Paths, r: &mut Report) {
     write(r, paths.config("waybar/style.css"), waybar::render(theme));
+    write(r, paths.config("lifebar/config"), lifebar::render(theme));
     write(r, paths.config("kitty/olive.conf"), kitty::render(theme));
     write(r, paths.config("fuzzel/fuzzel.ini"), fuzzel::render(theme));
     write(r, paths.config("lifenote/config"), lifenote::render(theme));

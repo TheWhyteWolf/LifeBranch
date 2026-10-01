@@ -249,6 +249,20 @@ const WAIT: &str = "15";
 
 /// Run a job; Ok carries a line for the status bar (empty: say nothing).
 pub fn run_job(job: Job, run: Runner) -> Result<String, String> {
+    // lifebar shows VOL/BRT and DND: tell it to look again once this lands.
+    let ping = match &job {
+        Job::Volume { .. } | Job::Mute { .. } | Job::Output(_) | Job::Brightness(_) => Some("-RTMIN+10"),
+        Job::Dnd(_) => Some("-RTMIN+8"),
+        _ => None,
+    };
+    let r = run_job_inner(job, run);
+    if let Some(sig) = ping.filter(|_| r.is_ok()) {
+        let _ = run("pkill", &[sig, "-x", "lifebar"]);
+    }
+    r
+}
+
+fn run_job_inner(job: Job, run: Runner) -> Result<String, String> {
     match job {
         Job::WifiRadio(on) => run("nmcli", &["radio", "wifi", onoff(on)]).map(|_| format!("wifi {}", onoff(on))),
         Job::WifiJoin { ssid, how } => {
@@ -464,8 +478,11 @@ mod tests {
                 "timeout 15 bluetoothctl connect AA:BB:CC:DD:EE:FF",
                 "bluetoothctl power off",
                 "wpctl set-volume @DEFAULT_AUDIO_SINK@ 1.50",
+                "pkill -RTMIN+10 -x lifebar",
                 "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ 1",
+                "pkill -RTMIN+10 -x lifebar",
                 "brightnessctl set 1%",
+                "pkill -RTMIN+10 -x lifebar",
                 "powerprofilesctl set balanced",
             ]
         );
