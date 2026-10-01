@@ -368,6 +368,18 @@ else
   echo "    WARNING: cargo not found — skipping lifeauth (polkit-kde-agent stays the agent)."
 fi
 
+# lifepanel — quick settings (wifi, bluetooth, sound, brightness, power,
+# do-not-disturb, drives), and with --watch the drive automounter. Replaces
+# nm-applet, blueman-applet and udiskie, which niri still starts when this
+# isn't built.
+echo "==> lifepanel quick settings (~/.local/bin/lifepanel)"
+if command -v cargo >/dev/null 2>&1; then
+  (cd "$REPO/lifepanel" && cargo build --release)
+  ln -sfn "$REPO/lifepanel/target/release/lifepanel" "$HOME/.local/bin/lifepanel"
+else
+  echo "    WARNING: cargo not found — skipping lifepanel (the tray applets stay)."
+fi
+
 # lifefiles — mouse-driven terminal file browser (Mod+E). Themed by lifeconf via
 # ~/.config/lifefiles/theme, and registered as the folder handler.
 echo "==> lifefiles file browser (~/.local/bin/lifefiles)"

@@ -62,7 +62,7 @@
     "format-ethernet": "NET",
     "format-wifi": "NET {signalStrength}%",
     "format-disconnected": "NET --",
-    "on-click": "~/.local/bin/net-menu.sh",
+    "on-click": "[ -x ~/.local/bin/lifepanel ] && exec ~/.local/bin/lifepanel || exec ~/.local/bin/net-menu.sh",
     "on-click-right": "~/.local/bin/lifeconf --gui --panel network",
     "tooltip-format": "{ifname}  {ipaddr}/{cidr}  via {gwaddr}",
     "tooltip-format-wifi": "{essid}  {ipaddr}/{cidr}  {frequency} GHz",
