@@ -8,10 +8,13 @@
 # the new-secured-network case, which is why this exists.
 set -euo pipefail
 
+# lifemenu (LifeBranch's own) with fuzzel as the fallback; same flags.
+menu=$(command -v lifemenu || command -v "$HOME/.local/bin/lifemenu" || echo fuzzel)
+
 say() { notify-send -a net-menu "$1" "${2:-}" 2>/dev/null || true; }
 
 if [ "$(nmcli radio wifi)" != enabled ]; then
-  choice="$(printf '%s\n' 'turn wifi on' | fuzzel --dmenu --prompt 'wifi> ' --width 40)" || exit 0
+  choice="$(printf '%s\n' 'turn wifi on' | "$menu" --dmenu --prompt 'wifi> ' --width 40)" || exit 0
   [ -n "$choice" ] && nmcli radio wifi on && say "wifi on"
   exit 0
 fi
@@ -32,7 +35,7 @@ done < <(nmcli --escape no -t -f IN-USE,SIGNAL,SECURITY,SSID device wifi list --
 
 [ "${#ssids[@]}" -gt 0 ] || { say "no wifi networks found"; exit 0; }
 
-idx="$(printf '%s\n' "${lines[@]}" | fuzzel --dmenu --index --prompt 'wifi> ' --width 60)" || exit 0
+idx="$(printf '%s\n' "${lines[@]}" | "$menu" --dmenu --index --prompt 'wifi> ' --width 60)" || exit 0
 [ -n "$idx" ] || exit 0
 ssid="${ssids[$idx]}"; sec="${secs[$idx]}"
 case "$ssid" in -*) say "refusing odd network name"; exit 1 ;; esac
@@ -52,7 +55,7 @@ if [ -n "${profile[$ssid]:-}" ]; then
 elif [ -z "$sec" ] || [ "$sec" = -- ]; then
   out="$(nmcli -w 15 device wifi connect "$ssid" 2>&1)" || { say "could not join $ssid" "${out##*$'\n'}"; exit 1; }
 else
-  pw="$(fuzzel --dmenu --password --lines 0 --prompt "password for $ssid> " --width 50 </dev/null)" || exit 0
+  pw="$("$menu" --dmenu --password --lines 0 --prompt "password for $ssid> " --width 50 </dev/null)" || exit 0
   [ -n "$pw" ] || exit 0
   out="$(printf '%s\n' "$pw" | nmcli --ask -w 15 device wifi connect "$ssid" 2>&1)" \
     || { say "could not join $ssid" "wrong password or out of range"; exit 1; }

@@ -257,6 +257,18 @@ else
   exit 1
 fi
 
+# lifemenu — the launcher (Mod+Return/D/Space) and the menu every script
+# opens (power, clipboard, wifi, notifications, GPG PIN). Fuzzel-compatible
+# flags; themed from the fuzzel.ini lifeconf generates. fuzzel stays installed
+# as the scripts' fallback.
+echo "==> lifemenu launcher (~/.local/bin/lifemenu)"
+if command -v cargo >/dev/null 2>&1; then
+  (cd "$REPO/lifemenu" && cargo build --release)
+  ln -sfn "$REPO/lifemenu/target/release/lifemenu" "$HOME/.local/bin/lifemenu"
+else
+  echo "    WARNING: cargo not found — skipping lifemenu (the scripts fall back to fuzzel)."
+fi
+
 # lifefiles — mouse-driven terminal file browser (Mod+E). Themed by lifeconf via
 # ~/.config/lifefiles/theme, and registered as the folder handler.
 echo "==> lifefiles file browser (~/.local/bin/lifefiles)"

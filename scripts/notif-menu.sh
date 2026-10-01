@@ -12,4 +12,6 @@ if hist="$(~/.local/bin/lifenote ctl history 2>/dev/null)"; then
 else
   hist="(lifenote not running — fallback: pkill lifenote && mako)"
 fi
-printf '%s\n' "$hist" | fuzzel --dmenu --prompt "notif> " --width 100 >/dev/null || true
+# lifemenu (LifeBranch's own) with fuzzel as the fallback; same flags.
+menu=$(command -v lifemenu || command -v "$HOME/.local/bin/lifemenu" || echo fuzzel)
+printf '%s\n' "$hist" | "$menu" --dmenu --prompt "notif> " --width 100 >/dev/null || true
