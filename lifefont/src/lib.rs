@@ -40,14 +40,28 @@ pub struct Font {
 
 impl Font {
     pub fn from_bytes(bytes: Vec<u8>) -> Result<Font, String> {
-        let font = FontVec::try_from_vec(bytes).map_err(|e| e.to_string())?;
+        Font::from_bytes_index(bytes, 0)
+    }
+
+    /// `index` picks a face inside a collection (.ttc), as fontconfig reports it.
+    pub fn from_bytes_index(bytes: Vec<u8>, index: u32) -> Result<Font, String> {
+        let font = FontVec::try_from_vec_and_index(bytes, index).map_err(|e| e.to_string())?;
         let units_per_em = font.units_per_em().filter(|u| *u > 0.0).ok_or("font has no units-per-em")?;
         Ok(Font { font, units_per_em })
     }
 
     pub fn from_path(path: &str) -> Result<Font, String> {
+        Font::from_path_index(path, 0)
+    }
+
+    pub fn from_path_index(path: &str, index: u32) -> Result<Font, String> {
         let bytes = std::fs::read(path).map_err(|e| format!("cannot read font {path}: {e}"))?;
-        Font::from_bytes(bytes).map_err(|e| format!("cannot parse font {path}: {e}"))
+        Font::from_bytes_index(bytes, index).map_err(|e| format!("cannot parse font {path}: {e}"))
+    }
+
+    /// Whether the font draws `ch` itself (rather than its .notdef box).
+    pub fn has_glyph(&self, ch: char) -> bool {
+        self.id(ch).0 != 0
     }
 
     /// Font units -> pixels at em size `px`.
@@ -173,6 +187,7 @@ mod tests {
         let (m, c) = f.rasterize(' ', 15.0);
         assert!(c.is_empty() && m.width == 0 && m.advance_width > 0.0);
         let _ = f.rasterize('\u{10FFFF}', 15.0); // notdef
+        assert!(f.has_glyph('A') && !f.has_glyph('\u{10FFFF}'));
     }
 
     #[test]

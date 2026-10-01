@@ -48,7 +48,7 @@ need even more locked memory than the desktop's 1080p).
 bash ~/LifeBranch/macbook/install.sh
 ```
 
-Installs the shared stack (`kitty fuzzel waybar mako swaybg xwayland-satellite
+Installs the shared stack (`kitty fuzzel waybar mako xwayland-satellite
 wl-clipboard cliphist wev adw-gtk-theme phinger-cursors wob jq swaylock swayidle
 ttf-sharetech-mono-nerd ttf-cousine-nerd xdg-desktop-portal-gnome qt6ct
 qt6-wayland qt5-wayland`) plus `brightnessctl`, backs up

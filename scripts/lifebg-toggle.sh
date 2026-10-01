@@ -12,9 +12,10 @@ set -euo pipefail
 mode="${1:-toggle}"
 marker="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/lifebg.dpms-paused"
 
-# Matches the rust binary (…/bin/lifebg) or the python fallback
-# (python3 …/bin/lifebg) but NOT the kitty panel, whose multi-word cmdline
-# also ends in bin/lifebg — [^ ]* cannot span its spaces.
+# Matches the rust binary (…/bin/lifebg, which is the Wayland client itself
+# under --layer) or the python fallback (python3 …/bin/lifebg) but NOT a kitty
+# panel hosting either, whose multi-word cmdline also ends in bin/lifebg —
+# [^ ]* cannot span its spaces.
 pattern='^(python[0-9.]* )?[^ ]*bin/lifebg( |$)'
 pid=$(pgrep -f "$pattern" | head -1) || {
   if [[ "$mode" == toggle ]]; then

@@ -30,3 +30,6 @@ lifefont/target/
 # rewriting the LIFEBRANCH:BEGIN touchpad region)
 *.pre-touchpad
 *.bak
+
+# Python bytecode (scripts/life.py)
+__pycache__/
