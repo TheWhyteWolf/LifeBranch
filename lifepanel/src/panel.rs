@@ -5,6 +5,7 @@
 // in this file, so all of it is unit-testable.
 
 use crate::backend::{Audio, Bt, Join, Job, Loaded, Power, Wifi};
+use crate::sys::vpn::Vpn;
 use crate::drives::Drive;
 use zeroize::Zeroizing;
 
@@ -25,6 +26,10 @@ pub enum Item {
     Password,
     Bt,
     BtDev(String),
+    /// "vpn": what is connected; opens the list.
+    Vpn,
+    /// One VPN, by its key ("nm:<uuid>", "tailscale", ...).
+    VpnEntry(String),
     Volume,
     /// "to <device>": opens the output list.
     OutputPick,
@@ -148,12 +153,14 @@ impl Out {
 pub struct Panel {
     pub wifi: Option<Wifi>,
     pub bt: Option<Bt>,
+    pub vpn: Option<Vec<Vpn>>,
     pub audio: Option<Audio>,
     pub power: Option<Power>,
     pub dnd: Option<Option<bool>>,
     pub drives: Option<Vec<Drive>>,
     pub open_wifi: bool,
     pub open_bt: bool,
+    pub open_vpn: bool,
     pub open_out: bool,
     pub sel: Item,
     /// The network being joined and its password as typed.
@@ -169,12 +176,14 @@ impl Default for Panel {
         Panel {
             wifi: None,
             bt: None,
+            vpn: None,
             audio: None,
             power: None,
             dnd: None,
             drives: None,
             open_wifi: false,
             open_bt: false,
+            open_vpn: false,
             open_out: false,
             sel: Item::Wifi,
             password: None,
@@ -217,6 +226,13 @@ impl Panel {
         v.push(Item::Bt);
         if let Some(b) = self.bt.as_ref().filter(|b| self.open_bt && b.on) {
             v.extend(b.devs.iter().map(|d| Item::BtDev(d.mac.clone())));
+        }
+        // No VPN of any kind on the machine: no row at all.
+        if let Some(vpns) = self.vpn.as_ref().filter(|v| !v.is_empty()) {
+            v.push(Item::Vpn);
+            if self.open_vpn {
+                v.extend(vpns.iter().map(|x| Item::VpnEntry(x.key.clone())));
+            }
         }
         v.push(Item::Sep);
         v.push(Item::Volume);
@@ -366,6 +382,30 @@ impl Panel {
                 l.push(&name, if d.connected { Role::Accent } else { Role::Value }, None);
                 l.right(tag, Role::Dim, None).whole(Hit::Primary);
             }
+            Item::Vpn => {
+                l.push("vpn", Role::Label, None).to(VAL);
+                let up: Vec<&str> =
+                    self.vpn.iter().flatten().filter(|v| v.is_up()).map(|v| v.name.as_str()).collect();
+                if up.is_empty() {
+                    l.push("off", Role::Dim, None);
+                } else {
+                    l.push(&up.join(", "), Role::Accent, None);
+                }
+                l.right(if self.open_vpn { "v" } else { ">" }, Role::Dim, None).whole(Hit::Primary);
+            }
+            Item::VpnEntry(key) => {
+                let Some(v) = self.vpn.iter().flatten().find(|v| &v.key == key) else { return l };
+                let tag = if v.is_up() { "disconnect" } else { "connect" };
+                l.push(if v.is_up() { "  ● " } else { "    " }, Role::Accent, None);
+                let room = COLS - 4 - tag.len() - 1;
+                let name: String = if v.name.chars().count() > room {
+                    v.name.chars().take(room - 1).chain(std::iter::once('…')).collect()
+                } else {
+                    v.name.clone()
+                };
+                l.push(&name, if v.is_up() { Role::Accent } else { Role::Value }, None);
+                l.right(tag, Role::Dim, None).whole(Hit::Primary);
+            }
             Item::Volume | Item::Mic => {
                 let out = *item == Item::Volume;
                 l.push(if out { "volume" } else { "mic" }, Role::Label, None).to(VAL);
@@ -470,6 +510,7 @@ impl Panel {
                 self.wifi = Some(w);
             }
             Loaded::Bt(b) => self.bt = Some(b),
+            Loaded::Vpn(v) => self.vpn = Some(v),
             Loaded::Audio(a) => self.audio = Some(a),
             Loaded::Power(p) => self.power = Some(p),
             Loaded::Dnd(d) => self.dnd = Some(d),
@@ -752,6 +793,14 @@ impl Panel {
                 }
                 Out::job(Job::WifiJoin { ssid, how: Join::Password(pw) })
             }
+            Item::Vpn => {
+                self.open_vpn = !self.open_vpn;
+                Out::default()
+            }
+            Item::VpnEntry(key) => match self.vpn.iter().flatten().find(|v| &v.key == key) {
+                Some(v) => Out::job(Job::Vpn(v.clone())),
+                None => Out::default(),
+            },
             Item::BtDev(mac) => {
                 let Some(d) = self.bt.as_ref().and_then(|b| b.devs.iter().find(|d| &d.mac == mac)) else { return Out::default() };
                 let name = if d.name.is_empty() { d.mac.clone() } else { d.name.clone() };
@@ -1013,5 +1062,26 @@ mod tests {
         assert!(p.key(Key::Enter).jobs.is_empty());
         assert!(p.key(Key::Right).jobs.is_empty());
         assert!(!p.items().contains(&Item::Brightness), "no backlight: no row");
+    }
+
+    #[test]
+    fn vpn_row_summarises_and_its_list_toggles() {
+        use crate::sys::vpn::{Provider, State, Vpn};
+        let mut p = panel();
+        assert!(!p.items().contains(&Item::Vpn), "not loaded yet: no row");
+        p.loaded(Loaded::Vpn(vec![]));
+        assert!(!p.items().contains(&Item::Vpn), "no VPN on the machine: no row");
+        let ts = Vpn { key: "tailscale".into(), name: "Tailscale".into(), provider: Provider::Tailscale, state: State::Up, detail: String::new() };
+        let wg = Vpn { key: "nm:u1".into(), name: "home-wg".into(), provider: Provider::Nm { uuid: "u1".into(), autoconnect: false }, state: State::Down, detail: "WireGuard".into() };
+        p.loaded(Loaded::Vpn(vec![ts, wg]));
+        assert!(p.line(&Item::Vpn).text().contains("Tailscale"), "{}", p.line(&Item::Vpn).text());
+        p.sel = Item::Vpn;
+        p.key(Key::Enter);
+        assert!(p.items().contains(&Item::VpnEntry("nm:u1".into())));
+        assert!(p.line(&Item::VpnEntry("nm:u1".into())).text().trim_end().ends_with("connect"));
+        p.sel = Item::VpnEntry("nm:u1".into());
+        let jobs = p.key(Key::Enter).jobs;
+        assert!(matches!(&jobs[..], [Job::Vpn(v)] if v.key == "nm:u1"));
+        assert_eq!(jobs[0].busy().as_deref(), Some("connecting home-wg…"));
     }
 }

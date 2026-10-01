@@ -348,6 +348,7 @@ impl Ui {
         self.cpu_prev = now;
         self.state.mem = sys::read_mem().map(|m| m.0);
         self.state.net = Some(sys::read_net());
+        self.state.vpn = sys::read_vpn();
         self.load_volume();
         self.paint_all();
     }
@@ -510,6 +511,7 @@ impl Ui {
                 if std::path::Path::new(&lp).is_file() { spawn(&[&lp]) } else { spawn(&[&local("net-menu.sh")]) }
             }
             Act::NetSettings => spawn(&[&local("lifeconf"), "--gui", "--panel", "network"]),
+            Act::VpnSettings => spawn(&[&local("lifeconf"), "--gui", "--panel", "vpn"]),
             Act::SoundSettings => spawn(&[&local("lifeconf"), "--gui", "--panel", "sound"]),
             // sysmon.sh focuses the htop window if one is open, else opens it.
             Act::Top => {

@@ -191,6 +191,28 @@ pub fn read_net() -> Net {
     }
 }
 
+// ---- VPN -----------------------------------------------------------------------
+
+/// Whether a tunnel is up that carries this machine's traffic: a tun or
+/// WireGuard interface (ARPHRD_NONE, type 65534) that isn't Tailscale's.
+/// tailscale0 is up whenever Tailscale runs and mostly carries only the
+/// tailnet, so it doesn't count; WireGuard, OpenVPN, Proton and Mullvad do.
+pub fn vpn_up(ifaces: &[(String, String, String)]) -> bool {
+    ifaces.iter().any(|(name, kind, oper)| kind == "65534" && name != "tailscale0" && oper != "down")
+}
+
+pub fn read_vpn() -> bool {
+    let Ok(rd) = std::fs::read_dir("/sys/class/net") else { return false };
+    let ifaces: Vec<(String, String, String)> = rd
+        .flatten()
+        .map(|e| {
+            let p = e.path();
+            (e.file_name().to_string_lossy().into_owned(), read(p.join("type")).unwrap_or_default(), read(p.join("operstate")).unwrap_or_default())
+        })
+        .collect();
+    vpn_up(&ifaces)
+}
+
 // ---- volume, notifications ---------------------------------------------------
 
 /// `Volume: 0.45 [MUTED]` -> (45, true).
@@ -280,6 +302,19 @@ mod tests {
                  wlan0\t0002A8C0\t00000000\t0001\t0\t0\t600\t00FFFFFF\n";
         assert_eq!(default_iface(r).as_deref(), Some("eno1"), "lowest metric wins");
         assert_eq!(default_iface("Iface\tDestination\nwlan0\t0002A8C0\t0\t1\t0\t0\t600\t00FFFFFF\n"), None);
+    }
+
+    #[test]
+    fn a_tunnel_other_than_tailscale_is_a_vpn() {
+        let i = |n: &str, t: &str, o: &str| (n.to_string(), t.to_string(), o.to_string());
+        let base = vec![i("wlan0", "1", "up"), i("tailscale0", "65534", "unknown"), i("lo", "772", "unknown")];
+        assert!(!vpn_up(&base), "Tailscale alone, as on this machine");
+        let mut wg = base.clone();
+        wg.push(i("wg0-mullvad", "65534", "unknown"));
+        assert!(vpn_up(&wg));
+        let mut down = base;
+        down.push(i("proton0", "65534", "down"));
+        assert!(!vpn_up(&down));
     }
 
     #[test]
