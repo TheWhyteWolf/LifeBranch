@@ -29,19 +29,13 @@ input {
     // LIFEBRANCH:END keyboard
 
     // LIFEBRANCH:BEGIN touchpad
-    // Detected by scripts/detect-trackpad.sh — re-run it after a hardware
-    // change. Everything here is an ordinary niri option: edit freely.
-    //   Apple Inc. Apple Internal Keyboard / Trackpad (internal)
-    //   multitouch: yes, up to 5 fingers
+    // Managed by lifeconf (Settings). Settings it doesn't know are kept.
     touchpad {
-        tap                          // tap the pad to click
-        dwt                          // disable-while-typing
-        natural-scroll               // content follows the fingers (Apple default)
+        tap
+        dwt
         click-method "clickfinger"
-                                     // two-finger click = right, three = middle
-        scroll-method "two-finger"
         accel-profile "adaptive"
-        // disabled-on-external-mouse // uncomment to switch the pad off when a mouse is plugged in
+        scroll-method "two-finger"
     }
     // LIFEBRANCH:END touchpad
 
@@ -81,8 +75,8 @@ layout {
     // LIFECONF:BEGIN niri-border
     border {
         width 2
-        active-color "#00ff00"
-        inactive-color "#1f511f"
+        active-color "#0000ff"
+        inactive-color "#1f1f51"
         urgent-color "#f44125"
     }
     // LIFECONF:END niri-border
@@ -94,8 +88,8 @@ layout {
     // LIFECONF:BEGIN niri-tab-indicator
     tab-indicator {
         hide-when-single-tab
-        active-color "#00ff00"
-        inactive-color "#1f511f"
+        active-color "#0000ff"
+        inactive-color "#1f1f51"
         urgent-color "#f44125"
     }
     // LIFECONF:END niri-tab-indicator
@@ -103,7 +97,7 @@ layout {
     // Drop-target hint while moving windows: translucent accent, not default blue.
     // LIFECONF:BEGIN niri-insert-hint
     insert-hint {
-        color "#00ff0080"
+        color "#0000ff80"
     }
     // LIFECONF:END niri-insert-hint
 
@@ -149,7 +143,7 @@ overview {
 spawn-at-startup "dbus-update-activation-environment" "--systemd" "QT_QPA_PLATFORM" "QT_WAYLAND_DISABLE_WINDOWDECORATION" "ELECTRON_OZONE_PLATFORM_HINT"
 // Conway's Game of Life wallpaper (shared lifewall build; see install.sh).
 // LIFECONF:BEGIN lifewall
-spawn-sh-at-startup "exec ~/.local/bin/lifebg --layer --font-family 'ShureTechMono Nerd Font' --font-size 8 --tick 0.5 --fps 10 --fade 2 --density 0.12 --char 'BUMFACEbumface' --bg '#0a150a' --mature '#367d36' --newborn '#1bbe1b' --glider-interval 90 --fps-battery 4"
+spawn-sh-at-startup "exec ~/.local/bin/lifebg --layer --font-family 'ShureTechMono Nerd Font' --font-size 8 --tick 0.5 --fps 10 --fade 2 --density 0.12 --char 'BUMFACEbumface' --bg '#0a0a15' --mature '#36367d' --newborn '#1b1bbe' --glider-interval 90 --fps-battery 4"
 // LIFECONF:END lifewall
 // Idle chain: lock at 10 min, screens off at 15 min. Unlike the desktop, sleep
 // stays available on the laptop — before-sleep locks first (lid close, etc.).

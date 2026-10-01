@@ -269,8 +269,9 @@ impl Ui {
             cv.glyph(atlas, x, y, c, cfg.prompt_color);
             x += cw;
         }
+        // A password shows nothing, not even its length: only the cursor.
         let shown: Vec<char> = if cfg.password {
-            std::iter::repeat_n('*', self.menu.query.chars().count()).collect()
+            Vec::new()
         } else {
             self.menu.query.chars().collect()
         };

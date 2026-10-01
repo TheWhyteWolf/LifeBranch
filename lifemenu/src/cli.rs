@@ -170,7 +170,7 @@ pub const USAGE: &str = "lifemenu — launcher and dmenu for LifeBranch (fuzzel-
 
   -d, --dmenu                  read choices from stdin, print the pick
       --index                  print the pick's 0-based index instead
-      --password               mask the input; prints what was typed
+      --password               hide the input entirely; prints what was typed
       --only-match             Enter does nothing unless a choice matches
   -p, --prompt TEXT            prompt (default \"> \")
       --prompt-only TEXT       prompt with no list (an input box)
