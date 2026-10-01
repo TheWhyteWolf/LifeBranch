@@ -498,6 +498,14 @@ impl Gui {
         });
     }
 
+    /// Which of the first `n` rows (sidebar or fields) a click at height `y` hit.
+    fn row_at(&self, y: f64, n: usize) -> Option<usize> {
+        (0..n).find(|&i| {
+            let ry = self.row_y(i) as f64;
+            y >= ry - 2.0 && y < ry + self.cell_h as f64 + 1.0
+        })
+    }
+
     /// Pointer click: the Save button, else the category/field row under (x,y).
     fn click(&mut self, x: f64, y: f64) {
         // A pending keep/revert prompt is modal: only its two buttons respond.
@@ -512,6 +520,16 @@ impl Gui {
             self.redraw();
             return;
         }
+        // A click anywhere but the field being typed into ends that edit first,
+        // keeping what was typed. Left open, the buffer would follow the
+        // selection and Enter would write it into whichever field was next.
+        if self.m.editing.is_some() {
+            if x >= self.sidebar_w() as f64 && self.row_at(y, self.m.n_fields()) == Some(self.m.field) {
+                return;
+            }
+            let s = self.m.editing.take().unwrap();
+            self.m.set_text(&s);
+        }
         let (bx, by, bw, bh) =
             save_btn_rect(self.width as usize, self.height as usize, self.cell_w, self.cell_h);
         if x >= bx as f64 && x < (bx + bw) as f64 && y >= by as f64 && y < (by + bh) as f64 {
@@ -521,13 +539,6 @@ impl Gui {
         }
 
         let side = self.sidebar_w() as f64;
-        // Which row was hit?
-        let row_of = |gui: &Gui, py: f64, n: usize| -> Option<usize> {
-            (0..n).find(|&i| {
-                let ry = gui.row_y(i) as f64;
-                py >= ry - 2.0 && py < ry + gui.cell_h as f64 + 1.0
-            })
-        };
         let (sy0, sh) = search_box(self.height as usize, self.cell_h);
         if x < side && y >= sy0 as f64 && y < (sy0 + sh) as f64 {
             self.m.searching = true;
@@ -535,12 +546,12 @@ impl Gui {
             self.m.focus = Focus::Cats;
         } else if x < side {
             let rows = sidebar_rows(&self.m);
-            if let Some(Side::Cat(c)) = row_of(self, y, rows.len()).map(|i| rows[i]) {
+            if let Some(Side::Cat(c)) = self.row_at(y, rows.len()).map(|i| rows[i]) {
                 self.m.searching = false;
                 self.m.enter_cat(c);
                 self.m.focus = Focus::Cats;
             }
-        } else if let Some(i) = row_of(self, y, self.m.n_fields()) {
+        } else if let Some(i) = self.row_at(y, self.m.n_fields()) {
             self.m.field = i;
             self.m.focus = Focus::Fields;
             // A click into the fields acts like Enter: edit or cycle.
