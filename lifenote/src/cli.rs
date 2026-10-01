@@ -61,6 +61,8 @@ pub struct Cfg {
     pub anchor: AnchorCorner,
     pub margin: i32,
     pub layer: LayerChoice,
+    /// Dismiss every popup when the pointer clicks anywhere outside them.
+    pub dismiss_on_click_outside: bool,
 }
 
 impl Default for Cfg {
@@ -85,6 +87,7 @@ impl Default for Cfg {
             anchor: AnchorCorner::TopRight,
             margin: 8,
             layer: LayerChoice::Top,
+            dismiss_on_click_outside: false,
         }
     }
 }
@@ -107,7 +110,9 @@ const USAGE: &str = "lifenote — box-drawing-framed notification daemon for nir
       default-timeout MS, critical-timeout MS (0 = never)\n\
       max-width COLS, max-visible N, max-lines N\n\
       anchor top-right|top-left|bottom-right|bottom-left, margin PX\n\
-      layer top|overlay (overlay shows above fullscreen apps)\n";
+      layer top|overlay (overlay shows above fullscreen apps)\n\
+      dismiss-on-click-outside true|false (a click off the popups closes them all;\n\
+      the click is consumed, it does not reach the window underneath)\n";
 
 fn parse_style(s: &str) -> Option<Style> {
     match s {
@@ -167,6 +172,13 @@ impl Cfg {
                     "top" => LayerChoice::Top,
                     "overlay" => LayerChoice::Overlay,
                     _ => self.layer,
+                }
+            }
+            "dismiss-on-click-outside" => {
+                self.dismiss_on_click_outside = match val {
+                    "true" | "on" | "1" => true,
+                    "false" | "off" | "0" => false,
+                    _ => self.dismiss_on_click_outside,
                 }
             }
             _ => return false,
@@ -296,5 +308,17 @@ mod tests {
         assert_eq!(cfg.text, Rgb([0xdd, 0x11, 0x11]));
         assert_eq!(cfg.title, Rgb([0xdd, 0x1a, 0x1a]));
         assert_eq!(cfg.border, Rgb([0x39, 0x41, 0x2b])); // untouched default
+    }
+
+    #[test]
+    fn click_outside_defaults_off_and_parses() {
+        let mut cfg = Cfg::default();
+        assert!(!cfg.dismiss_on_click_outside);
+        assert!(cfg.set("dismiss-on-click-outside", "true"));
+        assert!(cfg.dismiss_on_click_outside);
+        assert!(cfg.set("dismiss-on-click-outside", "bogus")); // bad value keeps setting
+        assert!(cfg.dismiss_on_click_outside);
+        assert!(cfg.set("dismiss-on-click-outside", "false"));
+        assert!(!cfg.dismiss_on_click_outside);
     }
 }
