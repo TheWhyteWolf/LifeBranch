@@ -613,7 +613,9 @@ impl Gui {
                     self.m.clamp_to_search();
                 }
                 _ => {
-                    if let (Some(t), false) = (ev.utf8.as_deref(), self.ctrl) {
+                    // Tab, newline etc. arrive as utf8 too; they'd poison the filter.
+                    let text = ev.utf8.as_deref().filter(|t| !t.chars().any(char::is_control));
+                    if let (Some(t), false) = (text, self.ctrl) {
                         if let Some(q) = self.m.search.as_mut() {
                             q.push_str(t);
                         }

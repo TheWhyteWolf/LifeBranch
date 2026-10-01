@@ -137,9 +137,21 @@ pub fn copy_recursive(src: &Path, dst: &Path) -> io::Result<()> {
             let ent = ent?;
             copy_recursive(&ent.path(), &dst.join(ent.file_name()))?;
         }
+        // After the contents, so a read-only source dir is still fillable.
+        fs::set_permissions(dst, meta.permissions())?;
+        keep_mtime(dst, &meta);
         Ok(())
     } else {
-        fs::copy(src, dst).map(|_| ())
+        fs::copy(src, dst)?; // carries the mode bits
+        keep_mtime(dst, &meta);
+        Ok(())
+    }
+}
+
+/// Best effort: a copy that can't take the original's mtime is still a copy.
+fn keep_mtime(dst: &Path, src_meta: &fs::Metadata) {
+    if let (Ok(t), Ok(f)) = (src_meta.modified(), fs::File::open(dst)) {
+        let _ = f.set_modified(t);
     }
 }
 
@@ -215,9 +227,63 @@ fn now_local() -> String {
     }
 }
 
-/// Move `path` into the trash at `trash` (files/ + info/ per the spec).
+/// Nearest existing ancestor of `p` (itself if it exists).
+fn existing_ancestor(p: &Path) -> Option<&Path> {
+    p.ancestors().find(|a| fs::symlink_metadata(a).is_ok())
+}
+
+/// The top directory of the filesystem `abs` lives on: walk up while the
+/// parent is still on the same device.
+fn volume_top(abs: &Path) -> Option<PathBuf> {
+    use std::os::unix::fs::MetadataExt;
+    let dev = fs::symlink_metadata(abs).ok()?.dev();
+    let mut top = abs.parent()?;
+    while let Some(up) = top.parent() {
+        if fs::metadata(up).ok()?.dev() != dev {
+            break;
+        }
+        top = up;
+    }
+    Some(top.to_path_buf())
+}
+
+/// Per-volume `$topdir/.Trash-$uid` (mode 0700) for something that isn't on the
+/// same filesystem as the home trash, so trashing is a rename, not a copy.
+fn volume_trash(abs: &Path) -> Option<PathBuf> {
+    use std::os::unix::fs::DirBuilderExt;
+    let top = volume_top(abs)?;
+    // SAFETY: getuid has no preconditions.
+    let dir = top.join(format!(".Trash-{}", unsafe { libc::getuid() }));
+    match fs::DirBuilder::new().mode(0o700).create(&dir) {
+        Ok(()) => {}
+        Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {}
+        Err(_) => return None,
+    }
+    Some(dir)
+}
+
+/// Move `path` into the trash at `trash` (files/ + info/ per the spec). If it's
+/// on another filesystem than `trash`, the volume's own `.Trash-$uid` is used
+/// when it can be created, else it falls back to a copy into `trash`.
 pub fn trash_to(path: &Path, trash: &Path) -> io::Result<()> {
+    use std::os::unix::fs::MetadataExt;
     let abs = if path.is_absolute() { path.to_path_buf() } else { std::env::current_dir()?.join(path) };
+    let cross = match (fs::symlink_metadata(&abs), existing_ancestor(trash).map(fs::metadata)) {
+        (Ok(a), Some(Ok(t))) => a.dev() != t.dev(),
+        _ => false,
+    };
+    if cross {
+        if let Some(vt) = volume_trash(&abs) {
+            // Volume trashes record Path= relative to the volume's top dir.
+            let top = vt.parent().map(Path::to_path_buf);
+            return trash_into(&abs, &vt, top.as_deref());
+        }
+    }
+    trash_into(&abs, trash, None)
+}
+
+fn trash_into(abs: &Path, trash: &Path, rel_to: Option<&Path>) -> io::Result<()> {
+    let abs = abs.to_path_buf();
     let files = trash.join("files");
     let info = trash.join("info");
     fs::create_dir_all(&files)?;
@@ -242,7 +308,7 @@ pub fn trash_to(path: &Path, trash: &Path) -> io::Result<()> {
     use io::Write;
     let body = format!(
         "[Trash Info]\nPath={}\nDeletionDate={}\n",
-        pct_encode(&abs.to_string_lossy()),
+        pct_encode(&rel_to.and_then(|t| abs.strip_prefix(t).ok()).unwrap_or(&abs).to_string_lossy()),
         now_local()
     );
     info_file.0.write_all(body.as_bytes())?;
@@ -262,6 +328,10 @@ pub fn trash_to(path: &Path, trash: &Path) -> io::Result<()> {
 /// First few KB of a file as text, or None if it looks binary.
 pub fn text_preview(path: &Path, max_lines: usize) -> Option<Vec<String>> {
     use io::Read;
+    // Opening a FIFO or device node can block forever; only preview regular files.
+    if !fs::metadata(path).ok()?.is_file() {
+        return None;
+    }
     let mut buf = vec![0u8; 8192];
     let n = fs::File::open(path).ok()?.read(&mut buf).ok()?;
     buf.truncate(n);
@@ -351,6 +421,36 @@ mod tests {
         let out = move_into(&d.join("f"), &d.join("dst")).unwrap();
         assert_eq!(out, d.join("dst/f copy"));
         assert!(!d.join("f").exists());
+        let _ = fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn text_preview_skips_special_files() {
+        let d = scratch("fifo");
+        let fifo = std::ffi::CString::new(d.join("pipe").to_str().unwrap()).unwrap();
+        // SAFETY: valid NUL-terminated path.
+        assert_eq!(unsafe { libc::mkfifo(fifo.as_ptr(), 0o600) }, 0);
+        assert!(text_preview(&d.join("pipe"), 10).is_none()); // would hang if opened
+        let _ = fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn copy_keeps_mode_and_mtime() {
+        use std::os::unix::fs::PermissionsExt;
+        let d = scratch("meta");
+        fs::create_dir(d.join("src")).unwrap();
+        fs::write(d.join("src/f"), "x").unwrap();
+        fs::set_permissions(d.join("src/f"), fs::Permissions::from_mode(0o751)).unwrap();
+        fs::set_permissions(d.join("src"), fs::Permissions::from_mode(0o500)).unwrap();
+        copy_recursive(&d.join("src"), &d.join("dst")).unwrap();
+        let mode = |p: &str| fs::metadata(d.join(p)).unwrap().permissions().mode() & 0o777;
+        assert_eq!((mode("dst"), mode("dst/f")), (0o500, 0o751));
+        assert_eq!(
+            fs::metadata(d.join("src/f")).unwrap().modified().unwrap(),
+            fs::metadata(d.join("dst/f")).unwrap().modified().unwrap()
+        );
+        fs::set_permissions(d.join("src"), fs::Permissions::from_mode(0o700)).unwrap();
+        fs::set_permissions(d.join("dst"), fs::Permissions::from_mode(0o700)).unwrap();
         let _ = fs::remove_dir_all(&d);
     }
 
