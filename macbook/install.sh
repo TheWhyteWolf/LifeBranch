@@ -269,6 +269,17 @@ else
   echo "    WARNING: cargo not found — skipping lifemenu (the scripts fall back to fuzzel)."
 fi
 
+# lifeauth — the polkit agent (admin prompts: mounting disks, pkexec, lifeconf
+# writing /etc). Asks through lifemenu's password box; niri falls back to
+# polkit-kde-agent, still installed, when this isn't built.
+echo "==> lifeauth polkit agent (~/.local/bin/lifeauth)"
+if command -v cargo >/dev/null 2>&1; then
+  (cd "$REPO/lifeauth" && cargo build --release)
+  ln -sfn "$REPO/lifeauth/target/release/lifeauth" "$HOME/.local/bin/lifeauth"
+else
+  echo "    WARNING: cargo not found — skipping lifeauth (polkit-kde-agent stays the agent)."
+fi
+
 # lifefiles — mouse-driven terminal file browser (Mod+E). Themed by lifeconf via
 # ~/.config/lifefiles/theme, and registered as the folder handler.
 echo "==> lifefiles file browser (~/.local/bin/lifefiles)"

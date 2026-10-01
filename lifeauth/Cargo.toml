@@ -1,0 +1,22 @@
+[package]
+name = "lifeauth"
+version = "0.1.0"
+edition = "2021"
+description = "polkit authentication agent for LifeBranch: the password prompt is lifemenu's"
+license = "GPL-3.0-or-later"
+authors = ["Whyte Erminae"]
+
+[dependencies]
+# The agent interface and the Authority are D-Bus; hand-rolling that wire
+# protocol is not worth it (the same exception lifenote makes). Blocking API.
+zbus = "5"
+# Runs the blocking password exchange off zbus's executor, so a
+# CancelAuthentication can arrive while a prompt is open.
+blocking = "1"
+zeroize = "1"
+libc = "0.2"
+
+[profile.release]
+lto = true
+strip = true
+panic = "abort"

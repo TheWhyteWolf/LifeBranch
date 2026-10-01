@@ -160,8 +160,9 @@ spawn-at-startup "swayidle" "-w" "timeout" "600" "systemd-cat -t lifelock ~/.loc
 //   journalctl --user -u waybar -b     systemctl --user reload waybar
 // Polkit auth agent: pops the password dialog pkexec needs — e.g. lifeconf
 // applying the root-owned greeter config (/etc/lifegreet/config), and any GUI
-// app that touches system settings. polkit-kde-agent (installed by install.sh).
-spawn-at-startup "/usr/lib/polkit-kde-authentication-agent-1"
+// app that touches system settings. lifeauth (prompts through lifemenu;
+// journalctl -t lifeauth), else KDE's agent as the fallback.
+spawn-sh-at-startup "if [ -x ~/.local/bin/lifeauth ]; then exec systemd-cat -t lifeauth ~/.local/bin/lifeauth; else exec /usr/lib/polkit-kde-authentication-agent-1; fi"
 // Tray applets: network + bluetooth status icons in waybar's tray (desktop
 // parity — without these the laptop tray sat empty).
 spawn-at-startup "nm-applet" "--indicator"
