@@ -108,3 +108,8 @@ pub fn split_terse(line: &str) -> Vec<String> {
     }
     out
 }
+
+/// Tests that set process-wide environment (LIFECONF_HOME) hold this, since
+/// the test harness runs them in parallel threads of one process.
+#[cfg(test)]
+pub static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());

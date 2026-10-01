@@ -37,6 +37,7 @@ PKGS=(niri rust clang
       bluez bluez-utils                     # bluetoothctl: Bluetooth panel
       udisks2                               # udisksctl: lifepanel's drives
       htop                                  # the bar's CPU/MEM click
+      pacman-contrib                        # checkupdates: Settings > Updates
       power-profiles-daemon upower brightnessctl  # Power panel, bright-osd.sh
       libnotify                             # notify-send: the scripts' feedback
       xdg-utils                             # xdg-mime: Default apps panel

@@ -33,6 +33,7 @@ MAP=(wpctl:wireplumber
      swayidle:swayidle
      udisksctl:udisks2
      htop:htop
+     checkupdates:pacman-contrib
      kitty:kitty)
 
 # Code that runs on the user's machine. Comments count as uses too, which errs
