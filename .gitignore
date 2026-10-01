@@ -7,6 +7,7 @@ lifelock/target/
 lifegreet/target/
 lifenote/target/
 lifeconf/target/
+lifefiles/target/
 
 # Zip/archive artifacts
 *.zip

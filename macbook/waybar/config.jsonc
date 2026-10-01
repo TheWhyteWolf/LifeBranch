@@ -62,6 +62,8 @@
     "format-ethernet": "NET",
     "format-wifi": "NET {signalStrength}%",
     "format-disconnected": "NET --",
+    "on-click": "~/.local/bin/net-menu.sh",
+    "on-click-right": "~/.local/bin/lifeconf --gui --panel network",
     "tooltip-format": "{ifname}  {ipaddr}/{cidr}  via {gwaddr}",
     "tooltip-format-wifi": "{essid}  {ipaddr}/{cidr}  {frequency} GHz",
     "tooltip-format-disconnected": "no connection"
@@ -81,6 +83,7 @@
     "format-muted": "MUTE",
     "tooltip-format": "{node_name}",
     "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+    "on-click-right": "~/.local/bin/lifeconf --gui --panel sound",
     "on-scroll-up": "~/.local/bin/vol-osd.sh up",
     "on-scroll-down": "~/.local/bin/vol-osd.sh down"
   },
