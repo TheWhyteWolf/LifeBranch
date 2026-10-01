@@ -91,15 +91,54 @@ fn parse_desktop(text: &str) -> Option<SessionEntry> {
         return None;
     }
     let exec = exec?;
-    let cmd: Vec<String> = exec
-        .split_whitespace()
-        .filter(|w| !w.starts_with('%'))
-        .map(str::to_string)
-        .collect();
+    let cmd = split_exec(&exec)?;
     if cmd.is_empty() {
         return None;
     }
     Some(SessionEntry { name: name.unwrap_or_else(|| cmd[0].clone()), cmd })
+}
+
+/// Split an Exec= value into argv per the Desktop Entry spec: arguments are
+/// space-separated, a double-quoted argument keeps its spaces and takes
+/// backslash escapes (\" \` \$ \\), standalone field codes (%f, %U, ...)
+/// are dropped and %% is a literal %. None for an unterminated quote.
+fn split_exec(exec: &str) -> Option<Vec<String>> {
+    let mut args = Vec::new();
+    let mut cur = String::new();
+    let mut in_arg = false;
+    let mut quoted = false;
+    let mut chars = exec.chars();
+    while let Some(c) = chars.next() {
+        match c {
+            '"' => {
+                quoted = !quoted;
+                in_arg = true;
+            }
+            '\\' if quoted => cur.push(chars.next()?),
+            c if c.is_whitespace() && !quoted => {
+                if in_arg {
+                    args.push(std::mem::take(&mut cur));
+                    in_arg = false;
+                }
+            }
+            c => {
+                cur.push(c);
+                in_arg = true;
+            }
+        }
+    }
+    if quoted {
+        return None;
+    }
+    if in_arg {
+        args.push(cur);
+    }
+    Some(
+        args.into_iter()
+            .filter(|a| !(a.len() == 2 && a.starts_with('%') && a != "%%"))
+            .map(|a| a.replace("%%", "%"))
+            .collect(),
+    )
 }
 
 #[cfg(test)]
@@ -125,6 +164,15 @@ mod tests {
         let e = parse_desktop(with_action).unwrap();
         assert_eq!(e.name, "Y");
         assert_eq!(e.cmd, vec!["y"]); // %U stripped, action Exec ignored
+    }
+
+    #[test]
+    fn exec_quoting_per_spec() {
+        let e = parse_desktop("[Desktop Entry]\nExec=sh -c \"exec niri --session\" %U\n").unwrap();
+        assert_eq!(e.cmd, vec!["sh", "-c", "exec niri --session"]);
+        let e = parse_desktop("[Desktop Entry]\nExec=run \"a \\\"b\\\"\" 100%%\n").unwrap();
+        assert_eq!(e.cmd, vec!["run", "a \"b\"", "100%"]);
+        assert!(parse_desktop("[Desktop Entry]\nExec=sh -c \"unterminated\n").is_none());
     }
 
     #[test]

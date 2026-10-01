@@ -1,4 +1,4 @@
-# RETIRED from autostart — lifenote (~/niri/lifenote) replaced mako as the
+# RETIRED from autostart — lifenote (~/LifeBranch/lifenote) replaced mako as the
 # notification daemon. This config stays themed and installed as the
 # emergency fallback: `pkill lifenote && mako`.
 #

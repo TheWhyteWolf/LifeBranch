@@ -72,7 +72,7 @@ lifelock's — fix bugs in both. What differs:
 
 ## Install / rollback
 
-`bash ~/niri/greeter-install.sh` builds the release binary, installs it to
+`bash ~/LifeBranch/greeter-install.sh` builds the release binary, installs it to
 `/usr/local/bin/lifegreet` (it runs as the `greeter` user), installs
 `greetd/config.toml` (`cage -s -d -- /usr/local/bin/lifegreet`) plus the
 service drop-in (`LimitMEMLOCK=infinity` for the mlockall'd greeter,
@@ -81,7 +81,7 @@ greetd. **Cut over by rebooting** — never `systemctl restart greetd` from
 inside the session it started.
 
 If it breaks: `Ctrl+Alt+F3` to a TTY, then
-`sudo install -Dm644 ~/niri/greetd/config-tuigreet.toml /etc/greetd/config.toml
+`sudo install -Dm644 ~/LifeBranch/greetd/config-tuigreet.toml /etc/greetd/config.toml
 && sudo systemctl restart greetd` (tuigreet fallback), or disable greetd
 entirely and re-enable the previous display manager.
 
