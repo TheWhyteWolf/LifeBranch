@@ -48,7 +48,8 @@ pub fn parse_status(out: &str) -> (Vec<Dev>, Vec<Dev>) {
         match t.trim_end() {
             "Sinks:" => sect = "sinks",
             "Sources:" => sect = "sources",
-            "Devices:" | "Filters:" | "Streams:" => sect = "",
+            // Any other heading ("Devices:", "Sink endpoints:", ...) ends the section.
+            h if h.ends_with(':') && parse_dev(line).is_none() => sect = "",
             _ if sect.is_empty() => {}
             _ => {
                 if let Some(d) = parse_dev(line) {
@@ -204,6 +205,14 @@ Video
         assert!(!sinks[0].default);
         assert_eq!(sources.len(), 2, "the camera in the Video section must not leak in");
         assert_eq!(sources[0].id, "62");
+    }
+
+    #[test]
+    fn endpoint_sections_are_not_devices() {
+        let out = "Audio\n ├─ Sinks:\n │      59. Out   [vol: 0.59]\n │  \n ├─ Sink endpoints:\n │      70. Bogus   [vol: 1.00]\n └─ Streams:\n";
+        let (sinks, sources) = parse_status(out);
+        assert_eq!(sinks.iter().map(|d| d.id.as_str()).collect::<Vec<_>>(), ["59"]);
+        assert!(sources.is_empty());
     }
 
     #[test]

@@ -325,6 +325,13 @@ impl Session {
                 self.ed.release(p, mods.shift);
                 self.sync();
             }
+            // Dragging an edge onto its opposite one collapses the rect; an
+            // empty selection would export a 0xN image, so undo the drag.
+            Some(Drag::Resize { orig, .. }) => {
+                if self.sel.is_some_and(|s| s.w < 1 || s.h < 1) {
+                    self.sel = Some(orig);
+                }
+            }
             _ => {}
         }
     }

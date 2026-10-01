@@ -37,8 +37,18 @@ idx="$(printf '%s\n' "${lines[@]}" | fuzzel --dmenu --index --prompt 'wifi> ' --
 ssid="${ssids[$idx]}"; sec="${secs[$idx]}"
 case "$ssid" in -*) say "refusing odd network name"; exit 1 ;; esac
 
-if nmcli -g NAME connection show | grep -Fxq -- "$ssid"; then
-  out="$(nmcli -w 15 connection up id "$ssid" 2>&1)" || { say "could not join $ssid" "${out##*$'\n'}"; exit 1; }
+# A saved profile needn't be named after its SSID ("Home 1"), so map each saved
+# *wifi* profile to the SSID it joins instead of matching on the name.
+declare -A profile
+while IFS= read -r row; do
+  [ "${row##*:}" = 802-11-wireless ] || continue
+  name="${row%:*}"
+  s="$(nmcli --escape no -g 802-11-wireless.ssid connection show id "$name" 2>/dev/null)" || continue
+  [ -n "$s" ] && profile[$s]="$name"
+done < <(nmcli --escape no -t -f NAME,TYPE connection show)
+
+if [ -n "${profile[$ssid]:-}" ]; then
+  out="$(nmcli -w 15 connection up id "${profile[$ssid]}" 2>&1)" || { say "could not join $ssid" "${out##*$'\n'}"; exit 1; }
 elif [ -z "$sec" ] || [ "$sec" = -- ]; then
   out="$(nmcli -w 15 device wifi connect "$ssid" 2>&1)" || { say "could not join $ssid" "${out##*$'\n'}"; exit 1; }
 else
