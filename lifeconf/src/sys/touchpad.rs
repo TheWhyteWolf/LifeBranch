@@ -12,7 +12,8 @@ use super::{pick, Change, Row, RowKind, Runner};
 pub const LABELS: &[&str] = &[
     "enabled",
     "tap to click",
-    "natural scroll",
+    "natural scroll up/down",
+    "natural scroll sideways",
     "disable while typing",
     "off with external mouse",
     "click method",
@@ -26,21 +27,67 @@ const DEFAULT: &str = "default";
 
 /// (row, node name, accepted values) for the choice rows.
 const CHOICES: &[(usize, &str, &[&str])] = &[
-    (5, "click-method", &["clickfinger", "button-areas"]),
-    (6, "scroll-method", &["two-finger", "edge", "on-button-down", "no-scroll"]),
-    (7, "accel-profile", &["adaptive", "flat"]),
-    (9, "tap-button-map", &["left-right-middle", "left-middle-right"]),
+    (6, "click-method", &["clickfinger", "button-areas"]),
+    (7, "scroll-method", &["two-finger", "edge", "on-button-down", "no-scroll"]),
+    (8, "accel-profile", &["adaptive", "flat"]),
+    (10, "tap-button-map", &["left-right-middle", "left-middle-right"]),
 ];
 
 /// (row, node name) for the on/off rows. `enabled` is the inverse of niri's `off`.
-const FLAGS: &[(usize, &str)] = &[(1, "tap"), (2, "natural-scroll"), (3, "dwt"), (4, "disabled-on-external-mouse")];
+/// The two natural-scroll rows are handled apart (see `set_natural`).
+const FLAGS: &[(usize, &str)] = &[(1, "tap"), (4, "dwt"), (5, "disabled-on-external-mouse")];
+const NATURAL_V: usize = 2;
+const NATURAL_H: usize = 3;
+const SPEED: usize = 9;
 
 pub fn kind(field: usize) -> RowKind {
     match field {
-        0..=4 => RowKind::Bool,
-        8 => RowKind::Int(10),
+        0..=5 => RowKind::Bool,
+        SPEED => RowKind::Int(10),
         _ => RowKind::Choice,
     }
+}
+
+// libinput's natural scroll flips both axes at once. Sideways is set apart by
+// the sign of niri's horizontal scroll factor: natural-scroll on with
+// `scroll-factor horizontal=-1` is natural up/down but traditional sideways.
+
+/// (vertical, horizontal) scroll factors as niri reads them: a bare argument
+/// sets both, and a property overrides its axis.
+fn factors(tp: &[Node]) -> (f64, f64) {
+    let Some(n) = kdl::find(tp, "scroll-factor") else { return (1.0, 1.0) };
+    let num = |t: Option<&str>| t.and_then(|t| t.parse::<f64>().ok());
+    let base = num(n.args.iter().find(|a| !a.quoted && !a.text.contains('=')).map(|a| a.text.as_str())).unwrap_or(1.0);
+    (num(kdl::prop(n, "vertical")).unwrap_or(base), num(kdl::prop(n, "horizontal")).unwrap_or(base))
+}
+
+fn natural(tp: &[Node]) -> (bool, bool) {
+    let v = kdl::has(tp, "natural-scroll");
+    (v, v != (factors(tp).1 < 0.0))
+}
+
+fn fmt_factor(f: f64) -> String {
+    if f.fract() == 0.0 { format!("{f:.1}") } else { format!("{f}") }
+}
+
+/// Write natural scroll per axis, keeping any scroll speed already set.
+fn set_natural(tp: &mut Vec<Node>, v: bool, h: bool) {
+    let (fv, fh) = factors(tp);
+    let fh = if v != h { -fh.abs() } else { fh.abs() };
+    kdl::put(tp, "natural-scroll", v.then(|| Node::flag("natural-scroll")));
+    let node = if fv == fh {
+        (fv != 1.0).then(|| Node::num("scroll-factor", &fmt_factor(fv)))
+    } else {
+        Some(Node {
+            name: "scroll-factor".into(),
+            args: [("vertical", fv), ("horizontal", fh)]
+                .iter()
+                .map(|(k, f)| kdl::Arg { text: format!("{k}={}", fmt_factor(*f)), quoted: false })
+                .collect(),
+            children: None,
+        })
+    };
+    kdl::put(tp, "scroll-factor", node);
 }
 
 fn pad(nodes: &[Node]) -> &[Node] {
@@ -70,7 +117,10 @@ pub fn load_at(path: &str) -> Vec<Row> {
     }
     // niri's accel-speed is -1..1; shown as whole percent.
     let speed = kdl::get_str(tp, "accel-speed").and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
-    rows[8] = r(&((speed * 100.0).round() as i32).to_string());
+    rows[SPEED] = r(&((speed * 100.0).round() as i32).to_string());
+    let (v, h) = natural(tp);
+    rows[NATURAL_V] = r(&v.to_string());
+    rows[NATURAL_H] = r(&h.to_string());
     rows
 }
 
@@ -92,6 +142,12 @@ pub fn apply_at(path: &str, field: usize, rows: &[Row], ch: Change, _run: Runner
             let want = flip(row.value == "true", &ch);
             kdl::put(tp, "off", (!want).then(|| Node::flag("off")));
             msg = format!("touchpad {}", if want { "on" } else { "off" });
+        } else if field == NATURAL_V || field == NATURAL_H {
+            let want = flip(row.value == "true", &ch);
+            let (v, h) = natural(tp);
+            let (v, h) = if field == NATURAL_V { (want, h) } else { (v, want) };
+            set_natural(tp, v, h);
+            msg = format!("{} {}", LABELS[field], if want { "on" } else { "off" });
         } else if let Some((_, key)) = FLAGS.iter().find(|(i, _)| *i == field) {
             let want = flip(row.value == "true", &ch);
             kdl::put(tp, key, want.then(|| Node::flag(key)));
@@ -139,7 +195,7 @@ mod tests {
         let v: Vec<String> = load_at(&p).into_iter().map(|r| r.value).collect();
         assert_eq!(
             v,
-            ["true", "true", "true", "true", "false", "clickfinger", "two-finger", "adaptive", "0", "default"]
+            ["true", "true", "true", "true", "true", "false", "clickfinger", "two-finger", "adaptive", "0", "default"]
         );
     }
 
@@ -148,7 +204,7 @@ mod tests {
         let p = test_config("tp-none", "touchpad", NONE);
         let rows = load_at(&p);
         assert_eq!(rows[1].value, "false");
-        assert_eq!(rows[5].value, "default");
+        assert_eq!(rows[6].value, "default");
         apply_at(&p, 1, &rows, Change::Toggle, &nr).unwrap();
         let out = std::fs::read_to_string(&p).unwrap();
         assert!(out.contains("touchpad {\n        tap\n    }"), "{out}");
@@ -159,7 +215,7 @@ mod tests {
     fn choices_default_removes_the_node_and_empty_block_disappears() {
         let p = test_config("tp-clr", "touchpad", "    touchpad {\n        click-method \"clickfinger\"\n    }");
         let rows = load_at(&p);
-        apply_at(&p, 5, &rows, Change::Step(-1), &nr).unwrap(); // clickfinger -> default
+        apply_at(&p, 6, &rows, Change::Step(-1), &nr).unwrap(); // clickfinger -> default
         let out = std::fs::read_to_string(&p).unwrap();
         assert!(!out.contains("touchpad {") && !out.contains("click-method"));
     }
@@ -168,22 +224,49 @@ mod tests {
     fn changes_preserve_unknown_nodes() {
         let p = test_config("tp-keep", "touchpad", "    touchpad {\n        tap\n        scroll-factor 2.0\n        drag-lock\n    }");
         let rows = load_at(&p);
-        apply_at(&p, 2, &rows, Change::Toggle, &nr).unwrap();
+        apply_at(&p, 4, &rows, Change::Toggle, &nr).unwrap();
         let out = std::fs::read_to_string(&p).unwrap();
-        assert!(out.contains("scroll-factor 2.0") && out.contains("drag-lock") && out.contains("natural-scroll"));
+        assert!(out.contains("scroll-factor 2.0") && out.contains("drag-lock") && out.contains("dwt"));
+    }
+
+    #[test]
+    fn natural_scroll_splits_by_axis_and_keeps_the_speed() {
+        let p = test_config("tp-nat", "touchpad", "    touchpad {\n        natural-scroll\n        scroll-factor 2.0\n    }");
+        let both = |p: &str| {
+            let r = load_at(p);
+            (r[NATURAL_V].value.clone(), r[NATURAL_H].value.clone())
+        };
+        assert_eq!(both(&p), ("true".into(), "true".into()));
+        apply_at(&p, NATURAL_H, &load_at(&p), Change::Toggle, &nr).unwrap();
+        assert!(std::fs::read_to_string(&p).unwrap().contains("natural-scroll\n        scroll-factor vertical=2.0 horizontal=-2.0"));
+        assert_eq!(both(&p), ("true".into(), "false".into()));
+        // Turning vertical off leaves sideways as it was (off): both traditional.
+        apply_at(&p, NATURAL_V, &load_at(&p), Change::Toggle, &nr).unwrap();
+        let out = std::fs::read_to_string(&p).unwrap();
+        assert!(!out.contains("natural-scroll") && out.contains("scroll-factor 2.0"), "{out}");
+        assert_eq!(both(&p), ("false".into(), "false".into()));
+        // Sideways alone: natural-scroll on, vertical flipped back by the factor.
+        apply_at(&p, NATURAL_H, &load_at(&p), Change::Toggle, &nr).unwrap();
+        assert_eq!(both(&p), ("false".into(), "true".into()));
+        // Speed 1 and both off again: no scroll-factor node at all.
+        let p = test_config("tp-nat1", "touchpad", "    touchpad {\n        natural-scroll\n        scroll-factor vertical=1.0 horizontal=-1.0\n    }");
+        assert_eq!(both(&p), ("true".into(), "false".into()));
+        apply_at(&p, NATURAL_V, &load_at(&p), Change::Toggle, &nr).unwrap();
+        let out = std::fs::read_to_string(&p).unwrap();
+        assert!(!out.contains("scroll-factor") && !out.contains("natural-scroll"), "{out}");
     }
 
     #[test]
     fn accel_speed_is_percent_clamped_and_zero_is_removed() {
         let p = test_config("tp-acc", "touchpad", NONE);
         let rows = load_at(&p);
-        apply_at(&p, 8, &rows, Change::Text("35".into()), &nr).unwrap();
+        apply_at(&p, SPEED, &rows, Change::Text("35".into()), &nr).unwrap();
         assert!(std::fs::read_to_string(&p).unwrap().contains("accel-speed 0.35"));
         let rows = load_at(&p);
-        assert_eq!(rows[8].value, "35");
-        apply_at(&p, 8, &rows, Change::Text("900".into()), &nr).unwrap();
-        assert_eq!(load_at(&p)[8].value, "100");
-        apply_at(&p, 8, &rows, Change::Text("0".into()), &nr).unwrap();
+        assert_eq!(rows[SPEED].value, "35");
+        apply_at(&p, SPEED, &rows, Change::Text("900".into()), &nr).unwrap();
+        assert_eq!(load_at(&p)[SPEED].value, "100");
+        apply_at(&p, SPEED, &rows, Change::Text("0".into()), &nr).unwrap();
         assert!(!std::fs::read_to_string(&p).unwrap().contains("accel-speed"));
     }
 
