@@ -51,7 +51,7 @@ lifeconf --help
 ```
 
 Both UIs share one editing model: pick a category (Presets, Palette, Lifewall,
-Lifenote, Lifelock, Lifegreet, Idle, Animations, Cursor, Font), edit a field,
+Notifications, Lifelock, Lifegreet, Idle, Animations, Cursor, Font), edit a field,
 and every change **previews live** — waybar/kitty/lifenote re-theme instantly
 as you move. `s` saves + applies (respawning the wallpaper/idle if those
 changed), `q` saves and quits, `Esc` cancels a field edit, `Ctrl+C` quits

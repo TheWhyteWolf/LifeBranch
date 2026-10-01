@@ -118,6 +118,12 @@ pub fn compose_note(cfg: &Cfg, d: &NoteData) -> Grid {
     layout::compose(&d.app, &summary, &body, style, cfg.max_width)
 }
 
+/// Whether `d` comes from an app the user muted. Critical notifications are
+/// never muted: a muted app's "battery at 2%" still gets through.
+pub fn muted(cfg: &Cfg, d: &NoteData) -> bool {
+    d.urgency != Urgency::Critical && cfg.muted_apps.iter().any(|a| *a == d.app.to_lowercase())
+}
+
 /// Effective expiry in ms; None = never.
 pub fn effective_timeout(cfg: &Cfg, d: &NoteData) -> Option<u64> {
     let ms = match (d.urgency, d.timeout_ms) {
@@ -203,6 +209,23 @@ mod tests {
             urgency: Urgency::Normal,
             timeout_ms: -1,
         }
+    }
+
+    #[test]
+    fn muted_apps_are_matched_case_insensitively_and_never_mute_critical() {
+        let mut cfg = Cfg::default();
+        cfg.set("mute-apps", " Vesktop , element,,");
+        assert_eq!(cfg.muted_apps, ["vesktop", "element"]);
+        let mut d = note(1);
+        d.app = "vesktop".into();
+        assert!(muted(&cfg, &d));
+        d.app = "Element".into();
+        assert!(muted(&cfg, &d));
+        d.urgency = Urgency::Critical;
+        assert!(!muted(&cfg, &d), "critical still shows");
+        d.app = "kitty".into();
+        d.urgency = Urgency::Normal;
+        assert!(!muted(&cfg, &d));
     }
 
     #[test]

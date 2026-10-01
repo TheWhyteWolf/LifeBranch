@@ -199,7 +199,7 @@ impl App {
     fn on_event(&mut self, ev: AppEvent) {
         match ev {
             AppEvent::Notify(d) => {
-                if self.dnd {
+                if self.dnd || crate::state::muted(&self.cfg, &d) {
                     // Swallowed silently, but it still lands in history
                     // (mako's [mode=do-not-disturb] invisible=1 behaviour).
                     self.queue.remember(&d, false);
