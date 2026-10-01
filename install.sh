@@ -90,6 +90,7 @@ fi
 echo "==> Enabling the system services the Settings panels use"
 enable_services
 offer_tailscale_operator
+offer_snapshots
 
 # Anything else this particular person wants, while we already have their
 # attention and a working AUR helper. Easy mode installs nothing extra: the
