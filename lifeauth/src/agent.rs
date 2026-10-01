@@ -171,19 +171,6 @@ fn authenticate(user: &str, as_other: Option<&str>, message: &str, cookie: &str,
     Err(AgentError::Failed("authentication failed".into()))
 }
 
-/// The prompt binary: lifemenu, else fuzzel (same flags).
-fn menu_bin() -> String {
-    let home = std::env::var("HOME").unwrap_or_default();
-    let local = format!("{home}/.local/bin/lifemenu");
-    if std::path::Path::new(&local).is_file() {
-        return local;
-    }
-    let on_path = |b: &str| {
-        std::env::var("PATH").unwrap_or_default().split(':').any(|d| std::path::Path::new(d).join(b).is_file())
-    };
-    if on_path("lifemenu") { "lifemenu".into() } else { "fuzzel".into() }
-}
-
 /// The text under the prompt: a retry note, PAM's info, the reason, and who
 /// we authenticate as when it isn't the user themself.
 pub fn mesg(note: &str, info: &str, message: &str, as_other: Option<&str>) -> String {
@@ -210,7 +197,7 @@ fn prompt(
     let mut p = text.trim_end().to_string();
     p.push(' ');
     let width = (m.chars().count() + 2).clamp(40, 100).to_string();
-    let mut cmd = Command::new(menu_bin());
+    let mut cmd = Command::new(crate::prompt::menu_bin());
     cmd.args(["--dmenu", "--prompt-only", &p, "--mesg", &m, "--width", &width]);
     if secret {
         cmd.arg("--password");

@@ -1,5 +1,21 @@
 # lifeauth
 
+The session's credentials agent for LifeBranch, three agents in one process:
+
+| asks for | when | replaces |
+|---|---|---|
+| your password | something needs admin rights (polkit: `pkexec`, mounting, Settings writing `/etc`) | polkit-kde-agent |
+| a PIN, a passkey, or "do the codes match?" | pairing a Bluetooth keyboard, phone, ... (org.bluez.Agent1) | blueman-applet's agent |
+| a network secret | a new wifi's password, an 802.1X login, a VPN password (NetworkManager SecretAgent) | nm-applet's agent |
+
+Every question is a lifemenu prompt; a code to type on a keyboard arrives as a
+notification. The Bluetooth and NetworkManager agents answer only their own
+service: a call from any other process is refused before anything is shown,
+since their answers go back to the caller. They register at start and again
+whenever bluetoothd or NetworkManager restarts.
+
+## The polkit agent
+
 The polkit authentication agent for LifeBranch. When something needs admin
 rights (mounting a disk, `pkexec`, lifeconf writing `/etc`), polkitd asks the
 session's agent. This one asks you through lifemenu's password box and hands
