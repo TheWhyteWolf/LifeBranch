@@ -93,15 +93,15 @@ already plugged in at login is mounted too, as udiskie did. niri starts it
 (`journalctl -t lifepanel`), and falls back to udiskie when lifepanel isn't
 built.
 
+## Pairing and secrets
+
+Bluetooth pairing that needs a PIN or a code check, and network secrets
+(enterprise wifi, VPN passwords), are asked by lifeauth, the session's
+credentials agent, so they work from here, from Settings and from the
+command line alike.
+
 ## Not yet
 
-- **Bluetooth pairing that needs a PIN or a confirmation.** No agent is
-  registered yet, so devices that need one (keyboards, phones) fail with
-  bluetoothctl's message. "Just works" devices (headphones, speakers, most
-  mice) pair fine. blueman-manager is still installed for the others.
-- **Enterprise (802.1X) wifi secrets.** nm-applet used to answer these
-  prompts. Use `nmcli --ask` or nm-connection-editor for now. (VPN passwords
-  are asked for; see VPN above.)
 - **Encrypted (LUKS) drives.** These aren't listed, because unlocking one
   needs a passphrase.
 
