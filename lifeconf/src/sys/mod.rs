@@ -22,6 +22,7 @@ pub mod keyboard;
 pub mod niri_input;
 pub mod nightlight;
 pub mod power;
+pub mod printers;
 pub mod region;
 pub mod net;
 pub mod sound;
@@ -33,7 +34,7 @@ pub mod vpn;
 mod common;
 pub use common::*;
 
-pub const PANELS: &[&str] = &["Display", "Network", "VPN", "Bluetooth", "Sound", "Keyboard", "Touchpad", "Mouse", "Power", "Night light", "Date & Time", "Region", "Apps", "Autostart", "Updates", "Users", "About"];
+pub const PANELS: &[&str] = &["Display", "Network", "VPN", "Bluetooth", "Sound", "Keyboard", "Touchpad", "Mouse", "Power", "Printers", "Night light", "Date & Time", "Region", "Apps", "Autostart", "Updates", "Users", "About"];
 
 pub fn is_panel(name: &str) -> bool {
     PANELS.contains(&name)
@@ -53,6 +54,7 @@ pub fn labels(panel: &str) -> &'static [&'static str] {
         "Region" => region::LABELS,
         "About" => about::LABELS,
         "Power" => power::LABELS,
+        "Printers" => printers::LABELS,
         "Night light" => nightlight::LABELS,
         "Apps" => apps::LABELS,
         "Autostart" => autostart::LABELS,
@@ -76,6 +78,7 @@ pub fn row_kind(panel: &str, field: usize) -> RowKind {
         "Region" => region::kind(field),
         "About" => about::kind(field),
         "Power" => power::kind(field),
+        "Printers" => printers::kind(field),
         "Night light" => nightlight::kind(field),
         "Apps" => apps::kind(field),
         "Autostart" => autostart::kind(field),
@@ -99,6 +102,7 @@ pub fn load(panel: &str, run: Runner) -> Vec<Row> {
         "Region" => region::load(run),
         "About" => about::load(run),
         "Power" => power::load(run),
+        "Printers" => printers::load(run),
         "Night light" => nightlight::load(run),
         "Apps" => apps::load(run),
         "Autostart" => autostart::load(run),
@@ -146,6 +150,7 @@ pub fn apply(panel: &str, field: usize, rows: &[Row], ch: Change, run: Runner) -
         "Region" => region::apply(field, rows, ch, run),
         "About" => about::apply(field, rows, ch, run),
         "Power" => power::apply(field, rows, ch, run),
+        "Printers" => printers::apply(field, rows, ch, run),
         "Night light" => nightlight::apply(field, rows, ch, run),
         "Apps" => apps::apply(field, rows, ch, run),
         "Autostart" => autostart::apply(field, rows, ch, run),

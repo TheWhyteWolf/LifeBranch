@@ -34,6 +34,8 @@ MAP=(wpctl:wireplumber
      udisksctl:udisks2
      htop:htop
      checkupdates:pacman-contrib
+     lpstat:cups
+     lpadmin:cups
      kitty:kitty)
 
 # Code that runs on the user's machine. Comments count as uses too, which errs
