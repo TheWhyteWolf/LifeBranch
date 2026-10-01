@@ -115,11 +115,11 @@ environment {
     QT_QPA_PLATFORMTHEME "qt6ct"
 }
 
-// Cursor: phinger (light variant — visible on the dark backdrop).
+// Cursor: LifeBranch-dark (lifecursor) — black with a white ring, visible on any backdrop.
 // niri exports XCURSOR_THEME/XCURSOR_SIZE to spawned apps; install.sh sets GTK to match.
 // LIFECONF:BEGIN cursor
 cursor {
-    xcursor-theme "phinger-cursors-light"
+    xcursor-theme "LifeBranch-dark"
     xcursor-size 24
 }
 // LIFECONF:END cursor

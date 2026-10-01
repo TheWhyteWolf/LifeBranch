@@ -389,8 +389,8 @@ next time you open it.
 - **Dim unfocused** — window rule drops unfocused windows to 95% opacity.
 - **Snappier animations** — `animations { slowdown 0.6 }`.
 - **GTK dark + cursor** — `adw-gtk3-dark`, prefer-dark colour scheme, and
-  `phinger-cursors-light` (set for niri in `cursor {}` and for GTK via
-  gsettings in install.sh).
+  `LifeBranch-dark`, our own cursor theme from [`lifecursor`](lifecursor/README.md)
+  (set for niri in `cursor {}` and for GTK via gsettings in install.sh).
 - **Unified font** — ShureTechMono Nerd Font (`ttf-sharetech-mono-nerd`;
   Nerd Fonts renames Share Tech Mono → "ShureTech" because OFL reserves the
   original name) across waybar, fuzzel, mako, kitty (via rice.conf),
