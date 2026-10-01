@@ -25,6 +25,7 @@ Rust components, built from source by the installer:
 | [`lifegreet`](lifegreet/README.md) | login screen |
 | [`lifefiles`](lifefiles/README.md) | mouse-driven terminal file browser |
 | [`lifeshot`](lifeshot/README.md) | screenshot + annotation overlay |
+| [`lifefont`](lifefont/README.md) | shared glyph rasterizer (library; lazy, ~37 MB less per process than fontdue) |
 
 ## Install
 

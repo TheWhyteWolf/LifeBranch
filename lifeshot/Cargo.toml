@@ -7,9 +7,9 @@ license = "GPL-3.0-or-later"
 authors = ["Whyte Erminae"]
 
 [dependencies]
-# Same sctk + fontdue stack as lifelock/lifenote/lifeconf, pinned in lockstep.
+# Same sctk + lifefont stack as lifelock/lifenote/lifeconf, pinned in lockstep.
 smithay-client-toolkit = "=0.20.0"
-fontdue = "0.9"
+lifefont = { path = "../lifefont" }  # lazy glyphs; see lifefont/Cargo.toml
 libc = "0.2"
 # wlr-screencopy: the one protocol sctk doesn't wrap. It is already in the
 # tree (sctk uses this crate for layer-shell).

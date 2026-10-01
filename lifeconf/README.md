@@ -33,7 +33,7 @@ cargo build --release        # -> target/release/lifeconf
 ```
 
 Dependencies: `serde` + `toml` (model), `ratatui` (TUI), and
-`smithay-client-toolkit` + `fontdue` (GUI — the same software-rendering stack as
+`smithay-client-toolkit` + `lifefont` (GUI — the same software-rendering stack as
 lifelock/lifegreet/lifewall).
 
 ## Use
@@ -140,13 +140,12 @@ by hand.
   interface).
 - **M4** (done) — lifewall/swayidle respawn, cursor via gsettings.
 - **M5** (done) — the keyboard-driven TUI (kitten-themes feel: preview on selection).
-- **M6** (done) — the GUI (xdg-shell + fontdue software rendering).
+- **M6** (done) — the GUI (xdg-shell + software rendering).
 
 ### Deferred: `life-common`
 
-The plan's M6 also proposed extracting a shared `life-common` crate (the fontdue
+The plan's M6 also proposed extracting a shared `life-common` crate (the
 `Atlas` + hex helpers duplicated across lifenote/lifelock/lifewall/lifeconf) and
-introducing a Cargo workspace. That's pure cleanup with no user-facing change and
-real risk to four already-working crates, so lifeconf carries its own small copy
-of the render primitives (`src/gui/render.rs`) for now. Extract the shared crate
-when there's a reason to touch all of them at once.
+introducing a Cargo workspace. The font layer has since been extracted as
+[`lifefont`](../lifefont/), because fontdue's eager parsing cost each process
+37 MB; the atlases themselves are still per-crate copies.
