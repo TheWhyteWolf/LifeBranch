@@ -14,10 +14,10 @@ toml = "0.8"
 # TUI (M5). ratatui bundles crossterm; we re-export it via ratatui::crossterm
 # so there's a single version to track.
 ratatui = "0.29"
-# GUI (M6): a software-rendered xdg-shell window, same sctk+fontdue stack as
+# GUI (M6): a software-rendered xdg-shell window, same sctk+lifefont stack as
 # lifelock/lifegreet/lifenote (pinned in lockstep with them).
 smithay-client-toolkit = "=0.20.0"
-fontdue = "0.9"
+lifefont = { path = "../lifefont" }  # lazy glyphs; see lifefont/Cargo.toml
 libc = "0.2"
 serde_json = "1"
 

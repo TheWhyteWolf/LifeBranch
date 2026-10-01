@@ -10,7 +10,7 @@
 // full-bleed stretch lifelock uses for ░▒▓█ — stretching `─` would turn a
 // thin rule into a filled bar.
 
-use fontdue::{Font, FontSettings};
+use lifefont::Font;
 use std::collections::HashMap;
 
 pub struct Atlas {
@@ -26,7 +26,7 @@ impl Atlas {
     pub fn new(font_path: &str, px: f32) -> Result<Atlas, String> {
         let bytes = std::fs::read(font_path)
             .map_err(|e| format!("cannot read font {font_path}: {e}"))?;
-        let font = Font::from_bytes(bytes, FontSettings::default())
+        let font = Font::from_bytes(bytes)
             .map_err(|e| format!("cannot parse font {font_path}: {e}"))?;
         let lm = font
             .horizontal_line_metrics(px)
@@ -61,7 +61,7 @@ impl Atlas {
         let (cw, chh) = (self.cell_w, self.cell_h);
         let mut out = vec![0u8; cw * chh];
         let (m, cov) = self.font.rasterize(ch, self.px);
-        // Baseline math as in lifelock's text_run: fontdue y is measured up
+        // Baseline math as in lifelock's text_run: lifefont y is measured up
         // from the baseline, ymin is the glyph's bottom edge.
         let y_top = self.ascent - (m.ymin + m.height as i32);
         for ry in 0..m.height {

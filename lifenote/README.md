@@ -19,7 +19,7 @@ muted olive like the rest of the rice.
 Mako (and every other daemon) draws pixel borders around wrapped text — it
 cannot put `│` glyphs alongside a body it wraps itself. A frame that hugs the
 text requires owning the renderer, so lifenote reuses the family's stack:
-smithay-client-toolkit + calloop, fontdue char-cell atlas, software-composited
+smithay-client-toolkit + calloop, a char-cell atlas over `lifefont`, software-composited
 shm canvas — ARGB8888 with premultiplied alpha instead of the siblings' opaque
 XRGB, so the panel is genuinely translucent.
 
