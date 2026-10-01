@@ -462,6 +462,8 @@ binds {
     Print      { screenshot; }
     Ctrl+Print { screenshot-screen; }
     Alt+Print  { screenshot-window; }
+    // lifeshot: freeze, select an area, mark it up, copy or save (flameshot-style).
+    Shift+Print hotkey-overlay-title="Screenshot + annotate" { spawn-sh "~/.local/bin/lifeshot"; }
     // Screen recording: toggle wf-recorder on the output (rec-toggle.sh);
     // start/stop announced through lifenote.
     Mod+Print hotkey-overlay-title="Screen record (toggle)" { spawn-sh "~/.local/bin/rec-toggle.sh"; }
