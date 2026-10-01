@@ -98,6 +98,7 @@ pub fn field_labels(cat: usize) -> Vec<&'static str> {
             "mature",
             "newborn",
             "glider_interval",
+            "fps_battery",
         ],
         "Lifenote" => vec![
             "border_style",
@@ -134,6 +135,7 @@ pub fn kind(cat: usize, field: usize) -> Kind {
         ("Lifewall", 4) => Kind::Enum(GLYPH_MODES),
         ("Lifewall", 5) => Kind::Text, // char / character set
         ("Lifewall", 8) => Kind::Float(10.0), // glider_interval
+        ("Lifewall", 9) => Kind::Int(1),      // fps_battery: a 5-step overshoots its range
         ("Lifewall", _) => Kind::Hex, // mature, newborn
         ("Lifenote", 0) | ("Lifenote", 1) => Kind::Enum(STYLES),
         ("Lifenote", 2) => Kind::Float(0.05),
@@ -220,6 +222,7 @@ impl Model {
             ("Lifewall", 6) => t.lifewall.mature.clone(),
             ("Lifewall", 7) => t.lifewall.newborn.clone(),
             ("Lifewall", 8) => fmtf(t.lifewall.glider_interval),
+            ("Lifewall", 9) => t.lifewall.fps_battery.to_string(),
             ("Lifenote", 0) => t.lifenote.border_style.clone(),
             ("Lifenote", 1) => t.lifenote.critical_border_style.clone(),
             ("Lifenote", 2) => fmtf(t.lifenote.opacity),
@@ -290,6 +293,10 @@ impl Model {
             ("Lifewall", 8) => {
                 t.lifewall.glider_interval =
                     s.parse().unwrap_or(t.lifewall.glider_interval).max(0.0)
+            }
+            // 0 means "same as fps on battery too".
+            ("Lifewall", 9) => {
+                t.lifewall.fps_battery = s.parse().unwrap_or(t.lifewall.fps_battery).clamp(0, 240)
             }
             ("Lifewall", 0) => t.lifewall.tick = s.parse().unwrap_or(t.lifewall.tick).max(0.05),
             ("Lifewall", 1) => t.lifewall.fps = s.parse().unwrap_or(t.lifewall.fps).clamp(1, 240),

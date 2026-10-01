@@ -7,7 +7,7 @@ use crate::board::{Board, Config, Engine};
 use crate::{QUIT, RESEED, WINCH};
 use std::io::Write;
 use std::sync::atomic::Ordering;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 fn term_size() -> (usize, usize) {
     unsafe {
@@ -80,7 +80,7 @@ pub fn run(cfg: &Config) {
     let bg_sgr = format!("\x1b[48;2;{};{};{}m", bg[0], bg[1], bg[2]);
     let _ = write!(out, "\x1b[?25l{bg_sgr}\x1b[2J");
 
-    let frame = Duration::from_secs_f64(1.0 / cfg.fps);
+    let mut power = crate::power::Power::new(Instant::now());
     let mut next_frame = Instant::now();
 
     while !QUIT.load(Ordering::Relaxed) {
@@ -106,7 +106,7 @@ pub fn run(cfg: &Config) {
             break; // panel closed under us
         }
 
-        next_frame += frame;
+        next_frame += power.frame(cfg);
         let now = Instant::now();
         if next_frame > now {
             std::thread::sleep(next_frame - now);
