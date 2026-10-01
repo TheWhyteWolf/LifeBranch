@@ -248,6 +248,14 @@ window-rule {
     default-floating-position x=0 y=12 relative-to="top"
 }
 window-rule {
+    // File dialogs (lifeportal runs lifefiles --pick in kitty): float them at
+    // dialog size over the app that asked, as GTK/Qt dialogs would.
+    match app-id=r#"^lifefiles-picker$"#
+    open-floating true
+    default-column-width { fixed 1100; }
+    default-window-height { fixed 700; }
+}
+window-rule {
     // The LifeBranch cheat sheet (Mod+Slash, and once at every login). A plain
     // kitty window; float it at a readable size instead of giving it a column.
     match app-id=r#"^lifebranch-shortcuts$"#

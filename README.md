@@ -28,6 +28,7 @@ Rust components, built from source by the installer:
 | [`lifemenu`](lifemenu/README.md) | launcher + dmenu (fuzzel-compatible flags; the scripts' menus) |
 | [`lifeauth`](lifeauth/README.md) | polkit authentication agent (asks through lifemenu) |
 | [`lifebar`](lifebar/README.md) | status bar: workspaces, clock, readings, text tray (replaces waybar) |
+| [`lifeportal`](lifeportal/README.md) | file-chooser portal: apps' Open/Save dialogs are lifefiles |
 | [`lifeosd`](lifeosd/README.md) | volume/brightness on-screen bar (replaces wob) |
 | [`lifepanel`](lifepanel/README.md) | quick settings: wifi, bluetooth, sound, brightness, power, drives; USB automount |
 | [`lifefont`](lifefont/README.md) | shared glyph rasterizer (library; lazy, ~37 MB less per process than fontdue) |
@@ -388,8 +389,10 @@ next time you open it.
 - **Wallpaper pause/reset** — `Mod+Shift+G` freezes/resumes the Game of Life
   (SIGSTOP/SIGCONT; zero CPU while frozen, lifewall resyncs on resume);
   `Mod+Ctrl+G` resets it — SIGUSR1 triggers a crossfade into a fresh soup.
-- **Portals** — file pickers/settings via `-gtk`, screencast/screenshot via
-  `-gnome` (`xdg/portals.conf`), so screen sharing works on niri.
+- **Portals** — file dialogs via [`lifeportal`](lifeportal/README.md)
+  (lifefiles as the picker; `-gtk` until it's built), settings via `-gtk`,
+  screencast/screenshot via `-gnome` (`xdg/portals.conf`), so screen sharing
+  works on niri.
 - **Qt dark** — `QT_QPA_PLATFORMTHEME=qt6ct` with Fusion + darker palette
   (`qt6ct/qt6ct.conf`). Set in niri's `environment {}` block, so it is
   niri-only — a Plasma session keeps its own theme.
