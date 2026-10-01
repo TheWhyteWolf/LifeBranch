@@ -41,6 +41,7 @@ lifelock/lifegreet/lifewall).
 ```sh
 lifeconf                     # interactive UI: TUI in a terminal, GUI otherwise
 lifeconf --gui               # force the GUI
+lifeconf --gui --panel sound # open straight onto a category/panel (Mod+S opens the GUI)
 lifeconf --apply             # regenerate every config from theme.toml (headless)
 lifeconf --preset moss       # switch palette preset (olive, slate, moss, vivid-*, rainbow-*, ...), save + apply
 lifeconf --print             # print the resolved theme.toml
@@ -76,6 +77,40 @@ hues), `pastel-*` (soft, low-saturation accents on a dark ground), and
 terminal palettes are all machine-derived from their seven roles via
 `ansi16::derive_ansi16`, same as `active_preset = "custom"` uses for hand-edited
 palettes.
+
+### System panels
+
+Below the theme categories the sidebar has a **System** group. These panels
+read and change the running system directly, so there is nothing to Save: a
+change applies the moment you make it, and the values are re-read from the
+system after every change and whenever you select the panel. A missing tool
+shows "unavailable" rather than an error. Press `/` (or Ctrl+F) in the GUI to
+search the sidebar — it matches category names *and* field labels, so "volume"
+finds Sound.
+
+| Panel | Backend | Notes |
+|---|---|---|
+| **Display** | `niri msg` | per output: mode, scale, transform, on/off. Every change asks **Keep this change?** (Enter/y keeps, Esc/n reverts, or click); with no answer in 60 s — or if you close lifeconf — it reverts, so a bad pick can't strand you. "Keep" holds it for the session: these are niri's *temporary* output changes, so a config reload still resets them. Refuses to turn off the last active output. |
+| **Network** | `nmcli` | wifi on/off, pick a network, connect/disconnect. A new *secured* network needs a password, which is never put on a command line — use `net-menu.sh` (waybar `NET` click) for that. |
+| **Bluetooth** | `bluetoothctl` | power, pick a device, connect (pairing + trusting new ones first), disconnect, background scan. |
+| **Sound** | `wpctl` | default output/input device, volume, mute (right-click waybar `VOL`). |
+| **Keyboard** | niri config | layout (typed, checked against `localectl`), variant, options, numlock, key repeat. |
+| **Touchpad** | niri config | enabled, tap, natural scroll, disable-while-typing, click/scroll method, accel profile/speed, button map. |
+| **Power** | `powerprofilesctl`, `brightnessctl`, `upower` | power profile, brightness (never below 1%), battery state. The lid-close behaviour is shown read-only: it lives in hand-tuned logind drop-ins under `/etc`, which lifeconf deliberately doesn't rewrite. Idle lock/screen-off timeouts are in the Idle category. |
+| **Date & Time** | `timedatectl` | timezone (type `Toronto` or `America/Toronto`), automatic time. Asks polkit. |
+| **Apps** | `xdg-mime` | default browser, file manager, text editor, image/video/audio/pdf/archive handlers, email. Each role switches all its MIME types together. |
+| **Autostart** | XDG autostart | enable/disable login entries. Disabling a system entry writes a `Hidden=true` override in `~/.config/autostart`; nothing under `/etc` is touched. Takes effect at next login. |
+| **About** | — | device, OS, kernel, CPU, memory, uptime, niri and lifeconf versions. |
+
+Keyboard and Touchpad edit the installer's `// LIFEBRANCH:BEGIN keyboard|touchpad`
+regions of `config.kdl` through the same stage → `niri validate` → rename path
+as the theme regions, so a bad write leaves the config untouched and niri
+hot-reloads a good one. Settings the panel doesn't know are kept; a region it
+can't round-trip (properties, `;`-joined nodes) is refused with a message
+rather than rewritten. Comments inside those two regions are replaced.
+
+Each panel is a module in `src/sys/` behind a fake-able `Runner`, with its
+parsing tested against real command output.
 
 ### Generated files & git
 

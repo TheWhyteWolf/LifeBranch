@@ -2,11 +2,12 @@
 // niri/config.kdl — marker-delimited region rewrite. Unlike the other configs
 // this file is mostly hand-written, so lifeconf only owns four fenced regions
 // (`// LIFECONF:BEGIN <name>` ... `// LIFECONF:END <name>`) and leaves every
-// other byte untouched. After rewriting, `niri validate` is run as a guard.
+// other byte untouched. The rewrite is staged and must pass `niri validate`
+// before it replaces the live file; a rejected rewrite changes nothing.
 
 use crate::cmd;
 use crate::gen::Report;
-use crate::theme::{hash, Theme};
+use crate::theme::{hash, plain_name, Theme};
 
 /// Format an f64 without trailing zeros (0.3, 3, 0.14) so the generated flags
 /// read like the hand-written defaults.
@@ -30,7 +31,7 @@ fn gen_cursor(t: &Theme) -> String {
          \x20   xcursor-theme \"{}\"\n\
          \x20   xcursor-size {}\n\
          }}",
-        t.cursor.theme, t.cursor.size
+        plain_name(&t.cursor.theme), t.cursor.size
     )
 }
 
@@ -75,12 +76,14 @@ fn gen_insert_hint(t: &Theme) -> String {
     format!("    insert-hint {{\n        color \"{}80\"\n    }}", hash(&t.palette.accent))
 }
 
-/// Replace the body between `BEGIN name`/`END name` markers with `inner`,
-/// leaving the marker lines and everything else intact. Returns None (and the
-/// caller warns) if either marker is missing.
-fn replace_region(src: &str, name: &str, inner: &str) -> Option<String> {
-    let begin = format!("// LIFECONF:BEGIN {name}");
-    let end = format!("// LIFECONF:END {name}");
+/// Replace the body between `<prefix>:BEGIN name` / `<prefix>:END name` marker
+/// comments with `inner`, leaving the marker lines and everything else intact.
+/// Returns None if either marker is missing. LIFECONF regions are the ones
+/// lifeconf generates from the theme; LIFEBRANCH regions are the installer's
+/// (keyboard, touchpad, …) and are edited by the Settings panels.
+pub(crate) fn replace_region_in(src: &str, prefix: &str, name: &str, inner: &str) -> Option<String> {
+    let begin = format!("// {prefix}:BEGIN {name}");
+    let end = format!("// {prefix}:END {name}");
     let bpos = src.find(&begin)?;
     // Start of replaceable body: the newline after the BEGIN marker line.
     let body_start = src[bpos..].find('\n')? + bpos + 1;
@@ -93,6 +96,63 @@ fn replace_region(src: &str, name: &str, inner: &str) -> Option<String> {
     out.push('\n');
     out.push_str(&src[end_line_start..]);
     Some(out)
+}
+
+fn replace_region(src: &str, name: &str, inner: &str) -> Option<String> {
+    replace_region_in(src, "LIFECONF", name, inner)
+}
+
+/// The text between a region's markers (None if either is missing).
+pub(crate) fn region_body<'a>(src: &'a str, prefix: &str, name: &str) -> Option<&'a str> {
+    let begin = format!("// {prefix}:BEGIN {name}");
+    let end = format!("// {prefix}:END {name}");
+    let bpos = src.find(&begin)?;
+    let body_start = src[bpos..].find('\n')? + bpos + 1;
+    let epos = src[body_start..].find(&end)? + body_start;
+    let end_line_start = src[..epos].rfind('\n')? + 1;
+    Some(&src[body_start..end_line_start.max(body_start)])
+}
+
+/// Stage `src` next to the real config (through the symlink, so the config
+/// stays attached to the repo, and in the same directory so any relative
+/// `include` resolves the same way), validate THAT, and only then rename it over
+/// the live config. niri hot-reloads config.kdl and reads it at login, so it
+/// must never see a truncated or invalid file: on a failed validate the live
+/// config is left exactly as it was. The Err text is ready to show.
+pub(crate) fn write_validated(path: &str, src: &str) -> Result<(), String> {
+    let target = super::resolve_target(std::path::Path::new(path));
+    let Some(name) = target.file_name().map(|n| n.to_string_lossy().into_owned()) else {
+        return Err(format!("! {path}: no file name to write"));
+    };
+    let tmp = target.with_file_name(format!(".{name}.lifeconf-tmp"));
+
+    let staged = (|| -> std::io::Result<()> {
+        use std::io::Write;
+        let mut f = std::fs::File::create(&tmp)?;
+        f.write_all(src.as_bytes())?;
+        f.sync_all()
+    })();
+    if let Err(e) = staged {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(format!("! {path}: write failed: {e}"));
+    }
+
+    match std::process::Command::new("niri").arg("validate").arg("--config").arg(&tmp).output() {
+        Ok(o) if !o.status.success() => {
+            let _ = std::fs::remove_file(&tmp);
+            return Err(format!(
+                "! niri validate rejected the rewritten config; {path} left unchanged:\n{}",
+                String::from_utf8_lossy(&o.stderr).trim()
+            ));
+        }
+        Ok(_) => {}
+        Err(_) => {} // niri not installed here — skip the guard silently.
+    }
+
+    std::fs::rename(&tmp, &target).map_err(|e| {
+        let _ = std::fs::remove_file(&tmp);
+        format!("! {path}: write failed: {e}")
+    })
 }
 
 pub fn apply(t: &Theme, path: &str, r: &mut Report) {
@@ -119,22 +179,80 @@ pub fn apply(t: &Theme, path: &str, r: &mut Report) {
         }
     }
 
-    if let Some(dir) = std::path::Path::new(path).parent() {
-        let _ = std::fs::create_dir_all(dir);
+    match write_validated(path, &src) {
+        Ok(()) => r.written.push(path.to_string()),
+        Err(e) => r.notes.push(e),
     }
-    if let Err(e) = std::fs::write(path, &src) {
-        r.notes.push(format!("! {path}: write failed: {e}"));
-        return;
-    }
-    r.written.push(path.to_string());
+}
 
-    // Guard: validate the rewritten config. M1 only warns (no rollback yet).
-    match std::process::Command::new("niri").arg("validate").arg("--config").arg(path).output() {
-        Ok(o) if o.status.success() => {}
-        Ok(o) => r.notes.push(format!(
-            "! niri validate failed on the rewritten config:\n{}",
-            String::from_utf8_lossy(&o.stderr).trim()
-        )),
-        Err(_) => {} // niri not installed here — skip the guard silently.
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let d = std::env::temp_dir().join(format!("lifeconf-niri-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    #[test]
+    fn replace_region_swaps_body_only() {
+        let src = "a\n// LIFECONF:BEGIN x\nold\n    // LIFECONF:END x\nb\n";
+        let out = replace_region(src, "x", "new").unwrap();
+        assert_eq!(out, "a\n// LIFECONF:BEGIN x\nnew\n    // LIFECONF:END x\nb\n");
+        assert!(replace_region(src, "missing", "new").is_none());
+    }
+
+    #[test]
+    fn escaping_holds_for_hostile_theme_values() {
+        let mut t = Theme::default();
+        t.cursor.theme = "Adwaita\" }\nspawn-at-startup \"x".into();
+        t.font.family = "Mono'; touch /tmp/pwned; '".into();
+        t.palette.bg = "#12'\"$(id)".into();
+        assert!(!gen_cursor(&t).contains("\"x"));
+        let wall = gen_lifewall(&t);
+        // Only the generator's own quotes survive: one pair around the KDL
+        // string, none from the theme values.
+        assert_eq!(wall.matches('"').count(), 2);
+        assert!(!wall.contains("$("));
+        assert!(!wall.contains("touch /tmp/pwned; '"));
+    }
+
+    /// The live config must never be replaced by a rewrite niri rejects.
+    /// Needs niri on PATH; skipped (passes) without it, as the guard is.
+    #[test]
+    fn rejected_rewrite_leaves_config_untouched() {
+        if std::process::Command::new("niri").arg("--version").output().is_err() {
+            return;
+        }
+        let dir = scratch("reject");
+        let cfg = dir.join("config.kdl");
+        // Invalid outside any region, so every rewrite fails validation.
+        let original = "// LIFECONF:BEGIN cursor\n// LIFECONF:END cursor\nnot-a-niri-node {}\n";
+        std::fs::write(&cfg, original).unwrap();
+        let mut r = Report::default();
+        apply(&Theme::default(), cfg.to_str().unwrap(), &mut r);
+        assert!(r.written.is_empty());
+        assert!(r.notes.iter().any(|n| n.contains("left unchanged")), "{:?}", r.notes);
+        assert_eq!(std::fs::read_to_string(&cfg).unwrap(), original);
+        let leftovers: Vec<_> = std::fs::read_dir(&dir).unwrap().collect();
+        assert_eq!(leftovers.len(), 1, "staging file not cleaned up");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn writes_through_symlink() {
+        let dir = scratch("link");
+        let real = dir.join("real.kdl");
+        let link = dir.join("config.kdl");
+        std::fs::write(&real, "// LIFECONF:BEGIN cursor\n// LIFECONF:END cursor\n").unwrap();
+        std::os::unix::fs::symlink(&real, &link).unwrap();
+        let mut r = Report::default();
+        apply(&Theme::default(), link.to_str().unwrap(), &mut r);
+        assert!(std::fs::symlink_metadata(&link).unwrap().file_type().is_symlink());
+        let body = std::fs::read_to_string(&real).unwrap();
+        assert!(body.contains("xcursor-theme"), "{body}");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

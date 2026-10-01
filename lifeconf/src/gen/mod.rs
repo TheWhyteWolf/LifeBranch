@@ -6,6 +6,7 @@
 
 pub mod fuzzel;
 pub mod kitty;
+pub mod lifefiles;
 pub mod lifegreet;
 pub mod lifelock;
 pub mod lifenote;
@@ -25,10 +26,10 @@ pub struct Report {
 /// Resolve `p` to the real file to be replaced, following symlinks.
 ///
 /// install.sh symlinks the generated configs into the repo
-/// (~/.config/waybar/style.css -> ~/git/niri/waybar/style.css). An atomic
+/// (~/.config/waybar/style.css -> ~/LifeBranch/waybar/style.css). An atomic
 /// rename onto the *link* path would replace the link with a regular file and
 /// quietly detach the config from the repo, so always swap the link's target.
-fn resolve_target(p: &std::path::Path) -> std::path::PathBuf {
+pub(super) fn resolve_target(p: &std::path::Path) -> std::path::PathBuf {
     if let Ok(real) = std::fs::canonicalize(p) {
         return real;
     }
@@ -94,6 +95,7 @@ pub fn generate_theme_files(theme: &Theme, paths: &Paths, r: &mut Report) {
     write(r, paths.config("lifenote/config"), lifenote::render(theme));
     write(r, paths.config("swaylock/config"), swaylock::render(theme));
     write(r, paths.config("lifelock/config"), lifelock::render(theme));
+    write(r, paths.config("lifefiles/theme"), lifefiles::render(theme));
 }
 
 /// Regenerate every theme-derived config. Returns a report of what changed and

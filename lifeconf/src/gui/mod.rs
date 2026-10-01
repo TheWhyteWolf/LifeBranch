@@ -11,7 +11,7 @@
 
 mod render;
 
-use crate::model::{field_labels, kind, Focus, Kind, Model, CATS};
+use crate::model::{field_labels, is_system, kind, Focus, Kind, Model, CATS};
 use crate::paths::Paths;
 use crate::theme::{rgb, Theme};
 use render::Atlas;
@@ -19,7 +19,10 @@ use render::Atlas;
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
     output::{OutputHandler, OutputState},
-    reexports::calloop::EventLoop,
+    reexports::calloop::{
+        timer::{TimeoutAction, Timer},
+        EventLoop, LoopHandle,
+    },
     reexports::calloop_wayland_source::WaylandSource,
     reexports::client::{
         globals::registry_queue_init,
@@ -44,8 +47,9 @@ use smithay_client_toolkit::{
 const FONT: &str = "/usr/share/fonts/TTF/ShureTechMonoNerdFontMono-Regular.ttf";
 const FONT_PX: f32 = 16.0;
 const SIDEBAR_CELLS: usize = 16;
+const TICK: std::time::Duration = std::time::Duration::from_secs(1);
 
-pub fn run(paths: Paths, theme: Theme) -> i32 {
+pub fn run(paths: Paths, theme: Theme, panel: Option<&str>) -> i32 {
     let conn = match Connection::connect_to_env() {
         Ok(c) => c,
         Err(e) => {
@@ -95,15 +99,25 @@ pub fn run(paths: Paths, theme: Theme) -> i32 {
         seat_state: SeatState::new(&globals, &qh),
         shm,
         qh: qh.clone(),
+        loop_handle: event_loop.handle(),
+        timer_armed: false,
         window,
         pool: None,
         width: 760,
-        height: 520,
+        height: 640,
         configured: false,
         atlas,
         cell_w,
         cell_h,
-        m: Model::new(paths, theme),
+        m: {
+            let mut m = Model::new(paths, theme);
+            if let Some(p) = panel {
+                if !m.open_panel(p) {
+                    eprintln!("lifeconf: no panel named {p:?}");
+                }
+            }
+            m
+        },
         keyboard: None,
         pointer: None,
         ctrl: false,
@@ -115,9 +129,12 @@ pub fn run(paths: Paths, theme: Theme) -> i32 {
     while !gui.m.quit {
         if event_loop.dispatch(None, &mut gui).is_err() {
             eprintln!("lifeconf: event loop error");
+            gui.m.revert_pending("lifeconf failed");
             return 1;
         }
     }
+    // Closing the window is not an answer: silence means no.
+    gui.m.revert_pending("closed without answering");
     0
 }
 
@@ -127,6 +144,9 @@ struct Gui {
     seat_state: SeatState,
     shm: Shm,
     qh: QueueHandle<Self>,
+    loop_handle: LoopHandle<'static, Gui>,
+    /// A 1s countdown timer is already scheduled (see ensure_timer).
+    timer_armed: bool,
     window: Window,
     pool: Option<SlotPool>,
     width: u32,
@@ -152,6 +172,60 @@ fn sidebar_w(cell_w: usize, cell_h: usize) -> usize {
 fn row_y(cell_h: usize, i: usize) -> usize {
     margin(cell_h) + cell_h + i * (cell_h + 4)
 }
+/// One row of the sidebar: a section heading or a selectable category.
+#[derive(Clone, Copy, PartialEq)]
+enum Side {
+    Header(&'static str),
+    Cat(usize),
+}
+
+/// Headings only when browsing; a search shows a flat list of hits.
+fn sidebar_rows(m: &Model) -> Vec<Side> {
+    let vis = m.visible_cats();
+    if m.search.as_deref().is_some_and(|q| !q.trim().is_empty()) {
+        return vis.into_iter().map(Side::Cat).collect();
+    }
+    let mut out = Vec::new();
+    let mut last = "";
+    for c in vis {
+        let group = if is_system(c) { "System" } else { "Appearance" };
+        if group != last {
+            out.push(Side::Header(group));
+            last = group;
+        }
+        out.push(Side::Cat(c));
+    }
+    out
+}
+
+/// The search box under the category list: (y, height).
+fn search_box(h: usize, cell_h: usize) -> (usize, usize) {
+    (h.saturating_sub(2 * cell_h + 14), cell_h + 4)
+}
+
+fn mix(a: (u8, u8, u8), b: (u8, u8, u8)) -> (u8, u8, u8) {
+    let f = |x: u8, y: u8| ((x as u16 + y as u16) / 2) as u8;
+    (f(a.0, b.0), f(a.1, b.1), f(a.2, b.2))
+}
+
+/// The keep/revert banner shown while a Display change awaits an answer:
+/// (banner rect, keep button, revert button), each (x, y, w, h).
+type Rect = (usize, usize, usize, usize);
+fn prompt_rects(w: usize, h: usize, cell_w: usize, cell_h: usize) -> (Rect, Rect, Rect) {
+    let bh = 2 * cell_h + 16;
+    let by = h.saturating_sub(cell_h + 4 + bh + 6);
+    let x0 = sidebar_w(cell_w, cell_h) + 1;
+    let (btn_w, btn_h) = (13 * cell_w, cell_h + 8);
+    let btn_y = by + (bh - btn_h) / 2;
+    let revert = (w.saturating_sub(btn_w + cell_w), btn_y, btn_w, btn_h);
+    let keep = (w.saturating_sub(2 * btn_w + 2 * cell_w), btn_y, btn_w, btn_h);
+    ((x0, by, w.saturating_sub(x0), bh), keep, revert)
+}
+
+fn hit(r: Rect, x: f64, y: f64) -> bool {
+    x >= r.0 as f64 && x < (r.0 + r.2) as f64 && y >= r.1 as f64 && y < (r.1 + r.3) as f64
+}
+
 /// The Save button's rect (x, y, w, h) — bottom-right corner.
 fn save_btn_rect(w: usize, h: usize, cell_w: usize, cell_h: usize) -> (usize, usize, usize, usize) {
     let bw = 8 * cell_w;
@@ -187,16 +261,36 @@ fn paint_scene(
     let cats_active = m.focus == Focus::Cats;
     atlas.draw_str(px, stride, h, mgn, mgn - cell_h / 2, "lifeconf", accent);
 
-    for (i, cat) in CATS.iter().enumerate() {
+    let dim = mix(text, surface);
+    for (i, row) in sidebar_rows(m).iter().enumerate() {
         let y = row_y(cell_h, i);
-        let selected = i == m.cat;
-        if selected {
-            let col = if cats_active { accent } else { border };
-            render::fill_rect(px, stride, h, mgn - 4, y.saturating_sub(2), side - mgn - 2, cell_h + 3, col);
+        match *row {
+            Side::Header(name) => {
+                atlas.draw_str(px, stride, h, mgn, y, &name.to_uppercase(), dim);
+            }
+            Side::Cat(c) => {
+                let selected = c == m.cat;
+                if selected {
+                    let col = if cats_active { accent } else { border };
+                    render::fill_rect(px, stride, h, mgn - 4, y.saturating_sub(2), side - mgn - 2, cell_h + 3, col);
+                }
+                let fg = if selected { bg } else { text };
+                atlas.draw_str(px, stride, h, mgn + cell_w, y, CATS[c], fg);
+            }
         }
-        let fg = if selected { bg } else { text };
-        atlas.draw_str(px, stride, h, mgn, y, cat, fg);
     }
+    // Search box: "/ query_" while typing, the retained filter otherwise, else a hint.
+    let (sy0, sh) = search_box(h, cell_h);
+    render::fill_rect(px, stride, h, mgn - 4, sy0, side - mgn - 2, sh, bg);
+    let q = m.search.as_deref().unwrap_or("");
+    let (shown, scol) = match (m.searching, q.is_empty()) {
+        (true, _) => (format!("/{q}_"), accent),
+        (false, false) => (format!("/{q}"), warn),
+        (false, true) => ("/ search".to_string(), dim),
+    };
+    let max = SIDEBAR_CELLS.saturating_sub(1);
+    let shown: String = shown.chars().rev().take(max).collect::<Vec<_>>().into_iter().rev().collect();
+    atlas.draw_str(px, stride, h, mgn, sy0 + 2, &shown, scol);
 
     let fields_active = m.focus == Focus::Fields;
     let fx = side + cell_w * 2;
@@ -251,6 +345,29 @@ fn paint_scene(
     let lx = bx + (bw.saturating_sub(label.len() * cell_w)) / 2;
     let ly = by + (bh.saturating_sub(cell_h)) / 2;
     atlas.draw_str(px, stride, h, lx, ly, label, btn_fg);
+
+    // Pending keep/revert prompt, drawn last so it sits over everything.
+    if let (Some(p), Some(secs)) = (&m.pending, m.pending_secs(std::time::Instant::now())) {
+        let (banner, keep, revert) = prompt_rects(stride, h, cell_w, cell_h);
+        render::fill_rect(px, stride, h, banner.0, banner.1, banner.2, banner.3, surface);
+        render::fill_rect(px, stride, h, banner.0, banner.1, banner.2, 1, warn);
+        render::fill_rect(px, stride, h, banner.0, banner.1 + banner.3 - 1, banner.2, 1, warn);
+        let tx = banner.0 + cell_w;
+        let max_cells = (keep.0.saturating_sub(tx + cell_w)) / cell_w;
+        let clip = |s: &str| -> String { s.chars().take(max_cells).collect() };
+        atlas.draw_str(px, stride, h, tx, banner.1 + 6, &clip("Keep this change?"), warn);
+        atlas.draw_str(
+            px, stride, h, tx, banner.1 + 6 + cell_h,
+            &clip(&format!("{}  (reverts in {secs}s)", p.what)),
+            text,
+        );
+        for (r, label, active) in [(keep, "Keep (Enter)", true), (revert, "Revert (Esc)", false)] {
+            let (fill, fg) = if active { (accent, bg) } else { (border, text) };
+            render::fill_rect(px, stride, h, r.0, r.1, r.2, r.3, fill);
+            let lx = r.0 + r.2.saturating_sub(label.len() * cell_w) / 2;
+            atlas.draw_str(px, stride, h, lx, r.1 + (r.3.saturating_sub(cell_h)) / 2, label, fg);
+        }
+    }
 }
 
 /// Debug-only: render one frame of the default scene to a PPM, no Wayland —
@@ -265,17 +382,29 @@ pub fn render_ppm(paths: Paths, theme: Theme, out: &str) -> i32 {
         }
     };
     let (cell_w, cell_h) = (atlas.cell_w(), atlas.cell_h());
-    let (w, h) = (760usize, 520usize);
+    let (w, h) = (760usize, 640usize);
     let mut px = vec![0u32; w * h];
     let mut m = Model::new(paths, theme);
     // Optional: preview a specific category (LIFECONF_PPM_CAT=Palette) with the
     // fields pane focused, so the offline test can exercise swatches/selection.
     if let Ok(name) = std::env::var("LIFECONF_PPM_CAT") {
         if let Some(i) = crate::model::CATS.iter().position(|c| *c == name) {
-            m.cat = i;
+            m.enter_cat(i);
             m.focus = crate::model::Focus::Fields;
-            m.field = 0;
         }
+    }
+    // Preview the keep/revert banner without touching a real display.
+    if std::env::var_os("LIFECONF_PPM_PENDING").is_some() {
+        m.pending = Some(crate::model::Pending {
+            undo: vec![],
+            deadline: std::time::Instant::now() + std::time::Duration::from_secs(42),
+            what: "eDP-1 scale 1.5".into(),
+        });
+    }
+    if let Ok(q) = std::env::var("LIFECONF_PPM_SEARCH") {
+        m.search = Some(q);
+        m.searching = true;
+        m.clamp_to_search();
     }
     paint_scene(&m, &mut atlas, &mut px, w, h, cell_w, cell_h);
 
@@ -344,10 +473,45 @@ impl Gui {
     fn redraw(&mut self) {
         self.window.wl_surface().frame(&self.qh, self.window.wl_surface().clone());
         self.draw();
+        self.ensure_timer();
+    }
+
+    /// While a keep/revert prompt is open, wake once a second to repaint the
+    /// countdown and fire the revert at the deadline. The timer drops itself the
+    /// moment nothing is pending, so an idle settings window costs nothing.
+    fn ensure_timer(&mut self) {
+        if self.m.pending.is_none() || self.timer_armed {
+            return;
+        }
+        self.timer_armed = true;
+        let _ = self.loop_handle.insert_source(Timer::from_duration(TICK), |_, _, gui: &mut Gui| {
+            gui.m.tick(std::time::Instant::now());
+            if gui.m.pending.is_some() {
+                gui.window.wl_surface().frame(&gui.qh, gui.window.wl_surface().clone());
+                gui.draw();
+                TimeoutAction::ToDuration(TICK)
+            } else {
+                gui.timer_armed = false;
+                gui.draw();
+                TimeoutAction::Drop
+            }
+        });
     }
 
     /// Pointer click: the Save button, else the category/field row under (x,y).
     fn click(&mut self, x: f64, y: f64) {
+        // A pending keep/revert prompt is modal: only its two buttons respond.
+        if self.m.pending.is_some() {
+            let (_, keep, revert) =
+                prompt_rects(self.width as usize, self.height as usize, self.cell_w, self.cell_h);
+            if hit(keep, x, y) {
+                self.m.keep_pending();
+            } else if hit(revert, x, y) {
+                self.m.revert_pending("reverted");
+            }
+            self.redraw();
+            return;
+        }
         let (bx, by, bw, bh) =
             save_btn_rect(self.width as usize, self.height as usize, self.cell_w, self.cell_h);
         if x >= bx as f64 && x < (bx + bw) as f64 && y >= by as f64 && y < (by + bh) as f64 {
@@ -364,10 +528,16 @@ impl Gui {
                 py >= ry - 2.0 && py < ry + gui.cell_h as f64 + 1.0
             })
         };
-        if x < side {
-            if let Some(i) = row_of(self, y, CATS.len()) {
-                self.m.cat = i;
-                self.m.field = 0;
+        let (sy0, sh) = search_box(self.height as usize, self.cell_h);
+        if x < side && y >= sy0 as f64 && y < (sy0 + sh) as f64 {
+            self.m.searching = true;
+            self.m.search.get_or_insert_with(String::new);
+            self.m.focus = Focus::Cats;
+        } else if x < side {
+            let rows = sidebar_rows(&self.m);
+            if let Some(Side::Cat(c)) = row_of(self, y, rows.len()).map(|i| rows[i]) {
+                self.m.searching = false;
+                self.m.enter_cat(c);
                 self.m.focus = Focus::Cats;
             }
         } else if let Some(i) = row_of(self, y, self.m.n_fields()) {
@@ -384,6 +554,16 @@ impl Gui {
 
     fn on_key(&mut self, ev: KeyEvent) {
         let sym = ev.keysym;
+        // Modal prompt: Enter/y keeps, Esc/n reverts, everything else waits.
+        if self.m.pending.is_some() {
+            match sym {
+                Keysym::Return | Keysym::KP_Enter | Keysym::y => self.m.keep_pending(),
+                Keysym::Escape | Keysym::n => self.m.revert_pending("reverted"),
+                _ => {}
+            }
+            self.redraw();
+            return;
+        }
         // Editing mode.
         if self.m.editing.is_some() {
             match sym {
@@ -408,6 +588,52 @@ impl Gui {
                     }
                 }
             }
+            self.redraw();
+            return;
+        }
+
+        if self.m.searching {
+            match sym {
+                Keysym::Escape => {
+                    self.m.search = None;
+                    self.m.searching = false;
+                }
+                Keysym::Return | Keysym::KP_Enter => {
+                    self.m.searching = false;
+                    if !self.m.visible_cats().is_empty() {
+                        self.m.focus = Focus::Fields;
+                    }
+                }
+                Keysym::Down => self.m.move_down(),
+                Keysym::Up => self.m.move_up(),
+                Keysym::BackSpace => {
+                    if let Some(q) = self.m.search.as_mut() {
+                        q.pop();
+                    }
+                    self.m.clamp_to_search();
+                }
+                _ => {
+                    if let (Some(t), false) = (ev.utf8.as_deref(), self.ctrl) {
+                        if let Some(q) = self.m.search.as_mut() {
+                            q.push_str(t);
+                        }
+                        self.m.clamp_to_search();
+                    }
+                }
+            }
+            self.redraw();
+            return;
+        }
+
+        if (self.ctrl && sym == Keysym::f) || sym == Keysym::slash {
+            self.m.searching = true;
+            self.m.search.get_or_insert_with(String::new);
+            self.m.focus = Focus::Cats;
+            self.redraw();
+            return;
+        }
+        if sym == Keysym::Escape && self.m.search.is_some() {
+            self.m.search = None;
             self.redraw();
             return;
         }
