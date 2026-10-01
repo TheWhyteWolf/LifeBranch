@@ -73,6 +73,7 @@ fi
 
 echo "==> Enabling the system services the Settings panels use"
 enable_services
+offer_tailscale_operator
 
 if interactive; then
   echo

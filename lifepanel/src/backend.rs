@@ -7,7 +7,7 @@
 // runs loads and jobs on worker threads and only ever sees the results.
 
 use crate::drives::{self, Drive};
-use crate::sys::{bluetooth, net, power, sound, split_terse, Runner};
+use crate::sys::{bluetooth, net, power, sound, split_terse, vpn, Runner};
 use zeroize::Zeroizing;
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -69,6 +69,7 @@ pub struct Power {
 pub enum Loaded {
     Wifi(Wifi),
     Bt(Bt),
+    Vpn(Vec<vpn::Vpn>),
     Audio(Audio),
     Power(Power),
     Dnd(Option<bool>),
@@ -79,18 +80,20 @@ pub enum Loaded {
 pub enum Section {
     Wifi,
     Bt,
+    Vpn,
     Audio,
     Power,
     Dnd,
     Drives,
 }
 
-pub const ALL: [Section; 6] = [Section::Wifi, Section::Bt, Section::Audio, Section::Power, Section::Dnd, Section::Drives];
+pub const ALL: [Section; 7] = [Section::Wifi, Section::Bt, Section::Vpn, Section::Audio, Section::Power, Section::Dnd, Section::Drives];
 
 pub fn load(s: Section, run: Runner) -> Loaded {
     match s {
         Section::Wifi => Loaded::Wifi(load_wifi(run)),
         Section::Bt => Loaded::Bt(load_bt(run)),
+        Section::Vpn => Loaded::Vpn(vpn::list(run)),
         Section::Audio => Loaded::Audio(load_audio(run)),
         Section::Power => Loaded::Power(load_power(run)),
         Section::Dnd => Loaded::Dnd(load_dnd(run)),
@@ -197,6 +200,8 @@ pub enum Job {
     BtConnect { mac: String, name: String, pair: bool },
     BtDisconnect(String),
     BtScan,
+    /// Connect or disconnect, whichever it isn't.
+    Vpn(vpn::Vpn),
     Volume { sink: bool, pct: i32 },
     Mute { sink: bool, on: bool },
     Output(String),
@@ -215,6 +220,7 @@ impl Job {
         match self {
             Job::WifiRadio(_) | Job::WifiJoin { .. } | Job::WifiDisconnect(_) | Job::WifiRescan => Some(Section::Wifi),
             Job::BtPower(_) | Job::BtConnect { .. } | Job::BtDisconnect(_) | Job::BtScan => Some(Section::Bt),
+            Job::Vpn(_) => Some(Section::Vpn),
             // Sliders and mute are applied locally as they're dragged; a reload
             // racing the next step would make the bar jump back.
             Job::Volume { .. } | Job::Mute { .. } | Job::Brightness(_) => None,
@@ -233,6 +239,8 @@ impl Job {
             Job::BtConnect { name, pair: true, .. } => Some(format!("pairing {name}…")),
             Job::BtConnect { name, .. } => Some(format!("connecting {name}…")),
             Job::BtScan => Some("looking for devices…".into()),
+            Job::Vpn(v) if v.is_up() => Some(format!("disconnecting {}…", v.name)),
+            Job::Vpn(v) => Some(format!("connecting {}…", v.name)),
             Job::Mount(p) => Some(format!("mounting {p}…")),
             Job::Eject(d, _) => Some(format!("ejecting {d}…")),
             _ => None,
@@ -328,6 +336,16 @@ fn run_job_inner(job: Job, run: Runner) -> Result<String, String> {
             spawn(&["xdg-open", &dir])?;
             Ok(String::new())
         }
+        Job::Vpn(v) => match vpn::toggle(&v, run) {
+            // A NetworkManager profile that needs a password, and nm-applet
+            // (which used to ask) is gone: ask through lifemenu's password
+            // box and hand it to nmcli on stdin, as the wifi join does.
+            Err(e) if e.contains("needs a password") => match (&v.provider, ask_password(&v.name)) {
+                (vpn::Provider::Nm { uuid, .. }, Some(pw)) => vpn_up_with_password(uuid, &pw).map(|_| format!("{} connected", v.name)),
+                _ => Err(format!("{}: not connected (no password given)", v.name)),
+            },
+            r => r,
+        },
         Job::Settings => {
             let home = std::env::var("HOME").unwrap_or_default();
             let local = format!("{home}/.local/bin/lifeconf");
@@ -355,6 +373,60 @@ fn spawn(argv: &[&str]) -> Result<(), String> {
     // Reap it in the background so it never lingers as a zombie.
     std::thread::spawn(move || child.wait());
     Ok(())
+}
+
+/// lifemenu's password box (fuzzel's, if lifemenu isn't built).
+fn ask_password(what: &str) -> Option<Zeroizing<String>> {
+    use std::io::Read;
+    use std::process::{Command, Stdio};
+    let home = std::env::var("HOME").unwrap_or_default();
+    let local = format!("{home}/.local/bin/lifemenu");
+    let bin = if std::path::Path::new(&local).is_file() { local } else { "lifemenu".into() };
+    let mut child = Command::new(bin)
+        .args(["--dmenu", "--password", "--prompt-only", &format!("password for {what} "), "--width", "50"])
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .spawn()
+        .ok()?;
+    // Reserved up front so reading never reallocates and strands a copy.
+    let mut buf = Zeroizing::new(Vec::with_capacity(4096));
+    child.stdout.take()?.take(4095).read_to_end(&mut buf).ok()?;
+    if !child.wait().ok()?.success() {
+        return None;
+    }
+    while matches!(buf.last(), Some(b'\n' | b'\r')) {
+        buf.pop();
+    }
+    let s = String::from_utf8(std::mem::take(&mut *buf)).ok()?;
+    (!s.is_empty()).then(|| Zeroizing::new(s))
+}
+
+/// `nmcli connection up` with the VPN password on stdin (passwd-file), never
+/// on a command line.
+fn vpn_up_with_password(uuid: &str, pw: &str) -> Result<String, String> {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    let mut child = Command::new("nmcli")
+        .args(["-w", "20", "connection", "up", "uuid", uuid, "passwd-file", "/dev/stdin"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("nmcli: {e}"))?;
+    if let Some(mut stdin) = child.stdin.take() {
+        let mut line = Zeroizing::new(Vec::with_capacity(pw.len() + 24));
+        line.extend_from_slice(b"vpn.secrets.password:");
+        line.extend_from_slice(pw.as_bytes());
+        line.push(b'\n');
+        let _ = stdin.write_all(&line);
+    }
+    let out = child.wait_with_output().map_err(|e| format!("nmcli: {e}"))?;
+    if out.status.success() {
+        Ok(String::new())
+    } else {
+        let err = String::from_utf8_lossy(&out.stderr);
+        Err(err.lines().rfind(|l| !l.trim().is_empty()).unwrap_or("failed").trim_start_matches("Error: ").to_string())
+    }
 }
 
 fn join_with_password(ssid: &str, pw: &str) -> Result<String, String> {

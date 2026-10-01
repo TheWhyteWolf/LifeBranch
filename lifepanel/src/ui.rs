@@ -233,6 +233,10 @@ pub fn run(cfg: Cfg) -> Result<(), String> {
             if ui.panel.open_bt {
                 ui.load(Section::Bt);
             }
+            // A connect takes a few seconds to settle; keep the list honest.
+            if ui.panel.open_vpn {
+                ui.load(Section::Vpn);
+            }
             TimeoutAction::ToDuration(REFRESH)
         })
         .map_err(|e| e.to_string())?;
