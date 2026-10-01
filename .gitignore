@@ -9,6 +9,7 @@ lifeshot/target/
 lifemenu/target/
 lifeauth/target/
 lifefont/target/
+lifepanel/target/
 
 # Zip/archive artifacts
 *.zip

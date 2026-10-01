@@ -21,7 +21,7 @@ mako kept installed as the fallback (`pkill lifenote && mako`).
 | Waybar | net/audio/cpu/mem | adds **battery + backlight** |
 | Sleep | **never** — sleep targets masked | **allowed** — lid close suspends (s2idle + `macbook/system/` fix), locking first; hibernate stays masked |
 | Power menu | no Suspend (sleep masked) | **Suspend entry shows** (same script, auto-detects) |
-| Packages | base stack | base stack **+ `brightnessctl`**, plus the same tray/laptop bits (nm-applet, blueman, udiskie, wlsunset, wf-recorder) |
+| Packages | base stack | base stack **+ `brightnessctl`**, plus the same laptop bits (lifepanel, wlsunset, wf-recorder) |
 | Kbd backlight | — | **XF86KbdBrightness keys** (+ `Mod+F5/F6`) → `:white:kbd_backlight` |
 
 Key bindings, workspaces, columns, screenshots, lock/idle (`Mod+Alt+Escape`,

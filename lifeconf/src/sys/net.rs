@@ -74,7 +74,25 @@ pub fn parse_saved(out: &str) -> Vec<String> {
         .collect()
 }
 
-fn is_open(security: &str) -> bool {
+/// Saved wifi profiles as (ssid, profile name). A profile's name needn't match
+/// its SSID ("Home 1", a custom name), so each one is asked which SSID it joins.
+pub fn saved_ssids(run: Runner) -> Vec<(String, String)> {
+    run("nmcli", &["-t", "-f", "NAME,TYPE", "connection", "show"])
+        .map(|o| parse_saved(&o))
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|name| {
+            let ssid = run(
+                "nmcli",
+                &["--escape", "no", "-g", "802-11-wireless.ssid", "connection", "show", "id", &name],
+            )
+            .ok()?;
+            Some((ssid.trim_end_matches('\n').to_string(), name))
+        })
+        .collect()
+}
+
+pub fn is_open(security: &str) -> bool {
     security.is_empty() || security == "--"
 }
 
@@ -96,21 +114,7 @@ pub fn load(run: Runner) -> Vec<Row> {
     let aps = run("nmcli", &["-t", "-f", "IN-USE,SSID,SIGNAL,SECURITY", "device", "wifi", "list"])
         .map(|o| parse_aps(&o))
         .unwrap_or_default();
-    // A profile's name needn't match its SSID ("Home 1", a custom name), so ask
-    // each saved wifi profile which SSID it joins: (ssid, profile name).
-    let saved: Vec<(String, String)> = run("nmcli", &["-t", "-f", "NAME,TYPE", "connection", "show"])
-        .map(|o| parse_saved(&o))
-        .unwrap_or_default()
-        .into_iter()
-        .filter_map(|name| {
-            let ssid = run(
-                "nmcli",
-                &["--escape", "no", "-g", "802-11-wireless.ssid", "connection", "show", "id", &name],
-            )
-            .ok()?;
-            Some((ssid.trim_end_matches('\n').to_string(), name))
-        })
-        .collect();
+    let saved = saved_ssids(run);
     let profile_of = |a: &Ap| saved.iter().find(|(s, _)| *s == a.ssid).map(|(_, n)| n.as_str());
     let active = aps.iter().find(|a| a.in_use);
     let status = match active {
@@ -177,7 +181,7 @@ pub fn apply(field: usize, rows: &[Row], ch: Change, run: Runner) -> Result<Stri
                 "open" => run("nmcli", &["-w", WAIT, "device", "wifi", "connect", ssid])?,
                 _ => {
                     return Err(format!(
-                        "{ssid} is secured and not saved yet: join it once with net-menu.sh (needs a password)"
+                        "{ssid} is secured and not saved yet: join it once from quick settings (Mod+A) or net-menu.sh, which ask for the password"
                     ))
                 }
             };

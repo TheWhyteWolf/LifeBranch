@@ -36,6 +36,7 @@ PKGS=(niri rust clang
       pipewire pipewire-pulse wireplumber   # wpctl: Sound panel, vol-osd.sh
       networkmanager                        # nmcli: Network panel, net-menu.sh
       bluez bluez-utils                     # bluetoothctl: Bluetooth panel
+      udisks2                               # udisksctl: lifepanel's drives
       power-profiles-daemon upower brightnessctl  # Power panel, bright-osd.sh
       libnotify                             # notify-send: the scripts' feedback
       xdg-utils                             # xdg-mime: Default apps panel

@@ -171,9 +171,10 @@ spawn-sh-at-startup "f=$XDG_RUNTIME_DIR/wob.sock; rm -f $f; mkfifo $f; tail -f $
 // Clipboard-history watchers (cliphist).
 spawn-at-startup "wl-paste" "--watch" "cliphist" "store"
 spawn-at-startup "wl-paste" "--type" "image" "--watch" "cliphist" "store"
-// Tray applets: network + bluetooth status icons in waybar's tray.
-spawn-at-startup "nm-applet" "--indicator"
-spawn-at-startup "blueman-applet"
+// Network and bluetooth: lifepanel (Mod+A, or click NET in the bar) replaces
+// the nm-applet and blueman tray applets. They still start until it's built.
+spawn-sh-at-startup "[ -x ~/.local/bin/lifepanel ] || exec nm-applet --indicator"
+spawn-sh-at-startup "[ -x ~/.local/bin/lifepanel ] || exec blueman-applet"
 // Polkit authentication agent — without one, GUI privilege prompts (GParted,
 // Dolphin mounting internal disks, firmware updates, lifeconf applying the
 // root-owned greeter config) never appear and the action silently fails.
@@ -185,9 +186,9 @@ spawn-sh-at-startup "if [ -x ~/.local/bin/lifeauth ]; then exec systemd-cat -t l
 // Coordinates are London — adjust -l/-L for elsewhere.
 spawn-at-startup "wlsunset" "-l" "51.5" "-L" "-0.1"
 // LIFEBRANCH:END nightlight
-// Automount removable media (udisks2); mount/unmount events show up as
-// lifenote popups via libnotify.
-spawn-at-startup "udiskie"
+// Automount removable media through udisks2, with a lifenote popup for
+// each: lifepanel --watch (journalctl -t lifepanel), else udiskie.
+spawn-sh-at-startup "if [ -x ~/.local/bin/lifepanel ]; then exec systemd-cat -t lifepanel ~/.local/bin/lifepanel --watch; else exec udiskie; fi"
 // Note: xwayland-satellite is auto-managed by niri 26.04 once the binary is installed —
 // no manual spawn or DISPLAY export needed.
 
@@ -309,6 +310,8 @@ binds {
     // --- Settings ---
     // lifeconf GUI: theme + system panels (sound, …).
     Mod+S hotkey-overlay-title="Settings" { spawn-sh "~/.local/bin/lifeconf --gui"; }
+    // lifepanel: wifi, bluetooth, sound, brightness, power, drives. Again closes it.
+    Mod+A hotkey-overlay-title="Quick settings" { spawn-sh "~/.local/bin/lifepanel"; }
 
     // --- Files ---
     // lifefiles: mouse-driven terminal file browser (yazi-style columns).
