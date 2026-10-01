@@ -237,6 +237,34 @@ offer_tailscale_operator() {
   return 0
 }
 
+# offer_snapshots: btrfs snapshots of / before every package change, which
+# Settings > Snapshots lists and restores. The script goes root-owned into
+# /usr/local/lib/lifebranch, since Settings runs it as root through pkexec.
+# Where snapper is already set up, only the wheel group's read access is
+# added. A fresh setup defaults to yes where the layout already has a
+# /.snapshots subvolume (archinstall's), and to no where one has to be made
+# and added to fstab.
+offer_snapshots() {
+  [[ $(findmnt -no FSTYPE /) == btrfs ]] || return 0
+  local lib=/usr/local/lib/lifebranch/snapshots.sh
+  echo "==> Snapshots of / (Settings > Snapshots)"
+  sudo install -Dm755 "$REPO/scripts/snapshots.sh" "$lib" || { echo "    !! could not install $lib; carrying on"; return 0; }
+  if [[ -f /etc/snapper/configs/root ]]; then
+    sudo "$lib" allow-group wheel >/dev/null && echo "    snapper is set up; the wheel group can now list and take snapshots" \
+      || echo "    !! couldn't give the wheel group access; carrying on"
+    return 0
+  fi
+  local def=n
+  mountpoint -q /.snapshots && def=y
+  echo "    Snapshots are taken before and after every pacman run, hourly and daily,"
+  echo "    and Settings can restore one if an update breaks something."
+  [[ $def == n ]] && echo "    This adds a @snapshots subvolume and a line to /etc/fstab (backed up first)."
+  if ask_yn "Turn on snapshots?" "$def"; then
+    sudo "$lib" setup --yes || echo "    !! snapshot setup failed (see above); carrying on"
+  fi
+  return 0
+}
+
 # What the life* components replaced, by the binary that replaced each. The
 # installers stopped installing these; offer_remove_legacy offers to remove
 # them from machines that still have them.

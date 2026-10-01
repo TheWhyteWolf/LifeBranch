@@ -180,6 +180,8 @@ scripts/ensure-yay.sh (AUR helper bootstrap; not linked — the installers call 
 scripts/packages.sh (sourced: the one package list both installers use, plus service setup)
 scripts/check-deps.sh (CI: every command the code calls comes from a listed package)
 scripts/config-region.sh (sourced helper: rewrite fenced LIFEBRANCH regions safely)
+scripts/snapshots.sh (root: snapshot setup and restore; installed root-owned to /usr/local/lib/lifebranch for Settings > Snapshots)
+scripts/test-snapshots.sh (root: restore tests on a throwaway btrfs image)
 scripts/prompt.sh (sourced helper: easy mode vs full control, and every installer question)
 bootstrap.sh         (curl entry point: clone + install)
 lifeconf/            -> ~/.local/bin/lifeconf (rust build; the theming front-end)
