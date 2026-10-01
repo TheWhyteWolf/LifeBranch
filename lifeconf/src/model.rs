@@ -21,7 +21,7 @@ pub struct Pending {
 
 pub const CATS: &[&str] = &[
     "Presets", "Palette", "Lifewall", "Notifications", "Lifelock", "Lifegreet", "Idle", "Animations",
-    "Cursor", "Font", "Display", "Network", "VPN", "Bluetooth", "Sound", "Keyboard", "Touchpad", "Mouse", "Power", "Night light", "Date & Time", "Region", "Apps",
+    "Cursor", "Font", "Accessibility", "Display", "Network", "VPN", "Bluetooth", "Sound", "Keyboard", "Touchpad", "Mouse", "Power", "Night light", "Date & Time", "Region", "Apps",
     "Autostart", "About",
 ];
 /// Categories past the theme ones are system panels (sys/): they act on the
@@ -114,6 +114,7 @@ pub fn field_labels(cat: usize) -> Vec<&'static str> {
         "Idle" => vec!["lock_minutes", "screen_off_minutes", "suspend_minutes"],
         "Animations" => vec!["slowdown"],
         "Cursor" => vec!["theme", "size"],
+        "Accessibility" => vec!["text scale %", "reduce motion", "cursor size"],
         "Font" => vec!["family", "size"],
         _ => vec![],
     }
@@ -150,6 +151,9 @@ pub fn kind(cat: usize, field: usize) -> Kind {
         ("Lifelock", _) | ("Lifegreet", _) => Kind::Hex,
         ("Idle", _) => Kind::Int(1),
         ("Animations", _) => Kind::Float(0.05),
+        ("Accessibility", 0) => Kind::Int(10),
+        ("Accessibility", 1) => Kind::Bool,
+        ("Accessibility", _) => Kind::Int(2),
         ("Cursor", 0) => Kind::Text,
         ("Cursor", _) => Kind::Int(2),
         ("Font", 0) => Kind::Text,
@@ -252,6 +256,9 @@ impl Model {
             ("Idle", 1) => t.idle.screen_off_minutes.to_string(),
             ("Idle", 2) => t.idle.suspend_minutes.to_string(),
             ("Animations", 0) => fmtf(t.animations.slowdown),
+            ("Accessibility", 0) => t.accessibility.text_scale.to_string(),
+            ("Accessibility", 1) => t.accessibility.reduce_motion.to_string(),
+            ("Accessibility", 2) => t.cursor.size.to_string(),
             ("Cursor", 0) => t.cursor.theme.clone(),
             ("Cursor", 1) => t.cursor.size.to_string(),
             ("Font", 0) => t.font.family.clone(),
@@ -366,6 +373,11 @@ impl Model {
             }
             ("Cursor", 0) => t.cursor.theme = crate::theme::plain_name(s),
             ("Cursor", 1) => t.cursor.size = s.parse().unwrap_or(t.cursor.size).clamp(8, 128),
+            ("Accessibility", 0) => {
+                t.accessibility.text_scale = s.trim_end_matches('%').parse().unwrap_or(t.accessibility.text_scale).clamp(75, 250)
+            }
+            // The same setting as Cursor > size, here because it belongs here too.
+            ("Accessibility", 2) => t.cursor.size = s.parse().unwrap_or(t.cursor.size).clamp(8, 128),
             ("Font", 0) => t.font.family = crate::theme::plain_name(s),
             ("Font", 1) => t.font.size = s.parse().unwrap_or(t.font.size).clamp(6, 48),
             _ => {}
@@ -410,6 +422,10 @@ impl Model {
                 ("Notifications", 4) => {
                     let n = &mut self.theme.lifenote;
                     n.dismiss_on_click_outside = !n.dismiss_on_click_outside;
+                }
+                ("Accessibility", 1) => {
+                    let a = &mut self.theme.accessibility;
+                    a.reduce_motion = !a.reduce_motion;
                 }
                 ("Lifelock", 0) => self.theme.lifelock.link = !self.theme.lifelock.link,
                 ("Lifegreet", 0) => self.theme.lifegreet.link = !self.theme.lifegreet.link,
@@ -672,10 +688,12 @@ mod tests {
     #[test]
     fn clamp_moves_selection_onto_a_hit_and_stepping_stays_in_hits() {
         let mut m = model();
-        m.search = Some("cursor".into());
+        m.search = Some("cursor".into()); // Cursor, and Accessibility's "cursor size"
         m.clamp_to_search();
         assert_eq!(name(m.cat), "Cursor");
-        m.move_down(); // one hit: wraps onto itself rather than escaping the filter
+        m.move_down();
+        assert_eq!(name(m.cat), "Accessibility");
+        m.move_down(); // the last hit wraps to the first rather than escaping the filter
         assert_eq!(name(m.cat), "Cursor");
     }
 

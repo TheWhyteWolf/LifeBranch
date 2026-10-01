@@ -15,7 +15,7 @@ pub fn render(t: &Theme) -> String {
          border-style={border_style}\n\
          critical-border-style={crit_style}\n\n\
          font=/usr/share/fonts/TTF/ShureTechMonoNerdFontMono-Regular.ttf\n\
-         font-px=15\n\n\
+         font-px={font_px}\n\n\
          background-color={surface}\n\
          background-alpha={alpha}\n\
          text-color={text}\n\
@@ -44,6 +44,7 @@ pub fn render(t: &Theme) -> String {
         urgent = hash(&p.urgent),
         anchor = n.position,
         click_out = n.dismiss_on_click_outside,
+        font_px = t.accessibility.scaled(15.0),
         timeout_ms = n.timeout_seconds as u64 * 1000,
         max_visible = n.max_visible.clamp(1, 20),
         // One line, commas only: a newline would start a new config key.
