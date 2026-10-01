@@ -30,6 +30,7 @@ Rust components, built from source by the installer:
 | [`lifebar`](lifebar/README.md) | status bar: workspaces, clock, readings, text tray (replaces waybar) |
 | [`lifeportal`](lifeportal/README.md) | file-chooser portal: apps' Open/Save dialogs are lifefiles |
 | [`lifeosd`](lifeosd/README.md) | volume/brightness on-screen bar (replaces wob) |
+| [`lifecursor`](lifecursor/README.md) | cursor themes LifeBranch-dark and -light, outlined for any background |
 | [`lifepanel`](lifepanel/README.md) | quick settings: wifi, bluetooth, sound, brightness, power, drives; USB automount |
 | [`lifefont`](lifefont/README.md) | shared glyph rasterizer (library; lazy, ~37 MB less per process than fontdue) |
 
