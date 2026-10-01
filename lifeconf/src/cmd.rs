@@ -4,7 +4,7 @@
 // exact same argv to `niri msg action spawn`). One source of truth so a
 // generated startup line and a live respawn can never drift apart.
 
-use crate::theme::{hash, Theme};
+use crate::theme::{hash, plain_name, Theme};
 
 /// Format an f64 without trailing zeros (0.3, 3, 0.14).
 fn numf(v: f64) -> String {
@@ -44,7 +44,8 @@ fn sanitize_glyphs(s: &str) -> String {
 
 /// The shell command that runs the Game-of-Life wallpaper inside a kitty panel.
 /// Single-quoted args (font_family, colours) are literal to both KDL's double
-/// quotes and sh. font_size is a wallpaper-density knob, not the UI font size,
+/// quotes and sh — plain_name and hash() strip anything that could break out
+/// of either, since theme.toml is hand-editable. font_size is a wallpaper-density knob, not the UI font size,
 /// so it stays fixed.
 pub fn lifewall_shell_cmd(t: &Theme) -> String {
     let w = &t.lifewall;
@@ -62,7 +63,7 @@ pub fn lifewall_shell_cmd(t: &Theme) -> String {
          ~/.local/bin/lifebg --tick {tick} --fps {fps} --fade {fade} --density {density} \
          --char '{glyph}' --bg '{bg}' --mature '{mature}' --newborn '{newborn}' \
          --glider-interval {glider_interval}",
-        family = t.font.family,
+        family = plain_name(&t.font.family),
         bg = bg,
         tick = numf(w.tick),
         fps = w.fps,

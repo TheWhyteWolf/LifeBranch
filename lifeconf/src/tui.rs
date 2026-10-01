@@ -24,8 +24,13 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
 use ratatui::{Frame, Terminal};
 
-pub fn run(paths: Paths, theme: Theme) -> i32 {
+pub fn run(paths: Paths, theme: Theme, panel: Option<&str>) -> i32 {
     let mut m = Model::new(paths, theme);
+    if let Some(p) = panel {
+        if !m.open_panel(p) {
+            eprintln!("lifeconf: no panel named {p:?}");
+        }
+    }
 
     if let Err(e) = enable_raw_mode() {
         eprintln!("lifeconf: cannot enter raw mode ({e}); is this a terminal?");
@@ -44,6 +49,8 @@ pub fn run(paths: Paths, theme: Theme) -> i32 {
     };
 
     let code = event_loop(&mut term, &mut m);
+    // Quitting is not an answer to a pending keep/revert prompt: silence means no.
+    m.revert_pending("quit without answering");
 
     let _ = disable_raw_mode();
     let _ = execute!(term.backend_mut(), LeaveAlternateScreen);
@@ -56,6 +63,18 @@ fn event_loop<B: ratatui::backend::Backend>(term: &mut Terminal<B>, m: &mut Mode
         if term.draw(|f| draw(f, m)).is_err() {
             return 1;
         }
+        // Blocking read normally; while a keep/revert prompt is open, wake twice
+        // a second so the countdown moves and the deadline can fire.
+        if m.pending.is_some() {
+            match event::poll(std::time::Duration::from_millis(500)) {
+                Ok(true) => {}
+                Ok(false) => {
+                    m.tick(std::time::Instant::now());
+                    continue;
+                }
+                Err(_) => return 1,
+            }
+        }
         match event::read() {
             Ok(Event::Key(k)) if k.kind == KeyEventKind::Press => handle_key(m, k.code, k.modifiers),
             Ok(_) => {}
@@ -66,6 +85,16 @@ fn event_loop<B: ratatui::backend::Backend>(term: &mut Terminal<B>, m: &mut Mode
 }
 
 fn handle_key(m: &mut Model, code: KeyCode, mods: KeyModifiers) {
+    // Modal keep/revert prompt: Enter/y keeps, Esc/n reverts, the rest waits.
+    if m.pending.is_some() {
+        match code {
+            KeyCode::Enter | KeyCode::Char('y') => m.keep_pending(),
+            KeyCode::Esc | KeyCode::Char('n') => m.revert_pending("reverted"),
+            _ => {}
+        }
+        return;
+    }
+
     // Editing mode: typing into a hex/text/number buffer.
     if let Some(buf) = m.editing.as_mut() {
         match code {
@@ -154,6 +183,14 @@ fn draw(f: &mut Frame, m: &Model) {
     draw_cats(f, m, cols[0]);
     draw_fields(f, m, cols[1]);
 
+    if let (Some(p), Some(secs)) = (&m.pending, m.pending_secs(std::time::Instant::now())) {
+        let prompt = format!(" Keep this change? {} — reverts in {secs}s.  Enter/y keep · Esc/n revert", p.what);
+        f.render_widget(
+            Paragraph::new(prompt).style(Style::default().fg(Color::Rgb(0xc7, 0xd1, 0x7a)).add_modifier(Modifier::BOLD)),
+            root[1],
+        );
+        return;
+    }
     let hint = if m.dirty { "  ● unsaved" } else { "" };
     let status = Paragraph::new(Line::from(vec![
         Span::styled(format!(" {}", m.status), Style::default().fg(Color::Rgb(0x7b, 0x8c, 0x5a))),

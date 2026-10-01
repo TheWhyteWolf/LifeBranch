@@ -6,12 +6,29 @@
 
 use crate::paths::Paths;
 use crate::theme::Theme;
-use crate::{gen, live, presets};
+use crate::{gen, live, presets, sys};
+use std::time::{Duration, Instant};
+
+/// How long a risky system change waits to be confirmed before it is undone.
+pub const KEEP_SECS: u64 = 60;
+
+/// A system change applied provisionally: kept only if the user says so in time.
+pub struct Pending {
+    pub undo: Vec<Vec<String>>,
+    pub deadline: Instant,
+    pub what: String,
+}
 
 pub const CATS: &[&str] = &[
     "Presets", "Palette", "Lifewall", "Lifenote", "Lifelock", "Lifegreet", "Idle", "Animations",
-    "Cursor", "Font",
+    "Cursor", "Font", "Display", "Network", "Bluetooth", "Sound", "Keyboard", "Touchpad", "Power", "Date & Time", "Apps",
+    "Autostart", "About",
 ];
+/// Categories past the theme ones are system panels (sys/): they act on the
+/// running system the moment they change, with nothing to Save.
+pub fn is_system(cat: usize) -> bool {
+    sys::is_panel(CATS[cat])
+}
 /// The five colour labels shared by the Lifelock/Lifegreet screens (after `link`).
 const SCREEN_FIELDS: &[&str] = &["link", "mature", "newborn", "accent", "urgent", "text"];
 pub const STYLES: &[&str] = &["single", "rounded", "heavy", "double", "ascii"];
@@ -30,6 +47,12 @@ pub enum Kind {
     Int(u32),   // step
     Bool,
     Text,
+    /// One of a list read from the system (sys panels); +/- cycles it.
+    Choice,
+    /// Shown, not editable.
+    Info,
+    /// Fires when activated; the value text says what it will do.
+    Action,
 }
 
 #[derive(PartialEq, Clone, Copy)]
@@ -46,6 +69,14 @@ pub struct Model {
     pub field: usize,
     pub focus: Focus,
     pub editing: Option<String>, // Some(buffer) while typing a value
+    /// Sidebar filter: Some while the search box is open or has text.
+    pub search: Option<String>,
+    /// The search box has keyboard focus (typing edits the filter).
+    pub searching: bool,
+    /// Current values of the selected system panel, read from the system.
+    pub sys_rows: Vec<sys::Row>,
+    /// Set while a Display change awaits keep/revert; front ends go modal.
+    pub pending: Option<Pending>,
     pub status: String,
     pub dirty: bool,
     pub quit: bool,
@@ -54,6 +85,7 @@ pub struct Model {
 /// Field labels for a category (order matters — indexes into the match arms).
 pub fn field_labels(cat: usize) -> Vec<&'static str> {
     match CATS[cat] {
+        c if sys::is_panel(c) => sys::labels(c).to_vec(),
         "Presets" => vec!["preset"],
         "Palette" => vec!["bg", "surface", "border", "text", "accent", "warn", "urgent"],
         "Lifewall" => vec![
@@ -67,7 +99,13 @@ pub fn field_labels(cat: usize) -> Vec<&'static str> {
             "newborn",
             "glider_interval",
         ],
-        "Lifenote" => vec!["border_style", "critical_border_style", "opacity", "position"],
+        "Lifenote" => vec![
+            "border_style",
+            "critical_border_style",
+            "opacity",
+            "position",
+            "dismiss_on_click_outside",
+        ],
         "Lifelock" | "Lifegreet" => SCREEN_FIELDS.to_vec(),
         "Idle" => vec!["lock_minutes", "screen_off_minutes"],
         "Animations" => vec!["slowdown"],
@@ -79,6 +117,14 @@ pub fn field_labels(cat: usize) -> Vec<&'static str> {
 
 pub fn kind(cat: usize, field: usize) -> Kind {
     match (CATS[cat], field) {
+        (c, f) if sys::is_panel(c) => match sys::row_kind(c, f) {
+            sys::RowKind::Int(step) => Kind::Int(step),
+            sys::RowKind::Bool => Kind::Bool,
+            sys::RowKind::Choice => Kind::Choice,
+            sys::RowKind::Text => Kind::Text,
+            sys::RowKind::Info => Kind::Info,
+            sys::RowKind::Action => Kind::Action,
+        },
         ("Presets", _) => Kind::Preset,
         ("Palette", _) => Kind::Hex,
         ("Lifewall", 0) => Kind::Float(0.05),
@@ -91,6 +137,7 @@ pub fn kind(cat: usize, field: usize) -> Kind {
         ("Lifewall", _) => Kind::Hex, // mature, newborn
         ("Lifenote", 0) | ("Lifenote", 1) => Kind::Enum(STYLES),
         ("Lifenote", 2) => Kind::Float(0.05),
+        ("Lifenote", 4) => Kind::Bool,
         ("Lifenote", _) => Kind::Enum(ANCHORS),
         ("Lifelock", 0) | ("Lifegreet", 0) => Kind::Bool, // link
         ("Lifelock", _) | ("Lifegreet", _) => Kind::Hex,
@@ -132,6 +179,10 @@ impl Model {
             field: 0,
             focus: Focus::Cats,
             editing: None,
+            search: None,
+            searching: false,
+            sys_rows: Vec::new(),
+            pending: None,
             status: "j/k move · Tab pane · Enter edit · +/- adjust · s save · q quit".into(),
             dirty: false,
             quit: false,
@@ -149,6 +200,9 @@ impl Model {
     pub fn value(&self, cat: usize, field: usize) -> String {
         let t = &self.theme;
         match (CATS[cat], field) {
+            (c, f) if sys::is_panel(c) => {
+                self.sys_rows.get(f).map(|r| r.value.clone()).unwrap_or_default()
+            }
             ("Presets", _) => t.meta.active_preset.clone(),
             ("Palette", 0) => t.palette.bg.clone(),
             ("Palette", 1) => t.palette.surface.clone(),
@@ -170,6 +224,7 @@ impl Model {
             ("Lifenote", 1) => t.lifenote.critical_border_style.clone(),
             ("Lifenote", 2) => fmtf(t.lifenote.opacity),
             ("Lifenote", 3) => t.lifenote.position.clone(),
+            ("Lifenote", 4) => t.lifenote.dismiss_on_click_outside.to_string(),
             ("Lifelock", 0) => t.lifelock.link.to_string(),
             ("Lifelock", 1) => t.lifelock.mature.clone(),
             ("Lifelock", 2) => t.lifelock.newborn.clone(),
@@ -195,6 +250,9 @@ impl Model {
 
     /// Commit a typed string to the current field (hex/text/number).
     pub fn set_text(&mut self, s: &str) {
+        if sys::is_panel(CATS[self.cat]) {
+            return self.sys_change(sys::Change::Text(s.to_string()));
+        }
         let s = s.trim();
         let t = &mut self.theme;
         let mut touched_palette = false;
@@ -273,9 +331,9 @@ impl Model {
                 };
                 *slot = normalize_hex(s, &slot.clone());
             }
-            ("Cursor", 0) => t.cursor.theme = s.to_string(),
+            ("Cursor", 0) => t.cursor.theme = crate::theme::plain_name(s),
             ("Cursor", 1) => t.cursor.size = s.parse().unwrap_or(t.cursor.size).clamp(8, 128),
-            ("Font", 0) => t.font.family = s.to_string(),
+            ("Font", 0) => t.font.family = crate::theme::plain_name(s),
             ("Font", 1) => t.font.size = s.parse().unwrap_or(t.font.size).clamp(6, 48),
             _ => {}
         }
@@ -288,6 +346,16 @@ impl Model {
 
     /// Cycle/step the current field by `dir` (+1 / -1).
     pub fn nudge(&mut self, dir: i32) {
+        if sys::is_panel(CATS[self.cat]) {
+            let ch = match self.kind_here() {
+                Kind::Bool => sys::Change::Toggle,
+                // Only a forward press fires an action; Left/- must not.
+                Kind::Action if dir > 0 => sys::Change::Toggle,
+                Kind::Action | Kind::Info | Kind::Text => return,
+                _ => sys::Change::Step(dir),
+            };
+            return self.sys_change(ch);
+        }
         match self.kind_here() {
             Kind::Preset => {
                 let names = presets::NAMES;
@@ -306,6 +374,10 @@ impl Model {
                 return;
             }
             Kind::Bool => match (CATS[self.cat], self.field) {
+                ("Lifenote", 4) => {
+                    let n = &mut self.theme.lifenote;
+                    n.dismiss_on_click_outside = !n.dismiss_on_click_outside;
+                }
                 ("Lifelock", 0) => self.theme.lifelock.link = !self.theme.lifelock.link,
                 ("Lifegreet", 0) => self.theme.lifegreet.link = !self.theme.lifegreet.link,
                 _ => {}
@@ -339,7 +411,12 @@ impl Model {
 
     /// Begin editing the current field: seed the buffer with its value.
     pub fn begin_edit(&mut self) {
-        self.editing = Some(self.value(self.cat, self.field));
+        let mut v = self.value(self.cat, self.field);
+        // A "(none)"/"(system default)" placeholder isn't something to edit.
+        if is_system(self.cat) && v.starts_with('(') && v.ends_with(')') {
+            v.clear();
+        }
+        self.editing = Some(v);
         self.status = "type a value · Enter commit · Esc cancel".into();
     }
 
@@ -382,12 +459,124 @@ impl Model {
 
     // --- navigation shared by both front-ends ---
 
+    /// Select a category, (re)reading the system's current values when it is a
+    /// system panel — they can change behind our back (volume keys, hotplug).
+    pub fn enter_cat(&mut self, i: usize) {
+        self.cat = i;
+        self.field = 0;
+        self.refresh_sys();
+    }
+
+    /// Jump to a category by name (case-insensitive), focusing its fields.
+    pub fn open_panel(&mut self, name: &str) -> bool {
+        match CATS.iter().position(|c| c.eq_ignore_ascii_case(name)) {
+            Some(i) => {
+                self.enter_cat(i);
+                self.focus = Focus::Fields;
+                true
+            }
+            None => false,
+        }
+    }
+
+    pub fn refresh_sys(&mut self) {
+        let name = CATS[self.cat];
+        self.sys_rows =
+            if sys::is_panel(name) { sys::load(name, &sys::run_real) } else { Vec::new() };
+    }
+
+    fn sys_change(&mut self, ch: sys::Change) {
+        if self.pending.is_some() {
+            self.status = "answer the keep/revert prompt first".into();
+            return;
+        }
+        let name = CATS[self.cat];
+        // The undo must be worked out while the rows still show the old state.
+        let undo = sys::undo_for(name, self.field, &self.sys_rows, &ch);
+        match sys::apply(name, self.field, &self.sys_rows, ch, &sys::run_real) {
+            Ok(msg) => {
+                if let Some(undo) = undo {
+                    let deadline = Instant::now() + Duration::from_secs(KEEP_SECS);
+                    self.pending = Some(Pending { undo, deadline, what: msg.clone() });
+                }
+                self.status = msg;
+            }
+            Err(e) => self.status = e,
+        }
+        self.refresh_sys();
+    }
+
+    /// Whole seconds left to answer, rounded up (None when nothing is pending).
+    pub fn pending_secs(&self, now: Instant) -> Option<u64> {
+        self.pending.as_ref().map(|p| p.deadline.saturating_duration_since(now).as_secs_f64().ceil() as u64)
+    }
+
+    pub fn keep_pending(&mut self) {
+        if let Some(p) = self.pending.take() {
+            self.status = format!("kept: {}", p.what);
+        }
+    }
+
+    pub fn revert_pending(&mut self, why: &str) {
+        self.revert_with(why, &sys::run_real);
+    }
+
+    fn revert_with(&mut self, why: &str, run: sys::Runner) {
+        let Some(p) = self.pending.take() else { return };
+        self.status = match sys::run_undo(&p.undo, run) {
+            Ok(()) => format!("{why} — reverted"),
+            Err(e) => format!("{why} — revert failed ({e}); a niri config reload will restore it"),
+        };
+        self.refresh_sys();
+    }
+
+    /// Call periodically; reverts once the deadline passes. True if it did.
+    pub fn tick(&mut self, now: Instant) -> bool {
+        self.tick_with(now, &sys::run_real)
+    }
+
+    fn tick_with(&mut self, now: Instant, run: sys::Runner) -> bool {
+        if self.pending.as_ref().is_some_and(|p| now >= p.deadline) {
+            self.revert_with(&format!("no answer in {KEEP_SECS}s"), run);
+            return true;
+        }
+        false
+    }
+
+    /// Categories that match the sidebar search (all of them when it's empty):
+    /// a hit on the category name or on any of its field labels.
+    pub fn visible_cats(&self) -> Vec<usize> {
+        let q = self.search.as_deref().unwrap_or("").trim().to_lowercase();
+        (0..CATS.len())
+            .filter(|&c| {
+                q.is_empty()
+                    || CATS[c].to_lowercase().contains(&q)
+                    || field_labels(c).iter().any(|l| l.to_lowercase().contains(&q))
+            })
+            .collect()
+    }
+
+    /// Re-point the selection at a visible category after the filter changed.
+    pub fn clamp_to_search(&mut self) {
+        let vis = self.visible_cats();
+        if !vis.is_empty() && !vis.contains(&self.cat) {
+            self.enter_cat(vis[0]);
+        }
+    }
+
+    fn step_cat(&mut self, delta: isize) {
+        let vis = self.visible_cats();
+        if vis.is_empty() {
+            return;
+        }
+        let at = vis.iter().position(|&c| c == self.cat).unwrap_or(0) as isize;
+        let next = vis[(at + delta).rem_euclid(vis.len() as isize) as usize];
+        self.enter_cat(next);
+    }
+
     pub fn move_down(&mut self) {
         match self.focus {
-            Focus::Cats => {
-                self.cat = (self.cat + 1) % CATS.len();
-                self.field = 0;
-            }
+            Focus::Cats => self.step_cat(1),
             Focus::Fields => {
                 let n = self.n_fields();
                 if n > 0 {
@@ -399,10 +588,7 @@ impl Model {
 
     pub fn move_up(&mut self) {
         match self.focus {
-            Focus::Cats => {
-                self.cat = (self.cat + CATS.len() - 1) % CATS.len();
-                self.field = 0;
-            }
+            Focus::Cats => self.step_cat(-1),
             Focus::Fields => {
                 let n = self.n_fields();
                 if n > 0 {
@@ -414,5 +600,116 @@ impl Model {
 
     pub fn toggle_focus(&mut self) {
         self.focus = if self.focus == Focus::Cats { Focus::Fields } else { Focus::Cats };
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn model() -> Model {
+        // Nothing here writes: only navigation/search, never preview/commit.
+        Model::new(Paths { home: "/nonexistent-lifeconf-test".into() }, Theme::default())
+    }
+
+    fn name(c: usize) -> &'static str {
+        CATS[c]
+    }
+
+    #[test]
+    fn empty_search_shows_everything() {
+        assert_eq!(model().visible_cats().len(), CATS.len());
+    }
+
+    #[test]
+    fn search_matches_category_names_and_field_labels() {
+        let mut m = model();
+        m.search = Some("volume".into()); // a field label inside Sound
+        let hits: Vec<_> = m.visible_cats().into_iter().map(name).collect();
+        assert_eq!(hits, ["Sound"]);
+        m.search = Some("LIFEN".into()); // case-insensitive category name
+        let hits: Vec<_> = m.visible_cats().into_iter().map(name).collect();
+        assert_eq!(hits, ["Lifenote"]);
+        m.search = Some("click_outside".into()); // field label with an underscore
+        assert!(m.visible_cats().into_iter().map(name).any(|n| n == "Lifenote"));
+        m.search = Some("zzzz".into());
+        assert!(m.visible_cats().is_empty());
+    }
+
+    #[test]
+    fn clamp_moves_selection_onto_a_hit_and_stepping_stays_in_hits() {
+        let mut m = model();
+        m.search = Some("cursor".into());
+        m.clamp_to_search();
+        assert_eq!(name(m.cat), "Cursor");
+        m.move_down(); // one hit: wraps onto itself rather than escaping the filter
+        assert_eq!(name(m.cat), "Cursor");
+    }
+
+    fn pending(secs: u64) -> Pending {
+        Pending {
+            undo: vec![vec!["msg".into(), "output".into(), "X".into(), "scale".into(), "1".into()]],
+            deadline: Instant::now() + Duration::from_secs(secs),
+            what: "X scale 2".into(),
+        }
+    }
+
+    #[test]
+    fn silence_reverts_and_an_answer_keeps() {
+        let mut m = model();
+        m.pending = Some(pending(60));
+        assert!(!m.tick(Instant::now()), "not yet");
+        assert!(m.pending.is_some());
+        m.keep_pending();
+        assert!(m.pending.is_none());
+        assert!(m.status.starts_with("kept"));
+
+        let log = std::cell::RefCell::new(Vec::<String>::new());
+        let rec = |p: &str, a: &[&str]| -> Result<String, String> {
+            log.borrow_mut().push(format!("{p} {}", a.join(" ")));
+            Ok(String::new())
+        };
+        m.pending = Some(pending(60));
+        m.revert_with("no answer", &rec);
+        assert_eq!(*log.borrow(), ["niri msg output X scale 1"]);
+        assert!(m.pending.is_none() && m.status.contains("reverted"));
+    }
+
+    #[test]
+    fn countdown_rounds_up_and_expiry_fires_tick() {
+        let mut m = model();
+        assert_eq!(m.pending_secs(Instant::now()), None);
+        m.pending = Some(pending(60));
+        let t0 = Instant::now();
+        assert_eq!(m.pending_secs(t0), Some(60));
+        assert_eq!(m.pending_secs(t0 + Duration::from_millis(500)), Some(60));
+        assert_eq!(m.pending_secs(t0 + Duration::from_secs(59)), Some(1));
+        assert_eq!(m.pending_secs(t0 + Duration::from_secs(61)), Some(0));
+        // Expired: the tick reverts, and a failing revert must still clear the
+        // prompt (and say how to recover) rather than leave it stuck.
+        let fail = |_: &str, _: &[&str]| -> Result<String, String> { Err("niri: gone".into()) };
+        assert!(m.tick_with(t0 + Duration::from_secs(61), &fail));
+        assert!(m.pending.is_none());
+        assert!(m.status.contains("revert failed") && m.status.contains("config reload"));
+    }
+
+    #[test]
+    fn new_changes_are_refused_while_a_prompt_is_open() {
+        let mut m = model();
+        m.pending = Some(pending(60));
+        m.enter_cat(CATS.iter().position(|c| *c == "Display").unwrap());
+        m.sys_change(sys::Change::Step(1));
+        assert!(m.status.contains("prompt"));
+        assert!(m.pending.is_some());
+    }
+
+    #[test]
+    fn system_categories_are_flagged() {
+        let i = CATS.iter().position(|c| *c == "Sound").unwrap();
+        assert!(is_system(i));
+        assert!(!is_system(0));
+        assert_eq!(field_labels(i).len(), 6);
+        assert!(matches!(kind(i, 0), Kind::Choice));
+        assert!(matches!(kind(i, 2), Kind::Bool));
     }
 }
