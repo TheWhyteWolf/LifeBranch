@@ -61,6 +61,14 @@ struct Popup {
     configured: bool,
 }
 
+/// Transparent full-output layer surface that sits under the popups purely to
+/// receive the "click outside" press. Layer-shell surfaces can't observe
+/// input aimed at other clients, so this is the only way to see it.
+struct Catcher {
+    layer: LayerSurface,
+    pool: Option<SlotPool>,
+}
+
 /// Screen-space rect of one visible popup, for click hit-testing.
 struct Band {
     id: u32,
@@ -85,6 +93,7 @@ pub struct App {
     queue: Queue,
     dnd: bool,
     surface: Option<Popup>,
+    catcher: Option<Catcher>,
     pointer: Option<wl_pointer::WlPointer>,
     pointer_pos: (f64, f64),
     bands: Vec<Band>,
@@ -151,6 +160,7 @@ pub fn run(
         queue: Queue::new(history),
         dnd: false,
         surface: None,
+        catcher: None,
         pointer: None,
         pointer_pos: (0.0, 0.0),
         bands: Vec::new(),
@@ -251,9 +261,67 @@ impl App {
             n.grid = compose_note(&self.cfg, &n.data);
         }
         // Rebuild the surface so anchor/layer/margin changes take effect.
-        self.surface = None;
-        self.bands.clear();
+        self.drop_surfaces();
         self.sync();
+    }
+
+    fn drop_surfaces(&mut self) {
+        self.surface = None;
+        self.catcher = None;
+        self.bands.clear();
+    }
+
+    /// Create the click-catcher before the popup surface: within a layer the
+    /// compositor stacks by map order, so the popups must come second to sit
+    /// on top and keep receiving their own clicks.
+    fn make_catcher(&mut self) {
+        let wl_surface = self.compositor.create_surface(&self.qh);
+        let layer = self.layer_shell.create_layer_surface(
+            &self.qh,
+            wl_surface,
+            match self.cfg.layer {
+                LayerChoice::Top => Layer::Top,
+                LayerChoice::Overlay => Layer::Overlay,
+            },
+            Some("lifenote-catcher"),
+            None,
+        );
+        layer.set_anchor(Anchor::TOP | Anchor::BOTTOM | Anchor::LEFT | Anchor::RIGHT);
+        layer.set_exclusive_zone(-1); // ignore other panels' reserved areas
+        layer.set_keyboard_interactivity(KeyboardInteractivity::None);
+        layer.set_size(0, 0); // 0,0 + full anchor = the whole output
+        layer.wl_surface().commit();
+        self.catcher = Some(Catcher { layer, pool: None });
+    }
+
+    /// Give the catcher an (invisible) buffer of the configured size; an
+    /// unmapped surface would receive no input.
+    fn paint_catcher(&mut self, w: u32, h: u32) {
+        let Some(c) = &mut self.catcher else { return };
+        if w == 0 || h == 0 {
+            return;
+        }
+        let stride = w as i32 * 4;
+        let pool = match &mut c.pool {
+            Some(p) => p,
+            None => match SlotPool::new(w as usize * h as usize * 4, &self.shm) {
+                Ok(p) => c.pool.insert(p),
+                Err(e) => {
+                    eprintln!("lifenote: catcher pool failed: {e}");
+                    return;
+                }
+            },
+        };
+        match pool.create_buffer(w as i32, h as i32, stride, wl_shm::Format::Argb8888) {
+            Ok((buffer, canvas)) => {
+                canvas.fill(0);
+                let surface = c.layer.wl_surface();
+                buffer.attach_to(surface).expect("attach");
+                surface.damage_buffer(0, 0, w as i32, h as i32);
+                surface.commit();
+            }
+            Err(e) => eprintln!("lifenote: catcher buffer failed: {e}"),
+        }
     }
 
     /// One-shot expiry timer, generation-keyed (lifelock's arm_password_clear
@@ -309,8 +377,7 @@ impl App {
         let visible = self.queue.visible(self.cfg.max_visible);
         if visible.is_empty() {
             // Dropping the LayerSurface destroys the role and the wl_surface.
-            self.surface = None;
-            self.bands.clear();
+            self.drop_surfaces();
             return;
         }
 
@@ -333,6 +400,9 @@ impl App {
                     AnchorCorner::BottomRight => Anchor::BOTTOM | Anchor::RIGHT,
                     AnchorCorner::BottomLeft => Anchor::BOTTOM | Anchor::LEFT,
                 };
+                if self.cfg.dismiss_on_click_outside {
+                    self.make_catcher();
+                }
                 let wl_surface = self.compositor.create_surface(&self.qh);
                 let layer = self.layer_shell.create_layer_surface(
                     &self.qh,
@@ -452,8 +522,7 @@ impl App {
 impl LayerShellHandler for App {
     fn closed(&mut self, _: &Connection, _: &QueueHandle<Self>, _layer: &LayerSurface) {
         // Compositor closed us (output gone, etc.) — recreate if needed.
-        self.surface = None;
-        self.bands.clear();
+        self.drop_surfaces();
         self.sync();
     }
 
@@ -461,10 +530,15 @@ impl LayerShellHandler for App {
         &mut self,
         _: &Connection,
         _: &QueueHandle<Self>,
-        _layer: &LayerSurface,
+        layer: &LayerSurface,
         configure: LayerSurfaceConfigure,
         _serial: u32,
     ) {
+        if self.catcher.as_ref().is_some_and(|c| c.layer.wl_surface() == layer.wl_surface()) {
+            let (w, h) = configure.new_size;
+            self.paint_catcher(w, h);
+            return;
+        }
         if let Some(popup) = &mut self.surface {
             let (w, h) = configure.new_size;
             // 0 means "pick your own size" — keep what we requested.
@@ -491,6 +565,17 @@ impl PointerHandler for App {
         events: &[PointerEvent],
     ) {
         for e in events {
+            let on_catcher = self
+                .catcher
+                .as_ref()
+                .is_some_and(|c| c.layer.wl_surface() == &e.surface);
+            if on_catcher {
+                // Anything that lands here missed every popup.
+                if matches!(e.kind, PointerEventKind::Press { .. }) {
+                    self.on_event(AppEvent::DismissAll);
+                }
+                continue;
+            }
             let ours = self
                 .surface
                 .as_ref()

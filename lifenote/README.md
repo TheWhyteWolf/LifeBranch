@@ -54,10 +54,15 @@ XRGB, so the panel is genuinely translucent.
 mako-style `key=value`; every key is also a `--flag`. See `./config` for the
 annotated olive defaults. Notables: `border-style single|rounded|heavy|double|
 ascii`, `background-alpha 0.85`, `layer top|overlay` (overlay punches through
-fullscreen apps), `anchor`, `max-width` (columns).
+fullscreen apps), `anchor`, `max-width` (columns), `dismiss-on-click-outside
+true|false` (default false; also a toggle in `lifeconf`).
 
 ## Known limitations
 
+- `dismiss-on-click-outside` works by parking a transparent full-output
+  surface under the popups (Wayland gives a client no other way to see clicks
+  aimed elsewhere), so the dismissing click is consumed — it does not also
+  reach the window underneath.
 - Column math is `chars().count()` — CJK/emoji double-width glyphs will
   misalign the right border of their line.
 - No overflow indicator when more than `max-visible` popups queue.
