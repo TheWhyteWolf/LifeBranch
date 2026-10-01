@@ -8,6 +8,7 @@
 # Births fade newborn->mature and deaths fade out to bg, each over FADE_STEPS frames.
 # Half-block rendering: each character row holds two cell rows ("▀" fg=top, bg=bottom).
 
+import os
 import shutil
 import signal
 import sys
@@ -150,7 +151,20 @@ def _on_usr1(*_):
     FORCE_RESEED = True
 
 
+def _layer_fallback():
+    """The niri config runs `lifebg --layer ...` (the Rust lifewall drawing the
+    background layer itself). When lifebg is this script instead, there is no
+    terminal to draw in, so re-run inside a kitty panel on the background
+    layer, as the wallpaper used to be launched. Other flags are lifewall's and
+    are ignored here; the palette above is this fallback's own."""
+    os.execvp("kitten", ["kitten", "panel", "--edge=background", "--config", "NONE",
+                         "-o", "font_size=8", "-o", "background=#121412",
+                         sys.executable, os.path.abspath(__file__)])
+
+
 if __name__ == "__main__":
+    if "--layer" in sys.argv[1:]:
+        _layer_fallback()
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     signal.signal(signal.SIGUSR1, _on_usr1)
     try:
