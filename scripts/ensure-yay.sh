@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # ensure-yay.sh: make `yay` available before anything asks for an AUR package.
 #
-# A few things this rice needs are AUR-only (phinger-cursors,
-# pamtester), and the usual bootstrap — clone the PKGBUILD, run makepkg — needs
+# A few things are AUR-only (pamtester for the greeter, and whatever extra
+# packages someone asks the installer for), and the usual bootstrap — clone the PKGBUILD, run makepkg — needs
 # git and base-devel already in place and a manual detour out of the installer.
 # yay publishes a static binary with every release, so curl it instead.
 #

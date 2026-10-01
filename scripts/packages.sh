@@ -56,9 +56,10 @@ PKGS=(niri rust clang
 # AUR. Kept separate so the bulk of the install goes through pacman directly
 # (faster, and a build failure here names itself instead of taking the lot down).
 # Only what the desktop itself needs: chat apps and the like are the user's
-# choice, offered as "common picks" by the installers.
+# choice, offered as "common picks" by the installers. Empty since lifecursor
+# replaced phinger-cursors; the installers skip the step while it is.
 # shellcheck disable=SC2034
-AUR_PKGS=(phinger-cursors)
+AUR_PKGS=()
 
 # Rivals pacman does NOT know about: packages that install fine side by side
 # but fight at runtime (two power managers, two sound servers). Declared
