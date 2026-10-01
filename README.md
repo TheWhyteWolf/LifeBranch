@@ -25,6 +25,7 @@ Rust components, built from source by the installer:
 | [`lifegreet`](lifegreet/README.md) | login screen |
 | [`lifefiles`](lifefiles/README.md) | mouse-driven terminal file browser |
 | [`lifeshot`](lifeshot/README.md) | screenshot + annotation overlay |
+| [`lifemenu`](lifemenu/README.md) | launcher + dmenu (fuzzel-compatible flags; the scripts' menus) |
 | [`lifefont`](lifefont/README.md) | shared glyph rasterizer (library; lazy, ~37 MB less per process than fontdue) |
 
 ## Install
@@ -97,7 +98,7 @@ battery and backlight, and the T2 suspend/audio/Bluetooth plumbing.
 
 **Pure text everywhere:** no glyph icons. Waybar uses labels (`NET`/`VOL`/`CPU`/`MEM`),
 notifications are lifenote's box-drawing frames (mako, the fallback, has icons
-disabled too), fuzzel has app icons disabled, and the wob OSD is a bare bar.
+disabled too), lifemenu draws no app icons, and the wob OSD is a bare bar.
 
 **One source of truth:** the palette above (and the Game-of-Life parameters, idle
 timeouts, cursor, etc.) now live in `~/.config/lifeconf/theme.toml`. `lifeconf
@@ -142,7 +143,7 @@ scripts/float-snap.sh -> ~/.local/bin/float-snap.sh (floating window snapping, M
 scripts/scratch-term.sh -> ~/.local/bin/scratch-term.sh (dropdown terminal, Mod+Grave)
 scripts/rec-toggle.sh -> ~/.local/bin/rec-toggle.sh (screen-record toggle, Mod+Print)
 scripts/bright-osd.sh -> ~/.local/bin/bright-osd.sh (laptop only: brightness + wob)
-scripts/pinentry-fuzzel.sh -> ~/.local/bin/pinentry-fuzzel.sh (GPG passphrase prompts via fuzzel)
+scripts/pinentry-fuzzel.sh -> ~/.local/bin/pinentry-fuzzel.sh (GPG passphrase prompts via lifemenu, else fuzzel)
 scripts/shortcuts-window.sh -> ~/.local/bin/shortcuts-window.sh (the login cheat sheet, Mod+Slash)
 scripts/detect-trackpad.sh -> ~/.local/bin/detect-trackpad.sh (touchpad capabilities -> niri config)
 scripts/setup-locale.sh -> ~/.local/bin/setup-locale.sh (keyboard layout + timezone -> niri config)
@@ -169,7 +170,7 @@ greetd/greetd.service.d/lifegreet.conf -> /etc/systemd/system/greetd.service.d/ 
 
 | Bind | Action |
 |---|---|
-| `Mod+Return` / `Mod+D` / `Mod+Space` | fuzzel launcher |
+| `Mod+Return` / `Mod+D` / `Mod+Space` | lifemenu launcher |
 | `Mod+T` | kitty terminal |
 | `Mod+Grave` | dropdown terminal (quake-style kitty in the top half) |
 | `Mod+P` | clipboard history |
@@ -194,7 +195,7 @@ greetd/greetd.service.d/lifegreet.conf -> /etc/systemd/system/greetd.service.d/ 
 | `Mod+Ctrl+G` | reset wallpaper (fresh soup) |
 | `Print` / `Ctrl+Print` / `Alt+Print` | screenshot area / screen / window |
 | `Mod+Print` | screen-record toggle (wf-recorder → ~/Videos) |
-| `Ctrl+Alt+Return`/`Space`/`O`/`Q` | non-Super fallbacks (kitty/fuzzel/overview/close) |
+| `Ctrl+Alt+Return`/`Space`/`O`/`Q` | non-Super fallbacks (kitty/lifemenu/overview/close) |
 | `Mod+Slash` | the LifeBranch cheat sheet (this table, generated from your config) |
 
 `Mod+Shift+/` shows niri's own hotkey overlay. `Mod+Slash` shows LifeBranch's,
@@ -239,7 +240,7 @@ next time you open it.
   right, olive. Style/colours/alpha live in `lifenote/config` (border-style
   `single|rounded|heavy|double|ascii`). The waybar `#` button shows `# N`
   while N notifications came and went unseen (expired or DND-swallowed) and
-  opens the history — the last 50 — in a fuzzel list; `lifenote ctl history`
+  opens the history — the last 50 — in a lifemenu list; `lifenote ctl history`
   prints the same in a terminal. mako stays themed and installed as the
   emergency fallback (`pkill lifenote && mako`).
 - **Do-not-disturb** — `Mod+N` (or clicking the red `DND` waybar label)

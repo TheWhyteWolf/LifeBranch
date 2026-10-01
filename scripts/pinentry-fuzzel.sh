@@ -44,7 +44,8 @@ if [[ -z ${WAYLAND_DISPLAY:-} && -z ${SSH_CONNECTION:-} && -z ${SSH_TTY:-} ]]; t
   unset _sock
 fi
 
-FUZZEL_BIN=$(command -v fuzzel 2>/dev/null) || FUZZEL_BIN=''
+# lifemenu first (same flags, LifeBranch's own look), fuzzel as the fallback.
+FUZZEL_BIN=$(command -v lifemenu 2>/dev/null || command -v "$HOME/.local/bin/lifemenu" 2>/dev/null || command -v fuzzel 2>/dev/null) || FUZZEL_BIN=''
 if [[ -z ${WAYLAND_DISPLAY:-} || -z $FUZZEL_BIN ]]; then
   for _fallback in /usr/bin/pinentry-curses /usr/bin/pinentry-tty /usr/bin/pinentry; do
     [[ -x $_fallback ]] && exec "$_fallback" "$@"
