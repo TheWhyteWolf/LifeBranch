@@ -32,7 +32,10 @@ input {
     // `bash scripts/detect-trackpad.sh` prints what it found at any time.
     // LIFEBRANCH:END touchpad
 
+    // LIFEBRANCH:BEGIN mouse
+    // Settings > Mouse edits this region (speed, natural scroll, left-handed...).
     mouse {}
+    // LIFEBRANCH:END mouse
 
     // Uncomment to focus windows/outputs by moving the mouse into them:
     // focus-follows-mouse max-scroll-amount="0%"
