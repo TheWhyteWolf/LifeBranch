@@ -58,8 +58,8 @@ fi
 source "$REPO/scripts/prompt.sh"
 pick_mode
 
-# An AUR helper, bootstrapped by curl if it is missing (the cursor theme,
-# phinger-cursors, is AUR-only). No-op when yay is already installed.
+# An AUR helper, bootstrapped by curl if it is missing: the extra packages
+# asked for below may be AUR names. No-op when yay is already installed.
 bash "$REPO/scripts/ensure-yay.sh"
 
 # --- Packages ----------------------------------------------------------------
@@ -72,18 +72,19 @@ drop_conflicts
 echo "==> Installing packages from the official repos"
 sudo pacman -S --needed "${CONFIRM[@]}" "${PKGS[@]}"
 
-echo "==> Installing AUR packages: ${AUR_PKGS[*]}"
-if command -v yay >/dev/null 2>&1; then
+if (( ! ${#AUR_PKGS[@]} )); then
+  :  # nothing the desktop needs is AUR-only at the moment
+elif command -v yay >/dev/null 2>&1; then
+  echo "==> Installing AUR packages: ${AUR_PKGS[*]}"
   clear_orphan_debug
-  # Not fatal: a cursor theme or a chat app that will not build is no reason
+  # Not fatal: a package that will not build is no reason
   # to abandon the rest of the desktop. Retry later with yay -S <name>.
   if ! yay -S --needed "${CONFIRM[@]}" "${AUR_PKGS[@]}"; then
     echo "    !! AUR install failed (see above); carrying on without: ${AUR_PKGS[*]}"
     echo "       retry later with: yay -S ${AUR_PKGS[*]}"
   fi
 else
-  echo "    !! no AUR helper — skipping ${AUR_PKGS[*]}."
-  echo "       The cursor theme will be missing; install it later with yay."
+  echo "    !! no AUR helper — skipping ${AUR_PKGS[*]}; install them later with yay."
 fi
 
 echo "==> Enabling the system services the Settings panels use"
@@ -569,7 +570,7 @@ echo "==> GTK dark theme + cursor (GTK apps; Qt/KDE keeps its own settings)"
 if command -v gsettings >/dev/null 2>&1; then
   gsettings set org.gnome.desktop.interface gtk-theme "adw-gtk3-dark"
   gsettings set org.gnome.desktop.interface color-scheme "prefer-dark"
-  gsettings set org.gnome.desktop.interface cursor-theme "phinger-cursors-light"
+  gsettings set org.gnome.desktop.interface cursor-theme "LifeBranch-dark"
   gsettings set org.gnome.desktop.interface cursor-size 24
 fi
 

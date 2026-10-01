@@ -58,10 +58,12 @@ drop_conflicts
 echo "==> Installing packages from the official repos"
 sudo pacman -S --needed "${CONFIRM[@]}" "${PKGS[@]}"
 
-echo "==> Installing AUR packages: ${AUR_PKGS[*]}"
-if command -v yay >/dev/null 2>&1; then
+if (( ! ${#AUR_PKGS[@]} )); then
+  :  # nothing the desktop needs is AUR-only at the moment
+elif command -v yay >/dev/null 2>&1; then
+  echo "==> Installing AUR packages: ${AUR_PKGS[*]}"
   clear_orphan_debug
-  # Not fatal: a cursor theme or a chat app that will not build is no reason
+  # Not fatal: a package that will not build is no reason
   # to abandon the rest of the desktop. Retry later with yay -S <name>.
   if ! yay -S --needed "${CONFIRM[@]}" "${AUR_PKGS[@]}"; then
     echo "    !! AUR install failed (see above); carrying on without: ${AUR_PKGS[*]}"
@@ -477,7 +479,7 @@ echo "==> GTK dark theme + cursor (GTK apps; Qt/KDE keeps its own settings)"
 if command -v gsettings >/dev/null 2>&1; then
   gsettings set org.gnome.desktop.interface gtk-theme "adw-gtk3-dark"
   gsettings set org.gnome.desktop.interface color-scheme "prefer-dark"
-  gsettings set org.gnome.desktop.interface cursor-theme "phinger-cursors-light"
+  gsettings set org.gnome.desktop.interface cursor-theme "LifeBranch-dark"
   gsettings set org.gnome.desktop.interface cursor-size 24
 fi
 

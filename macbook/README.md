@@ -49,7 +49,7 @@ bash ~/LifeBranch/macbook/install.sh
 ```
 
 Installs the shared stack (`kitty fuzzel waybar mako xwayland-satellite
-wl-clipboard cliphist wev adw-gtk-theme phinger-cursors wob jq swaylock swayidle
+wl-clipboard cliphist wev adw-gtk-theme wob jq swaylock swayidle
 ttf-sharetech-mono-nerd ttf-cousine-nerd xdg-desktop-portal-gnome qt6ct
 qt6-wayland qt5-wayland`) plus `brightnessctl`, backs up
 existing configs to `*.bak`, symlinks the laptop niri + waybar configs and the
@@ -57,7 +57,7 @@ shared theme files (swaylock, wob, qt6ct, portals, kitty `rice.conf` +
 `olive.conf`), installs the `clip-menu` / `power-menu` / `lifebg-toggle` /
 `vol-osd` / `bright-osd` / `dnd-toggle` / `float-snap` / `scratch-term`
 scripts, builds **lifelock** (+ its
-`/etc/pam.d/lifelock` service), sets the GTK dark theme + phinger cursor, then
+`/etc/pam.d/lifelock` service), sets the GTK dark theme + LifeBranch-dark cursor, then
 runs `niri validate`. Unlike the desktop install it does **not** mask the
 systemd sleep targets — the laptop is allowed to suspend.
 

@@ -249,7 +249,7 @@ impl Default for Theme {
             accessibility: Accessibility::default(),
             idle: Idle { lock_minutes: 10, screen_off_minutes: 15, suspend_minutes: 0 },
             animations: Animations { slowdown: 0.6 },
-            cursor: Cursor { theme: "phinger-cursors-light".into(), size: 24 },
+            cursor: Cursor { theme: "LifeBranch-dark".into(), size: 24 },
             font: Font { family: "ShureTechMono Nerd Font".into(), size: 12 },
             lifelock: Screen::default(),
             lifegreet: Screen::default(),
