@@ -140,7 +140,7 @@ overview {
 spawn-at-startup "dbus-update-activation-environment" "--systemd" "QT_QPA_PLATFORM" "QT_WAYLAND_DISABLE_WINDOWDECORATION" "ELECTRON_OZONE_PLATFORM_HINT"
 // Conway's Game of Life wallpaper (shared lifewall build; see install.sh).
 // LIFECONF:BEGIN lifewall
-spawn-sh-at-startup "exec ~/.local/bin/lifebg --layer --font-family 'ShureTechMono Nerd Font' --font-size 8 --tick 0.2 --fps 15 --fade 3 --density 0.41 --char '!#$%&()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~' --bg '#150a0a' --mature '#7d3636' --newborn '#be1b1b' --glider-interval 90"
+spawn-sh-at-startup "exec ~/.local/bin/lifebg --layer --font-family 'ShureTechMono Nerd Font' --font-size 8 --tick 0.2 --fps 15 --fade 3 --density 0.41 --char '!#$%&()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~' --bg '#150a0a' --mature '#7d3636' --newborn '#be1b1b' --glider-interval 90 --fps-battery 8"
 // LIFECONF:END lifewall
 // Idle chain: lock at 10 min, screens off at 15 min. Unlike the desktop, sleep
 // stays available on the laptop — before-sleep locks first (lid close, etc.).

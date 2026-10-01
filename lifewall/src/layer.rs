@@ -54,7 +54,6 @@ use smithay_client_toolkit::reexports::client::{
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
-use std::time::Duration;
 
 /// The drawable state for one output at one size and scale.
 struct Canvas {
@@ -131,7 +130,8 @@ pub fn run(cfg: Config) -> i32 {
             return 1;
         }
     };
-    let frame = Duration::from_secs_f64(1.0 / cfg.fps);
+    let mut power = crate::power::Power::new(std::time::Instant::now());
+    let first = power.frame(&cfg);
     let mut app = App {
         compositor: CompositorState::bind(&globals, &qh).expect("wl_compositor"),
         output_state: OutputState::new(&globals, &qh),
@@ -150,9 +150,10 @@ pub fn run(cfg: Config) -> i32 {
         .expect("insert wayland source");
     event_loop
         .handle()
-        .insert_source(Timer::from_duration(frame), move |_, _, app: &mut App| {
+        .insert_source(Timer::from_duration(first), move |_, _, app: &mut App| {
             app.tick();
-            TimeoutAction::ToDuration(frame)
+            // Unplugged: --fps-battery from the next frame on.
+            TimeoutAction::ToDuration(power.frame(&app.cfg))
         })
         .expect("insert frame timer");
 
