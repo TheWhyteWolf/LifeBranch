@@ -96,9 +96,22 @@ pub fn load(run: Runner) -> Vec<Row> {
     let aps = run("nmcli", &["-t", "-f", "IN-USE,SSID,SIGNAL,SECURITY", "device", "wifi", "list"])
         .map(|o| parse_aps(&o))
         .unwrap_or_default();
-    let saved = run("nmcli", &["-t", "-f", "NAME,TYPE", "connection", "show"])
+    // A profile's name needn't match its SSID ("Home 1", a custom name), so ask
+    // each saved wifi profile which SSID it joins: (ssid, profile name).
+    let saved: Vec<(String, String)> = run("nmcli", &["-t", "-f", "NAME,TYPE", "connection", "show"])
         .map(|o| parse_saved(&o))
-        .unwrap_or_default();
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|name| {
+            let ssid = run(
+                "nmcli",
+                &["--escape", "no", "-g", "802-11-wireless.ssid", "connection", "show", "id", &name],
+            )
+            .ok()?;
+            Some((ssid.trim_end_matches('\n').to_string(), name))
+        })
+        .collect();
+    let profile_of = |a: &Ap| saved.iter().find(|(s, _)| *s == a.ssid).map(|(_, n)| n.as_str());
     let active = aps.iter().find(|a| a.in_use);
     let status = match active {
         Some(a) => format!("connected: {} ({}%)", a.ssid, a.signal),
@@ -114,13 +127,13 @@ pub fn load(run: Runner) -> Vec<Row> {
         .find(|a| a.ssid == want)
         .or(active)
         .unwrap_or(&aps[0]);
-    let is_saved = |a: &Ap| saved.contains(&a.ssid);
-    let flag = if is_saved(sel) {
-        "saved"
+    let is_saved = |a: &Ap| profile_of(a).is_some();
+    let flag = if let Some(name) = profile_of(sel) {
+        format!("saved:{name}")
     } else if is_open(&sel.security) {
-        "open"
+        "open".to_string()
     } else {
-        "secured"
+        "secured".to_string()
     };
     vec![
         r("true"),
@@ -130,7 +143,7 @@ pub fn load(run: Runner) -> Vec<Row> {
             choices: aps.iter().map(|a| (label(a, is_saved(a)), a.ssid.clone())).collect(),
         },
         // The connect row carries what apply() needs to act on the selection.
-        Row { value: format!("connect to {}", sel.ssid), choices: vec![(sel.ssid.clone(), flag.into())] },
+        Row { value: format!("connect to {}", sel.ssid), choices: vec![(sel.ssid.clone(), flag)] },
         if active.is_some() { r("disconnect wifi") } else { r("-") },
     ]
 }
@@ -158,7 +171,9 @@ pub fn apply(field: usize, rows: &[Row], ch: Change, run: Runner) -> Result<Stri
                 return Err("refusing an SSID that looks like an option".into());
             }
             match flag.as_str() {
-                "saved" => run("nmcli", &["-w", WAIT, "connection", "up", "id", ssid])?,
+                f if f.starts_with("saved:") => {
+                    run("nmcli", &["-w", WAIT, "connection", "up", "id", &f["saved:".len()..]])?
+                }
                 "open" => run("nmcli", &["-w", WAIT, "device", "wifi", "connect", ssid])?,
                 _ => {
                     return Err(format!(
@@ -190,7 +205,7 @@ mod tests {
 
     // Shape from real `nmcli -t` output, plus an escaped colon and a duplicate AP.
     const APS: &str = "*:BELL498 2.4:60:WPA2\n :agaspar-5G:47:WPA2\n:Cafe\\: Free:35:\n :agaspar-5G:52:WPA2\n:::WPA2\n:Weak:12:WPA2\n";
-    const SAVED: &str = "BELL498 2.4:802-11-wireless\ntailscale0:tun\nWeak:802-11-wireless\n";
+    const SAVED: &str = "BELL498 2.4:802-11-wireless\ntailscale0:tun\nWeak (2):802-11-wireless\n";
 
     static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
@@ -198,6 +213,11 @@ mod tests {
         move |_, a| {
             Ok(match a[0] {
                 "radio" => radio.into(),
+                // Profile -> SSID; "Weak (2)" is deliberately named unlike its SSID.
+                "--escape" => match *a.last().unwrap() {
+                    "Weak (2)" => "Weak\n".into(),
+                    n => format!("{n}\n"),
+                },
                 "-t" if a.contains(&"IN-USE,SSID,SIGNAL,SECURITY") => APS.into(),
                 "-t" if a.contains(&"NAME,TYPE") => SAVED.into(),
                 "-t" => "wlan0:wifi\nlo:loopback\n".into(),
@@ -218,7 +238,7 @@ mod tests {
 
     #[test]
     fn saved_profiles_are_wifi_only() {
-        assert_eq!(parse_saved(SAVED), ["BELL498 2.4", "Weak"]);
+        assert_eq!(parse_saved(SAVED), ["BELL498 2.4", "Weak (2)"]);
     }
 
     #[test]
@@ -229,7 +249,7 @@ mod tests {
         assert_eq!(rows[0].value, "true");
         assert_eq!(rows[1].value, "connected: BELL498 2.4 (60%)");
         assert_eq!(rows[2].value, "BELL498 2.4  60%  WPA2  saved");
-        assert_eq!(rows[3].choices[0], ("BELL498 2.4".into(), "saved".into()));
+        assert_eq!(rows[3].choices[0], ("BELL498 2.4".into(), "saved:BELL498 2.4".into()));
         assert_eq!(rows[4].value, "disconnect wifi");
     }
 
@@ -275,7 +295,7 @@ mod tests {
         assert_eq!(
             *log.borrow(),
             [
-                "-w 10 connection up id Weak",
+                "-w 10 connection up id Weak (2)",
                 "-w 10 device wifi connect Cafe: Free",
                 "-t -f DEVICE,TYPE device",
                 "device disconnect wlan0",

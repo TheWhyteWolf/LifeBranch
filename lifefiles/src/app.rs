@@ -413,6 +413,23 @@ impl App {
     /// Move or copy every path into `dest`; returns (successes, first error).
     fn transfer(&mut self, paths: &[PathBuf], dest: &Path, copy: bool) -> (usize, Option<String>) {
         let (mut ok, mut err) = (0, None);
+        // The Trash place is a drop target, but a bare rename into files/ would
+        // leave no .trashinfo; go through the real trash path instead.
+        let trash = fs::home_trash();
+        if dest == trash.join("files") {
+            if copy {
+                return (0, Some("cannot copy into the trash".into()));
+            }
+            for p in paths {
+                match fs::trash_to(p, &trash) {
+                    Ok(()) => ok += 1,
+                    Err(e) => {
+                        err.get_or_insert_with(|| format!("{}: {e}", p.display()));
+                    }
+                }
+            }
+            return (ok, err);
+        }
         for p in paths {
             // Dropping a folder onto itself or a descendant would loop or vanish.
             if dest.starts_with(p) {
@@ -554,7 +571,7 @@ impl App {
             Mode::Normal => self.key_normal(k),
             Mode::Input(i) => self.key_input(k, i),
             Mode::Confirm(p) => match k.code {
-                KeyCode::Char('y') | KeyCode::Enter => self.delete_forever(p),
+                KeyCode::Char('y') => self.delete_forever(p),
                 _ => self.msg = "cancelled".into(),
             },
             Mode::Menu(m) => self.key_menu(k, m),
