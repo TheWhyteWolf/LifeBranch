@@ -15,6 +15,7 @@ mod board;
 mod glyphs;
 mod gpu;
 mod layer;
+mod power;
 mod term;
 
 use board::{parse_hex, Config};
@@ -42,6 +43,8 @@ fn parse_args() -> Config {
         lifewall [flags]           draw in this terminal (previews, kitten panel)\n\n\
         --tick SECS     seconds per generation        (default 0.3)\n\
         --fps N         render frames per second      (default 30)\n\
+        --fps-battery N frames per second on battery; 0 uses\n\
+        \x20               --fps on battery too         (default 8)\n\
         --fade GENS     fade length in generations    (default 3)\n\
         --density F     seed fill fraction 0..1       (default 0.14)\n\
         --char S        glyph(s) for live cells; 2+ chars picks randomly\n\
@@ -63,6 +66,7 @@ fn parse_args() -> Config {
         match a.as_str() {
             "--tick" => cfg.tick = val("--tick").parse().unwrap_or(cfg.tick),
             "--fps" => cfg.fps = val("--fps").parse().unwrap_or(cfg.fps),
+            "--fps-battery" => cfg.fps_battery = val("--fps-battery").parse().unwrap_or(cfg.fps_battery),
             "--fade" => cfg.fade = val("--fade").parse().unwrap_or(cfg.fade),
             "--density" => cfg.density = val("--density").parse().unwrap_or(cfg.density),
             "--char" => {
@@ -96,6 +100,11 @@ fn parse_args() -> Config {
     }
     cfg.tick = cfg.tick.max(0.01);
     cfg.fps = cfg.fps.clamp(1.0, 240.0);
+    // 0 is the documented "don't throttle on battery" value, so it survives;
+    // anything else gets --fps's range.
+    if cfg.fps_battery != 0.0 {
+        cfg.fps_battery = cfg.fps_battery.clamp(1.0, 240.0);
+    }
     cfg.fade = cfg.fade.max(0.25);
     cfg.font_size = cfg.font_size.clamp(2.0, 72.0);
     cfg
