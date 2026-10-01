@@ -89,6 +89,10 @@ if interactive; then
       echo "    skipping '$p' — that is not a package name."
     fi
   done
+  # Same conflict checks as the main list: a rival you already have is kept.
+  WANTED=("${wanted[@]}")
+  (( ${#WANTED[@]} )) && filter_wanted
+  wanted=("${WANTED[@]}")
   if (( ${#wanted[@]} )); then
     yay -S --needed "${wanted[@]}" || echo "    !! some of those did not install; carrying on."
   fi
