@@ -27,6 +27,7 @@ Rust components, built from source by the installer:
 | [`lifeshot`](lifeshot/README.md) | screenshot + annotation overlay |
 | [`lifemenu`](lifemenu/README.md) | launcher + dmenu (fuzzel-compatible flags; the scripts' menus) |
 | [`lifeauth`](lifeauth/README.md) | polkit authentication agent (asks through lifemenu) |
+| [`lifeosd`](lifeosd/README.md) | volume/brightness on-screen bar (replaces wob) |
 | [`lifepanel`](lifepanel/README.md) | quick settings: wifi, bluetooth, sound, brightness, power, drives; USB automount |
 | [`lifefont`](lifefont/README.md) | shared glyph rasterizer (library; lazy, ~37 MB less per process than fontdue) |
 
@@ -100,7 +101,7 @@ battery and backlight, and the T2 suspend/audio/Bluetooth plumbing.
 
 **Pure text everywhere:** no glyph icons. Waybar uses labels (`NET`/`VOL`/`CPU`/`MEM`),
 notifications are lifenote's box-drawing frames (mako, the fallback, has icons
-disabled too), lifemenu draws no app icons, and the wob OSD is a bare bar.
+disabled too), lifemenu draws no app icons, and the lifeosd OSD is a labelled text bar.
 
 **One source of truth:** the palette above (and the Game-of-Life parameters, idle
 timeouts, cursor, etc.) now live in `~/.config/lifeconf/theme.toml`. `lifeconf
@@ -137,14 +138,14 @@ brave/brave-flags.conf -> ~/.config/brave-flags.conf (Brave is Chromium: own fla
 scripts/clip-menu.sh -> ~/.local/bin/clip-menu.sh
 scripts/power-menu.sh    -> ~/.local/bin/power-menu.sh
 scripts/lifebg-toggle.sh -> ~/.local/bin/lifebg-toggle.sh
-scripts/vol-osd.sh   -> ~/.local/bin/vol-osd.sh (volume keys -> wpctl + wob flash)
+scripts/vol-osd.sh   -> ~/.local/bin/vol-osd.sh (volume keys -> wpctl + lifeosd flash)
 scripts/dnd-toggle.sh -> ~/.local/bin/dnd-toggle.sh (lifenote do-not-disturb, Mod+N)
 scripts/net-menu.sh  -> ~/.local/bin/net-menu.sh (wifi menu, waybar NET click)
 scripts/notif-menu.sh -> ~/.local/bin/notif-menu.sh (waybar # button: notification history)
 scripts/float-snap.sh -> ~/.local/bin/float-snap.sh (floating window snapping, Mod+Alt+arrows)
 scripts/scratch-term.sh -> ~/.local/bin/scratch-term.sh (dropdown terminal, Mod+Grave)
 scripts/rec-toggle.sh -> ~/.local/bin/rec-toggle.sh (screen-record toggle, Mod+Print)
-scripts/bright-osd.sh -> ~/.local/bin/bright-osd.sh (laptop only: brightness + wob)
+scripts/bright-osd.sh -> ~/.local/bin/bright-osd.sh (laptop only: brightness + lifeosd)
 scripts/pinentry-fuzzel.sh -> ~/.local/bin/pinentry-fuzzel.sh (GPG passphrase prompts via lifemenu, else fuzzel)
 scripts/shortcuts-window.sh -> ~/.local/bin/shortcuts-window.sh (the login cheat sheet, Mod+Slash)
 scripts/detect-trackpad.sh -> ~/.local/bin/detect-trackpad.sh (touchpad capabilities -> niri config)
@@ -185,7 +186,7 @@ greetd/greetd.service.d/lifegreet.conf -> /etc/systemd/system/greetd.service.d/ 
 | `Mod+Alt+C` / `Mod+Alt+R` | center / un-snap floating window |
 | `Mod+Shift+Ctrl+H/J/K/L` / arrows | nudge floating window 40 px |
 | `Mod+KP_7/9/1/3` · `KP_4/6/8/2` · `KP_5` | float straight to corner · half · center (desktop numpad) |
-| `Mod+KP_Add/Subtract/Multiply` | volume up / down / mute (wob OSD flash) |
+| `Mod+KP_Add/Subtract/Multiply` | volume up / down / mute (OSD flash) |
 | `Mod+KP_Divide` | media play/pause (playerctl) |
 | `Mod+N` | do-not-disturb toggle (lifenote + waybar DND label) |
 | `Mod+E` | file manager (lifefiles, in kitty) |
@@ -234,8 +235,9 @@ next time you open it.
   0.93` so the Life board ghosts through terminals, and includes
   `kitty/olive.conf` — the full olive 16-colour palette (`include rice.conf`
   is appended to `~/.config/kitty/kitty.conf` by install.sh).
-- **Volume OSD** — the volume keys go through `vol-osd.sh`: wpctl plus a wob
-  bar flash (olive, bottom-center, `wob/wob.ini`). The keys stay
+- **Volume OSD** — the volume keys go through `vol-osd.sh`: wpctl plus a
+  [`lifeosd`](lifeosd/README.md) flash (`volume ████░░░ 45%`, bottom-centre;
+  wob with `wob/wob.ini` is the fallback). The keys stay
   `allow-when-locked`; the bar can't draw over the lock surface, but the
   audio still changes.
 - **Notifications** — [`lifenote/`](lifenote/README.md) (rust, built by

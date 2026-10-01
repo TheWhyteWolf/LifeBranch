@@ -179,9 +179,10 @@ spawn-sh-at-startup "if [ -x ~/.local/bin/lifepanel ]; then exec systemd-cat -t 
 // its stderr reaches the journal. mako stays installed as the fallback on this
 // laptop too: pkill lifenote && mako.
 spawn-sh-at-startup "systemd-cat -t lifenote ~/.local/bin/lifenote"
-// Volume/brightness OSD: wob draws a bar for whatever percentage lands in its
-// FIFO (vol-osd.sh / bright-osd.sh write there). Themed via ~/.config/wob/wob.ini.
-spawn-sh-at-startup "f=$XDG_RUNTIME_DIR/wob.sock; rm -f $f; mkfifo $f; tail -f $f | wob"
+// Volume/brightness OSD: lifeosd flashes a labelled bar for each line
+// vol-osd.sh / bright-osd.sh write to its FIFO (journalctl -t lifeosd). wob is
+// the fallback until lifeosd is built.
+spawn-sh-at-startup "if [ -x ~/.local/bin/lifeosd ]; then exec systemd-cat -t lifeosd ~/.local/bin/lifeosd; else f=$XDG_RUNTIME_DIR/wob.sock; rm -f $f; mkfifo $f; tail -f $f | wob; fi"
 // Clipboard-history watchers (cliphist).
 spawn-at-startup "wl-paste" "--watch" "cliphist" "store"
 spawn-at-startup "wl-paste" "--type" "image" "--watch" "cliphist" "store"
@@ -287,7 +288,7 @@ binds {
     Mod+Shift+Alt+Escape allow-when-locked=true hotkey-overlay-title="Force swaylock (recovery)" { spawn-sh "pkill -x -9 lifelock; sleep 1; swaylock -f"; }
 
     // --- Volume (Apple function row emits XF86 media keys) ---
-    // vol-osd.sh = wpctl + a wob OSD flash (keys still work while locked; the
+    // vol-osd.sh = wpctl + an OSD flash (lifeosd) (keys still work while locked; the
     // bar itself can't render over the lock surface).
     XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "~/.local/bin/vol-osd.sh up"; }
     XF86AudioLowerVolume allow-when-locked=true { spawn-sh "~/.local/bin/vol-osd.sh down"; }
@@ -299,7 +300,7 @@ binds {
     Mod+F10 allow-when-locked=true { spawn-sh "~/.local/bin/vol-osd.sh mute"; }
 
     // --- Backlight (brightnessctl; needs the video group or its udev rules) ---
-    // bright-osd.sh = brightnessctl + the same wob OSD flash.
+    // bright-osd.sh = brightnessctl + the same OSD flash.
     XF86MonBrightnessUp   allow-when-locked=true { spawn-sh "~/.local/bin/bright-osd.sh up"; }
     XF86MonBrightnessDown allow-when-locked=true { spawn-sh "~/.local/bin/bright-osd.sh down"; }
     Mod+F2 allow-when-locked=true { spawn-sh "~/.local/bin/bright-osd.sh up"; }
