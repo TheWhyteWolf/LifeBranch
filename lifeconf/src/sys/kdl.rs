@@ -2,9 +2,10 @@
 // A deliberately tiny KDL reader/writer for the niri `input` blocks the
 // Settings panels edit (keyboard, touchpad). It understands one node per line,
 // `name arg arg`, `name {` … `}` and `name {}`; quoted strings, bare numbers and
-// bare words as arguments; `//` comments. Anything else (properties, `;`,
-// slashdash, multi-line strings) is a parse error, so a hand-edited region we
-// can't faithfully round-trip is left alone rather than mangled.
+// bare words as arguments; properties with a bare value (`horizontal=-1.0`,
+// kept as one argument); `//` comments. Anything else (quoted property values,
+// `;`, slashdash, multi-line strings) is a parse error, so a hand-edited region
+// we can't faithfully round-trip is left alone rather than mangled.
 //
 // Panels edit the tree (set/remove the nodes they own) and render it back, so
 // every setting they don't know about survives untouched. Comments inside a
@@ -87,6 +88,20 @@ fn tokens(line: &str) -> Result<Vec<Arg>, String> {
     Ok(out)
 }
 
+/// A bare token is fine unless it holds `=`, which only a `key=value`
+/// property with a bare value may.
+fn prop_ok(t: &str) -> bool {
+    match t.split_once('=') {
+        None => true,
+        Some((k, v)) => !k.is_empty() && !v.is_empty() && !v.contains('=') && k.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'),
+    }
+}
+
+/// The value of property `key` (`key=value`) among a node's arguments.
+pub fn prop<'a>(n: &'a Node, key: &str) -> Option<&'a str> {
+    n.args.iter().filter(|a| !a.quoted).find_map(|a| a.text.strip_prefix(key)?.strip_prefix('='))
+}
+
 pub fn parse(body: &str) -> Result<Vec<Node>, String> {
     // Stack of (node-being-built); the bottom frame is the root list.
     let mut stack: Vec<Vec<Node>> = vec![Vec::new()];
@@ -122,7 +137,7 @@ pub fn parse(body: &str) -> Result<Vec<Node>, String> {
             }
             _ => {}
         }
-        if toks.iter().any(|t| !t.quoted && t.text.contains(['=', ';', '{', '}'])) {
+        if toks.iter().any(|t| !t.quoted && t.text.contains([';', '{', '}']) || !t.quoted && !prop_ok(&t.text)) {
             return Err(at("unsupported syntax (properties or multiple nodes per line)"));
         }
         let node = Node {
@@ -256,10 +271,21 @@ mod tests {
     }
 
     #[test]
+    fn bare_value_properties_round_trip() {
+        let n = parse("scroll-factor vertical=1.0 horizontal=-1.0").unwrap();
+        assert_eq!(prop(&n[0], "horizontal"), Some("-1.0"));
+        assert_eq!(prop(&n[0], "vertical"), Some("1.0"));
+        assert_eq!(prop(&n[0], "vert"), None);
+        assert_eq!(render(&n, 0), "scroll-factor vertical=1.0 horizontal=-1.0");
+    }
+
+    #[test]
     fn refuses_syntax_it_cannot_round_trip() {
         for bad in [
             "tap; dwt",
-            "scroll-factor vertical=2.0",
+            "scroll-factor vertical=\"2.0\"",
+            "a =1",
+            "a b==1",
             "/-touchpad { tap }",
             "a {\n b\n",
             "}",
