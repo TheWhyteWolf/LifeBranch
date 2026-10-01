@@ -94,6 +94,10 @@ pub struct Lifewall {
     /// load.
     #[serde(default = "default_glider_interval")]
     pub glider_interval: f64,
+    /// Frames per second while on battery; 0 keeps `fps`. Older theme.toml
+    /// files get 8, the slow-but-alive pace the old kitty wallpaper used.
+    #[serde(default = "default_fps_battery")]
+    pub fps_battery: u32,
 }
 
 /// Deliberately NOT the same as the shipped default below. This is the serde
@@ -107,6 +111,10 @@ fn default_glyph_mode() -> String {
 
 fn default_glider_interval() -> f64 {
     90.0
+}
+
+fn default_fps_battery() -> u32 {
+    8
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -168,6 +176,7 @@ impl Default for Theme {
                 mature: "#66744c".into(),
                 newborn: "#87a540".into(),
                 glider_interval: 90.0,
+                fps_battery: 8,
             },
             lifenote: Lifenote {
                 border_style: "single".into(),

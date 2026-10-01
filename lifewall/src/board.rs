@@ -31,6 +31,7 @@ fn blend(a: Rgb, b: Rgb, t: f64) -> Rgb {
 pub struct Config {
     pub tick: f64,         // seconds per generation
     pub fps: f64,          // render frames per second
+    pub fps_battery: f64,  // ...while on battery; 0 = same as fps
     pub fade: f64,         // generations for newborn->mature and death->bg fades
     pub density: f64,      // seed fill fraction
     pub glyphs: Vec<char>, // character(s) for live cells; 2+ = random per cell
@@ -50,6 +51,7 @@ impl Default for Config {
         Config {
             tick: 0.3,
             fps: 30.0,
+            fps_battery: 8.0,
             fade: 3.0,
             density: 0.14,
             // Printable ASCII, space excluded. A single repeated glyph gives

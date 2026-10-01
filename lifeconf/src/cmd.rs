@@ -64,7 +64,7 @@ pub fn lifewall_shell_cmd(t: &Theme) -> String {
         "exec ~/.local/bin/lifebg --layer --font-family '{family}' --font-size 8 \
          --tick {tick} --fps {fps} --fade {fade} --density {density} \
          --char '{glyph}' --bg '{bg}' --mature '{mature}' --newborn '{newborn}' \
-         --glider-interval {glider_interval}",
+         --glider-interval {glider_interval} --fps-battery {fps_battery}",
         family = plain_name(&t.font.family),
         bg = bg,
         tick = numf(w.tick),
@@ -75,6 +75,7 @@ pub fn lifewall_shell_cmd(t: &Theme) -> String {
         mature = hash(&w.mature),
         glider_interval = numf(w.glider_interval),
         newborn = hash(&w.newborn),
+        fps_battery = w.fps_battery,
     )
 }
 
@@ -101,4 +102,19 @@ pub fn swayidle_argv(t: &Theme) -> Vec<String> {
         "before-sleep".into(),
         lifelock,
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn spawn_line_carries_the_battery_frame_rate() {
+        let mut t = Theme::default();
+        t.lifewall.fps_battery = 8;
+        let cmd = lifewall_shell_cmd(&t);
+        assert!(cmd.contains("--fps 30 ") && cmd.ends_with("--fps-battery 8"), "{cmd}");
+        t.lifewall.fps_battery = 0;
+        assert!(lifewall_shell_cmd(&t).ends_with("--fps-battery 0"), "0 = don't throttle");
+    }
 }
