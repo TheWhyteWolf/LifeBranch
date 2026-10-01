@@ -1,14 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// lifeauth — the polkit authentication agent for LifeBranch. When something
-// needs admin rights (mounting a disk, `pkexec`, a settings change), polkitd
-// asks the session's agent; this one asks you through lifemenu's password box
-// and hands the answer to polkit's own helper, which runs PAM as root.
+// lifeauth — the session's credentials agent for LifeBranch, three in one:
 //
-// Replaces polkit-kde-agent: the same job without Qt, and the prompt in the
-// desktop's own look. Run one per graphical session (niri spawns it).
+//   polkit          admin rights (mounting a disk, `pkexec`, a settings change):
+//                   asks your password and hands it to polkit's helper, which
+//                   runs PAM as root. Replaces polkit-kde-agent.
+//   Bluetooth       pairing that needs a PIN, a passkey or "do the codes
+//                   match?". Replaces blueman-applet's agent.
+//   NetworkManager  a secret a connection lacks: a new wifi's password, an
+//                   enterprise network's login, a VPN's password. Replaces
+//                   nm-applet's agent.
+//
+// Every question is a lifemenu prompt, in the desktop's own look. Run one per
+// graphical session (niri spawns it). The polkit part is required; the other
+// two register whenever bluetoothd / NetworkManager are there.
 
 mod agent;
+mod bluetooth;
 mod helper;
+mod prompt;
+mod secrets;
 
 use std::collections::HashMap;
 use zbus::blocking::Connection;
@@ -52,13 +62,61 @@ fn session_id(bus: &Connection) -> Result<String, String> {
     Ok(id)
 }
 
+/// Register with a service now, and again every time it (re)starts: both
+/// bluetoothd and NetworkManager forget their agents when they restart.
+fn keep_registered(bus: &Connection, service: &'static str, what: &'static str, register: fn(&Connection) -> zbus::Result<()>) {
+    let bus = bus.clone();
+    std::thread::spawn(move || {
+        let try_now = |bus: &Connection| match register(bus) {
+            Ok(()) => eprintln!("lifeauth: {what} agent registered"),
+            Err(e) => eprintln!("lifeauth: no {what} agent ({e})"),
+        };
+        try_now(&bus);
+        let rule = format!("type='signal',sender='org.freedesktop.DBus',member='NameOwnerChanged',arg0='{service}'");
+        let Ok(mut it) = zbus::blocking::MessageIterator::for_match_rule(rule.as_str(), &bus, Some(8)) else { return };
+        while let Some(Ok(m)) = it.next() {
+            if let Ok((_, _, new)) = m.body().deserialize::<(String, String, String)>() {
+                if !new.is_empty() {
+                    // Give the service a moment to export its manager object.
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                    try_now(&bus);
+                }
+            }
+        }
+    });
+}
+
+fn register_bluetooth(bus: &Connection) -> zbus::Result<()> {
+    let path = zbus::zvariant::ObjectPath::try_from(bluetooth::PATH)?;
+    bus.call_method(Some("org.bluez"), "/org/bluez", Some("org.bluez.AgentManager1"), "RegisterAgent", &(&path, "KeyboardDisplay"))?;
+    bus.call_method(Some("org.bluez"), "/org/bluez", Some("org.bluez.AgentManager1"), "RequestDefaultAgent", &(&path,))?;
+    Ok(())
+}
+
+fn register_secrets(bus: &Connection) -> zbus::Result<()> {
+    bus.call_method(
+        Some("org.freedesktop.NetworkManager"),
+        "/org/freedesktop/NetworkManager/AgentManager",
+        Some("org.freedesktop.NetworkManager.AgentManager"),
+        "RegisterWithCapabilities",
+        &("org.lifebranch.lifeauth", secrets::VPN_HINTS),
+    )?;
+    Ok(())
+}
+
 fn run() -> Result<(), String> {
     let bus = zbus::blocking::connection::Builder::system()
         .map_err(|e| format!("system bus: {e}"))?
         .serve_at(PATH, agent::Agent::new())
         .map_err(|e| format!("object server: {e}"))?
+        .serve_at(bluetooth::PATH, bluetooth::Agent::default())
+        .map_err(|e| format!("object server: {e}"))?
+        .serve_at(secrets::PATH, secrets::Agent::default())
+        .map_err(|e| format!("object server: {e}"))?
         .build()
         .map_err(|e| format!("system bus: {e}"))?;
+    keep_registered(&bus, "org.bluez", "bluetooth", register_bluetooth);
+    keep_registered(&bus, "org.freedesktop.NetworkManager", "network secrets", register_secrets);
 
     let id = session_id(&bus)?;
     let mut details: HashMap<&str, Value> = HashMap::new();
@@ -91,7 +149,7 @@ fn run() -> Result<(), String> {
 
 fn main() {
     if std::env::args().nth(1).is_some_and(|a| a == "-h" || a == "--help") {
-        println!("lifeauth — polkit authentication agent (prompts through lifemenu)\nRun once per graphical session; takes no flags.");
+        println!("lifeauth — polkit, Bluetooth pairing and NetworkManager secret agent (prompts through lifemenu)\nRun once per graphical session; takes no flags.");
         return;
     }
     if let Err(e) = run() {

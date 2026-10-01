@@ -26,7 +26,7 @@ Rust components, built from source by the installer:
 | [`lifefiles`](lifefiles/README.md) | mouse-driven terminal file browser |
 | [`lifeshot`](lifeshot/README.md) | screenshot + annotation overlay |
 | [`lifemenu`](lifemenu/README.md) | launcher + dmenu (fuzzel-compatible flags; the scripts' menus) |
-| [`lifeauth`](lifeauth/README.md) | polkit authentication agent (asks through lifemenu) |
+| [`lifeauth`](lifeauth/README.md) | credentials agent: polkit passwords, Bluetooth pairing codes, network secrets (asks through lifemenu) |
 | [`lifebar`](lifebar/README.md) | status bar: workspaces, clock, readings, text tray (replaces waybar) |
 | [`lifeportal`](lifeportal/README.md) | file-chooser portal: apps' Open/Save dialogs are lifefiles |
 | [`lifeosd`](lifeosd/README.md) | volume/brightness on-screen bar (replaces wob) |
