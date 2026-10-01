@@ -42,7 +42,7 @@ fn parse_args() -> Config {
         lifewall --layer [flags]   draw on the Wayland background layer itself\n\
         lifewall [flags]           draw in this terminal (previews, kitten panel)\n\n\
         --tick SECS     seconds per generation        (default 0.3)\n\
-        --fps N         render frames per second      (default 30)\n\
+        --fps N         render frames per second      (default 15)\n\
         --fps-battery N frames per second on battery; 0 uses\n\
         \x20               --fps on battery too         (default 8)\n\
         --fade GENS     fade length in generations    (default 3)\n\

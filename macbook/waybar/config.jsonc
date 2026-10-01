@@ -104,7 +104,7 @@
     "interval": 5,
     "format": "CPU {usage}%",
     "states": { "warning": 70, "critical": 90 },
-    "on-click": "kitty -e htop"
+    "on-click": "~/.local/bin/sysmon.sh"
   },
 
   "memory": {
@@ -112,7 +112,7 @@
     "format": "MEM {percentage}%",
     "states": { "warning": 70, "critical": 90 },
     "tooltip-format": "{used:0.1f} / {total:0.1f} GiB",
-    "on-click": "kitty -e htop"
+    "on-click": "~/.local/bin/sysmon.sh"
   },
 
   "tray": {

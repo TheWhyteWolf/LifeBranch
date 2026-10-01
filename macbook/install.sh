@@ -3,15 +3,48 @@
 # Install the niri olive setup on the 2019 MacBook Pro (T2 / Arch):
 # packages + symlinks + validate. Idempotent — safe to re-run.
 # Needs your sudo password for the package step.
+#
+# Same two modes as the desktop installer: easy takes the recommended answer to
+# every question, full control asks about each step. LIFEBRANCH_EASY=1 or 0
+# skips the mode question.
 set -euo pipefail
 
 MAC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # <repo>/macbook
 REPO="$(cd "$MAC/.." && pwd)"                          # <repo> (shared theme files)
 
+# A `set -e` exit prints nothing at all, which is how a failed install ends up
+# described as "it didn't appear to do anything". Name the line that stopped,
+# and point at bootstrap.sh's transcript when there is one.
+fail_line=
+
+on_exit() {
+  local rc=$? log
+  (( rc )) || return 0
+  echo
+  if [[ -n $fail_line ]]; then
+    echo "!! macbook/install.sh stopped at line $fail_line (exit $rc)."
+  else
+    echo "!! macbook/install.sh stopped (exit $rc)."
+  fi
+  echo "   Fix what the error above says and run it again: this installer is"
+  echo "   idempotent, so a second run picks up where this one stopped."
+  log=${LIFEBRANCH_LOG:-$HOME/lifebranch-install.log}
+  [[ $log != none && -f $log ]] && echo "   Transcript: $log"
+  return 0
+}
+
+trap 'fail_line=$LINENO' ERR
+trap on_exit EXIT
+
 if [[ $(id -u) -eq 0 ]]; then
   echo "!! Run this as your own user, not as root." >&2
   exit 1
 fi
+
+# EASY, CONFIRM (pacman/yay --noconfirm in easy mode), interactive(), ask_yn.
+# shellcheck source=scripts/prompt.sh
+source "$REPO/scripts/prompt.sh"
+pick_mode
 
 # AUR helper, bootstrapped by curl when missing. No-op if yay is present.
 bash "$REPO/scripts/ensure-yay.sh"
@@ -23,11 +56,11 @@ source "$REPO/scripts/packages.sh"
 drop_conflicts
 
 echo "==> Installing packages from the official repos"
-sudo pacman -S --needed "${PKGS[@]}"
+sudo pacman -S --needed "${CONFIRM[@]}" "${PKGS[@]}"
 
 echo "==> Installing AUR packages: ${AUR_PKGS[*]}"
 if command -v yay >/dev/null 2>&1; then
-  yay -S --needed "${AUR_PKGS[@]}"
+  yay -S --needed "${CONFIRM[@]}" "${AUR_PKGS[@]}"
 else
   echo "    !! no AUR helper — skipping ${AUR_PKGS[*]}."
 fi
@@ -35,7 +68,7 @@ fi
 echo "==> Enabling the system services the Settings panels use"
 enable_services
 
-if [[ -t 0 ]]; then
+if interactive; then
   echo
   echo "==> Anything else you want installed?"
   echo "    Repos and the AUR are both available. Common picks:"
@@ -134,8 +167,8 @@ echo "==> Installing scripts into ~/.local/bin"
 # laptop-only addition).
 SCRIPTS=(clip-menu.sh power-menu.sh lifebg-toggle.sh vol-osd.sh
          dnd-toggle.sh float-snap.sh scratch-term.sh notif-menu.sh net-menu.sh
-         rec-toggle.sh pinentry-fuzzel.sh shortcuts-window.sh
-         detect-trackpad.sh setup-locale.sh lite-profile.sh bright-osd.sh)
+         rec-toggle.sh pinentry-fuzzel.sh shortcuts-window.sh sysmon.sh
+         detect-trackpad.sh setup-locale.sh lite-profile.sh bright-osd.sh idle-suspend.sh)
 chmod +x "$REPO/scripts/life.py"
 mkdir -p "$HOME/.local/bin"
 for s in "${SCRIPTS[@]}"; do
@@ -159,9 +192,10 @@ if bash "$REPO/scripts/detect-trackpad.sh" && has_region "$(readlink -f "$NIRI_C
   echo "    Proposed niri settings:"
   sed 's/^/    /' "$tp_block"
   echo
-  if [[ -t 0 ]]; then
-    read -rp "    Replace the touchpad block in your niri config with these? [y/N] " a
-    [[ ${a:-N} =~ ^[Yy]$ ]] && write_region "$NIRI_CFG" touchpad "$tp_block" niri validate --config
+  if ask_yn "Replace the touchpad block in your niri config with these?" n; then
+    # Never fatal: write_region has already put the previous config back, and
+    # a block that will not validate is no reason to abandon the whole install.
+    write_region "$NIRI_CFG" touchpad "$tp_block" niri validate --config || true
   fi
   rm -f "$tp_block"
 fi
@@ -183,8 +217,8 @@ done < <(bash "$REPO/scripts/setup-locale.sh" --detect)
 
 kb_layout=$det_layout kb_variant=$det_variant
 kb_numlock=$det_numlock kb_lat=$det_lat kb_lon=$det_lon
-if [[ -t 0 ]]; then
-  echo "    Detected from this system: layout '${det_layout}'${det_variant:+ (variant ${det_variant})}, timezone ${det_tz:-unknown}"
+echo "    Detected from this system: layout '${det_layout}'${det_variant:+ (variant ${det_variant})}, timezone ${det_tz:-unknown}"
+if interactive; then
   read -rp "    Keyboard layout [${det_layout}]: " a; kb_layout=${a:-$det_layout}
   read -rp "    Layout variant, or 'none' [${det_variant:-none}]: " a
   case ${a:-keep} in
@@ -210,13 +244,13 @@ if has_region "$(readlink -f "$NIRI_CFG")" keyboard; then
   kb_block=$(mktemp)
   bash "$REPO/scripts/setup-locale.sh" --keyboard-block \
        "$kb_layout" "$kb_variant" pc105 "$kb_numlock" > "$kb_block"
-  write_region "$NIRI_CFG" keyboard "$kb_block" niri validate --config
+  write_region "$NIRI_CFG" keyboard "$kb_block" niri validate --config || true
   rm -f "$kb_block"
 fi
 if [[ -n $kb_lat && -n $kb_lon ]] && has_region "$(readlink -f "$NIRI_CFG")" nightlight; then
   nl_block=$(mktemp)
   bash "$REPO/scripts/setup-locale.sh" --nightlight-block "$kb_lat" "$kb_lon" > "$nl_block"
-  write_region "$NIRI_CFG" nightlight "$nl_block" niri validate --config
+  write_region "$NIRI_CFG" nightlight "$nl_block" niri validate --config || true
   rm -f "$nl_block"
 fi
 
@@ -416,6 +450,13 @@ else
   echo "    cargo not found — skipping lifeconf (optional; configs stay as-is)."
 fi
 
+# --- Idle suspend ------------------------------------------------------------
+# The idle chain locks and blanks the screens and then stops, which is right for
+# the desktop this rice grew up on (it runs services and must never sleep) and
+# wrong for a laptop. Runs after lifeconf because theme.toml is what it edits.
+# The lid is already handled separately, by logind (macbook/system/logind-t2.conf).
+offer_idle_suspend "$HOME/.config/lifeconf/theme.toml"
+
 echo "==> GTK dark theme + cursor (GTK apps; Qt/KDE keeps its own settings)"
 if command -v gsettings >/dev/null 2>&1; then
   gsettings set org.gnome.desktop.interface gtk-theme "adw-gtk3-dark"
@@ -429,16 +470,19 @@ fi
 # PipeWire routing, 48 kHz pin, NCM-ethernet silencing, BT firmware from macOS.
 # Idempotent; see macbook/system/apply-system.sh for the full list.
 echo "==> T2 system plumbing (suspend/audio/network fixes; needs sudo)"
-read -rp "    Run macbook/system/apply-system.sh now? [Y/n] " a
-[[ "${a:-Y}" =~ ^[Yy]?$ ]] && sudo bash "$MAC/system/apply-system.sh"
+# This read used to be unguarded: with no terminal to answer it, `read` hit EOF
+# and `set -e` ended the install here, silently, before the performance profile
+# and `niri validate` had run. ask_yn takes the default instead.
+if ask_yn "Run macbook/system/apply-system.sh now?" y; then
+  sudo bash "$MAC/system/apply-system.sh"
+fi
 
 echo "==> Performance profile"
 if bash "$REPO/scripts/lite-profile.sh" --check; then
   bash "$REPO/scripts/lite-profile.sh" --why
   bash "$REPO/scripts/lite-profile.sh" --report
-  if [[ -t 0 ]]; then
-    read -rp "    Apply the lite profile? [Y/n] " a
-    [[ ${a:-Y} =~ ^[Yy]?$ ]] && bash "$REPO/scripts/lite-profile.sh" --apply
+  if ask_yn "Apply the lite profile?" y; then
+    bash "$REPO/scripts/lite-profile.sh" --apply
   fi
 else
   echo "    hardware looks comfortable — keeping the full look."
