@@ -177,8 +177,9 @@ spawn-at-startup "blueman-applet"
 // Polkit authentication agent — without one, GUI privilege prompts (GParted,
 // Dolphin mounting internal disks, firmware updates, lifeconf applying the
 // root-owned greeter config) never appear and the action silently fails.
-// KDE's agent: already installed, themed via qt6ct.
-spawn-at-startup "/usr/lib/polkit-kde-authentication-agent-1"
+// lifeauth asks through lifemenu's password box (journalctl -t lifeauth);
+// KDE's agent stays installed as the fallback until lifeauth is built.
+spawn-sh-at-startup "if [ -x ~/.local/bin/lifeauth ]; then exec systemd-cat -t lifeauth ~/.local/bin/lifeauth; else exec /usr/lib/polkit-kde-authentication-agent-1; fi"
 // LIFEBRANCH:BEGIN nightlight
 // Night light: warms the gamma after sunset (wlr-gamma-control).
 // Coordinates are London — adjust -l/-L for elsewhere.
