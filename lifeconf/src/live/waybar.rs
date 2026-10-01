@@ -26,6 +26,11 @@ fn last_sent() -> &'static Mutex<Option<Instant>> {
 /// on live preview. A poisoned lock degrades to "send anyway": dropping a
 /// reload is worse than sending one too many.
 pub fn reload(r: &mut Report, force: bool) {
+    // lifebar re-reads its config in place (no teardown), so it needs no
+    // rate limit.
+    if super::silent(Command::new("pkill").args(["-USR2", "-x", "lifebar"])) {
+        r.notes.push("live: lifebar reloaded (SIGUSR2)".into());
+    }
     let now = Instant::now();
     let send = match last_sent().lock() {
         Ok(mut last) => {

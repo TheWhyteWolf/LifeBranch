@@ -151,13 +151,13 @@ spawn-sh-at-startup "exec ~/.local/bin/lifebg --layer --font-family 'ShureTechMo
 // LIFECONF:BEGIN idle-timeouts
 spawn-at-startup "swayidle" "-w" "timeout" "600" "systemd-cat -t lifelock ~/.local/bin/lifelock -f" "timeout" "900" "niri msg action power-off-monitors; ~/.local/bin/lifebg-toggle.sh dpms-pause" "resume" "~/.local/bin/lifebg-toggle.sh dpms-resume" "lock" "systemd-cat -t lifelock ~/.local/bin/lifelock -f" "before-sleep" "systemd-cat -t lifelock ~/.local/bin/lifelock -f"
 // LIFECONF:END idle-timeouts
-// waybar is NOT spawned here — it runs as a supervised systemd user unit
-// (systemd/waybar.service, WantedBy=graphical-session.target). spawn-at-startup
-// gives a one-shot scope: when waybar dies the bar is just gone, and its stderr
-// is discarded so there is nothing to read afterwards. The unit restarts it and
-// journals it. It has been seen to die with a SIGSEGV inside libgdk-3 while
-// dispatching a Wayland output event; root cause is still open.
-//   journalctl --user -u waybar -b     systemctl --user reload waybar
+// The bar is NOT spawned here — it runs as a supervised systemd user unit:
+// lifebar.service, or waybar.service until lifebar is built (both
+// WantedBy=graphical-session.target). spawn-at-startup gives a one-shot scope:
+// when the bar dies it is just gone, and its stderr is discarded. The unit
+// restarts it and journals it. (waybar was seen dying with a SIGSEGV inside
+// libgdk-3 while dispatching a Wayland output event; that is why.)
+//   journalctl --user -u lifebar -b    systemctl --user reload lifebar
 // Polkit auth agent: pops the password dialog pkexec needs — e.g. lifeconf
 // applying the root-owned greeter config (/etc/lifegreet/config), and any GUI
 // app that touches system settings. lifeauth (prompts through lifemenu;
@@ -325,7 +325,7 @@ binds {
     Mod+E hotkey-overlay-title="File manager" { spawn-sh "kitty --class lifefiles -e ~/.local/bin/lifefiles"; }
 
     // --- Notifications ---
-    // Do-not-disturb toggle (lifenote ctl dnd; the waybar DND label mirrors it).
+    // Do-not-disturb toggle (lifenote ctl dnd; the bar's DND label mirrors it).
     Mod+N hotkey-overlay-title="Do not disturb" { spawn-sh "~/.local/bin/dnd-toggle.sh"; }
 
     // --- Window management ---

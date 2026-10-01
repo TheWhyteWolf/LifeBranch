@@ -75,15 +75,16 @@ pub fn new_history() -> History {
     Arc::new(Mutex::new(HistoryRing { entries: VecDeque::new(), unseen: 0 }))
 }
 
-/// Nudge waybar's `#` badge (custom/notif, `"signal": 9` — the dnd-toggle.sh
-/// RTMIN+8 pattern). Fire-and-forget; no waybar running is fine.
+/// Nudge the bar's `#` badge: lifebar, or waybar's custom/notif
+/// (`"signal": 9` — the dnd-toggle.sh RTMIN+8 pattern). Fire-and-forget; no
+/// bar running is fine.
 pub fn ping_waybar() {
     if cfg!(test) {
         return; // unit tests must not signal the live bar
     }
-    let _ = std::process::Command::new("pkill")
-        .args(["-RTMIN+9", "waybar"])
-        .status();
+    for bar in ["lifebar", "waybar"] {
+        let _ = std::process::Command::new("pkill").args(["-RTMIN+9", "-x", bar]).status();
+    }
 }
 
 pub struct Note {
