@@ -332,9 +332,9 @@ impl Panel {
                 l.right(&tail, Role::Dim, None).whole(Hit::Primary);
             }
             Item::Password => {
-                let n = self.password.as_ref().map_or(0, |(_, p)| p.chars().count());
+                // Nothing of the password is drawn, not even its length.
                 l.push("    password", Role::Label, None).to(VAL + 4);
-                l.push(&"*".repeat(n.min(COLS - VAL - 6)), Role::Value, None).push("▏", Role::Accent, None);
+                l.push("▏", Role::Accent, None);
                 l.right("enter", Role::Dim, Some(Hit::Primary));
             }
             Item::Bt => {
@@ -957,7 +957,8 @@ mod tests {
         }
         p.key(Key::Back);
         p.key(Key::Text("e".into())); // typed, not "eject"
-        assert_eq!(p.line(&Item::Password).text().matches('*').count(), 7);
+        let shown = p.line(&Item::Password).text();
+        assert!(!shown.contains('*') && !shown.contains("hunter"), "nothing typed is drawn: {shown}");
         assert_eq!(press(&mut p, Key::Enter), ["join Neighbour pw huntere"]);
         assert!(p.password.is_none() && p.sel == Item::Ap("Neighbour".into()));
     }
