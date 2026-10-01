@@ -16,6 +16,9 @@ fn numf(v: f64) -> String {
 }
 
 fn gen_animations(t: &Theme) -> String {
+    if t.accessibility.reduce_motion {
+        return "animations {\n    // Reduce motion is on (Settings > Accessibility).\n    off\n}".into();
+    }
     format!(
         "animations {{\n\
          \x20   // Crisper, less floaty (1.0 = niri default speed; lower = faster).\n\

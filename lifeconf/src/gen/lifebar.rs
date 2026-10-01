@@ -22,7 +22,7 @@ pub fn render(t: &Theme) -> String {
          warn={warn}\n\
          urgent={urgent}\n",
         family = plain_name(&t.font.family),
-        size = t.font.size,
+        size = t.accessibility.scaled(t.font.size as f64),
         bg = bare(&p.bg),
         surface = bare(&p.surface),
         border = bare(&p.border),
@@ -45,5 +45,18 @@ mod tests {
             assert!(s.lines().any(|l| l.starts_with(k)), "{k} missing:\n{s}");
         }
         assert!(s.lines().filter(|l| !l.starts_with('#')).all(|l| !l.contains('#')), "colours are bare hex");
+    }
+
+    #[test]
+    fn accessibility_scales_every_generated_ui_font_and_reduces_motion() {
+        let mut t = Theme::default();
+        t.accessibility.text_scale = 150;
+        t.accessibility.reduce_motion = true;
+        assert!(render(&t).contains("size=18\n"), "bar: 12 * 1.5");
+        assert!(crate::gen::fuzzel::render(&t).contains(":size=16.5\n"), "menus: 11 * 1.5");
+        assert!(crate::gen::lifenote::render(&t).contains("font-px=22.5\n"), "notifications: 15 * 1.5");
+        let cmd = crate::cmd::lifewall_shell_cmd(&t);
+        assert!(cmd.contains("--fps 2 ") && cmd.ends_with("--fps-battery 2"), "{cmd}");
+        assert_eq!(crate::theme::Accessibility::default().scaled(11.0), 11.0);
     }
 }
