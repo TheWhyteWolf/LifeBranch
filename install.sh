@@ -390,6 +390,23 @@ else
   echo "    WARNING: cargo not found — skipping lifeosd (wob stays the OSD)."
 fi
 
+# lifebar — the status bar (workspaces, clock, readings, a text tray),
+# replacing waybar. Built here, it takes over from the waybar unit; without
+# cargo the waybar unit enabled above stays the bar.
+echo "==> lifebar status bar (~/.local/bin/lifebar)"
+if command -v cargo >/dev/null 2>&1; then
+  (cd "$REPO/lifebar" && cargo build --release)
+  ln -sfn "$REPO/lifebar/target/release/lifebar" "$HOME/.local/bin/lifebar"
+  link "$REPO/systemd/lifebar.service" "$HOME/.config/systemd/user/lifebar.service"
+  systemctl --user daemon-reload
+  systemctl --user disable waybar.service 2>/dev/null || true
+  systemctl --user enable lifebar.service
+  echo "    lifebar.service enabled in place of waybar.service (takes effect at next login;"
+  echo "     now: systemctl --user stop waybar && systemctl --user start lifebar)"
+else
+  echo "    WARNING: cargo not found — skipping lifebar (waybar stays the bar)."
+fi
+
 # lifefiles — mouse-driven terminal file browser (Mod+E). Themed by lifeconf via
 # ~/.config/lifefiles/theme, and registered as the folder handler.
 echo "==> lifefiles file browser (~/.local/bin/lifefiles)"
@@ -445,6 +462,7 @@ if command -v cargo >/dev/null 2>&1; then
   # lifefiles' theme lives in ~/.config, not the repo.
   [[ -s "$HOME/.config/lifefiles/theme" ]] || theme_missing=1
   [[ -s "$HOME/.config/lifeshot/theme" ]] || theme_missing=1
+  [[ -s "$HOME/.config/lifebar/config" ]] || theme_missing=1
   if [[ ! -f "$HOME/.config/lifeconf/theme.toml" ]]; then
     echo "    seeding ~/.config/lifeconf/theme.toml (olive) and applying"
     "$HOME/.local/bin/lifeconf" --apply

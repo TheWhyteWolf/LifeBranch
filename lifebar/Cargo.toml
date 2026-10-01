@@ -1,0 +1,23 @@
+[package]
+name = "lifebar"
+version = "0.1.0"
+edition = "2021"
+description = "The LifeBranch status bar: niri workspaces, clock, system readings and a text tray, replacing waybar"
+license = "GPL-3.0-or-later"
+authors = ["Whyte Erminae"]
+
+[dependencies]
+# Pinned in lockstep with ../lifelock, ../lifenote, ../lifemenu and ../lifepanel.
+smithay-client-toolkit = "=0.20.0"
+libc = "0.2"
+lifefont = { path = "../lifefont" }  # lazy glyphs; see lifefont/Cargo.toml
+# niri's IPC speaks JSON.
+serde_json = "1"
+# The tray is StatusNotifierItem + dbusmenu over D-Bus: the same exception
+# lifenote and lifeauth make rather than hand-roll the wire protocol.
+zbus = "5"
+
+[profile.release]
+lto = true
+strip = true
+panic = "abort"

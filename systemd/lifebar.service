@@ -1,0 +1,27 @@
+# lifebar, the LifeBranch status bar, as a supervised user unit (the same
+# reasons waybar.service gives: a niri-spawned bar that dies stays dead, and
+# its stderr is lost). The installers enable this instead of waybar.service
+# once lifebar is built.
+#
+# Read its output with: journalctl --user -u lifebar -b
+
+[Unit]
+Description=lifebar (LifeBranch status bar)
+PartOf=graphical-session.target
+After=graphical-session.target
+# No compositor, nothing to attach to: don't restart-loop.
+ConditionEnvironment=WAYLAND_DISPLAY
+# A status bar must come back forever. A [Unit] key: ignored under [Service].
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/lifebar
+# SIGUSR2 re-reads ~/.config/lifebar/config, the poke lifeconf sends.
+ExecReload=/bin/kill -USR2 $MAINPID
+Restart=always
+RestartSec=2
+Slice=app.slice
+
+[Install]
+WantedBy=graphical-session.target

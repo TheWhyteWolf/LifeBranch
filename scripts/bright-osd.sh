@@ -11,6 +11,9 @@ case "${1:-}" in
   *)    echo "usage: bright-osd.sh up|down" >&2; exit 2 ;;
 esac
 
+# lifebar re-reads BRT now (the kernel's uevent would tell it shortly too).
+pkill -RTMIN+10 -x lifebar 2>/dev/null || true
+
 run="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 osd="$run/lifeosd.fifo" sock="$run/wob.sock"
 [[ -p "$osd" || -p "$sock" ]] || exit 0   # no OSD running; brightness changed anyway

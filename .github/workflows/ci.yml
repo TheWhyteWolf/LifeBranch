@@ -104,7 +104,7 @@ jobs:
 
       - name: cargo build
         run: |
-          for c in lifefont lifewall lifelock lifenote lifeconf lifegreet lifefiles lifeshot lifemenu lifeauth lifepanel lifeosd; do
+          for c in lifefont lifewall lifelock lifenote lifeconf lifegreet lifefiles lifeshot lifemenu lifeauth lifepanel lifeosd lifebar; do
             echo "::group::$c"
             cargo build --release --manifest-path "$c/Cargo.toml"
             echo "::endgroup::"
