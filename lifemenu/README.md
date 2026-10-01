@@ -16,7 +16,7 @@ one word, and each still falls back to fuzzel when lifemenu isn't installed:
 |---|---|
 | `-d`, `--dmenu` | choices from stdin; print the pick |
 | `--index` | print the pick's 0-based index instead |
-| `--password` | mask the input; prints what was typed |
+| `--password` | hide the input entirely (only the cursor shows); prints what was typed |
 | `--only-match` | Enter does nothing unless a choice matches |
 | `-p`, `--prompt TEXT` | the prompt |
 | `--prompt-only TEXT` | a bare input box, no list |
