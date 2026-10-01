@@ -26,6 +26,7 @@ Rust components, built from source by the installer:
 | [`lifefiles`](lifefiles/README.md) | mouse-driven terminal file browser |
 | [`lifeshot`](lifeshot/README.md) | screenshot + annotation overlay |
 | [`lifemenu`](lifemenu/README.md) | launcher + dmenu (fuzzel-compatible flags; the scripts' menus) |
+| [`lifeauth`](lifeauth/README.md) | polkit authentication agent (asks through lifemenu) |
 | [`lifefont`](lifefont/README.md) | shared glyph rasterizer (library; lazy, ~37 MB less per process than fontdue) |
 
 ## Install

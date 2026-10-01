@@ -10,6 +10,7 @@ lifeconf/target/
 lifefiles/target/
 lifeshot/target/
 lifemenu/target/
+lifeauth/target/
 lifefont/target/
 
 # Zip/archive artifacts
