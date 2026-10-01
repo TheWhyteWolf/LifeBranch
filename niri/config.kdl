@@ -163,7 +163,7 @@ spawn-at-startup "swayidle" "-w" "timeout" "600" "systemd-cat -t lifelock ~/.loc
 // journals it. It has been seen to die with a SIGSEGV inside libgdk-3 while
 // dispatching a Wayland output event; root cause is still open.
 //   journalctl --user -u waybar -b     systemctl --user reload waybar
-// Notifications: lifenote (box-drawing frames, ~/niri/lifenote). systemd-cat
+// Notifications: lifenote (box-drawing frames, ~/LifeBranch/lifenote). systemd-cat
 // for the same stderr reason as lifelock above. mako stays installed as the
 // fallback: pkill lifenote && mako.
 spawn-sh-at-startup "systemd-cat -t lifenote ~/.local/bin/lifenote"
@@ -306,6 +306,14 @@ binds {
     // Media play/pause on the same numpad row (MPRIS via playerctl).
     Mod+KP_Divide   allow-when-locked=true { spawn "playerctl" "play-pause"; }
     XF86AudioPlay   allow-when-locked=true { spawn "playerctl" "play-pause"; }
+
+    // --- Settings ---
+    // lifeconf GUI: theme + system panels (sound, …).
+    Mod+S hotkey-overlay-title="Settings" { spawn-sh "~/.local/bin/lifeconf --gui"; }
+
+    // --- Files ---
+    // lifefiles: mouse-driven terminal file browser (yazi-style columns).
+    Mod+E hotkey-overlay-title="File manager" { spawn-sh "kitty --class lifefiles -e ~/.local/bin/lifefiles"; }
 
     // --- Notifications ---
     // Do-not-disturb toggle (lifenote ctl dnd; the waybar DND label mirrors it).

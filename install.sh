@@ -99,13 +99,18 @@ if [[ -t 0 ]]; then
 fi
 
 # --- Config symlinks ---------------------------------------------------------
-# link SRC DST — back up a real file at DST to DST.bak (once), then symlink.
+# link SRC DST — back up a real file at DST to DST.bak, then symlink. The first
+# .bak is the pre-LifeBranch original and is never overwritten: a later real
+# file at DST (a re-run after something replaced the link) goes to a
+# timestamped DST.bak.<epoch> instead.
 link() {
-  local src="$1" dst="$2"
+  local src="$1" dst="$2" bak
   mkdir -p "$(dirname "$dst")"
   if [[ -e "$dst" && ! -L "$dst" ]]; then
-    echo "    backing up $dst -> $dst.bak"
-    mv "$dst" "$dst.bak"
+    bak="$dst.bak"
+    [[ -e $bak || -L $bak ]] && bak="$dst.bak.$(date +%s)"
+    echo "    backing up $dst -> $bak"
+    mv "$dst" "$bak"
   fi
   ln -sfn "$src" "$dst"
   echo "    linked $dst -> $src"
@@ -166,7 +171,7 @@ echo "==> Installing scripts into ~/.local/bin"
 # One list drives both chmod and symlink. life.py stays outside: chmod'd here
 # but only linked (as lifebg) in the no-cargo fallback below.
 SCRIPTS=(clip-menu.sh power-menu.sh lifebg-toggle.sh vol-osd.sh
-         dnd-toggle.sh float-snap.sh scratch-term.sh notif-menu.sh
+         dnd-toggle.sh float-snap.sh scratch-term.sh notif-menu.sh net-menu.sh
          rec-toggle.sh pinentry-fuzzel.sh shortcuts-window.sh
          detect-trackpad.sh setup-locale.sh lite-profile.sh)
 chmod +x "$REPO/scripts/life.py"
@@ -362,6 +367,31 @@ mkdir -p "$HOME/.local/share/dbus-1/services"
 printf '[D-BUS Service]\nName=org.freedesktop.Notifications\nExec=/usr/bin/false\n' \
   > "$HOME/.local/share/dbus-1/services/org.kde.plasma.Notifications.service"
 
+# lifefiles — mouse-driven terminal file browser (Mod+E). Themed by lifeconf via
+# ~/.config/lifefiles/theme, and registered as the folder handler.
+echo "==> lifefiles file browser (~/.local/bin/lifefiles)"
+if command -v cargo >/dev/null 2>&1; then
+  (cd "$REPO/lifefiles" && cargo build --release)
+  ln -sfn "$REPO/lifefiles/target/release/lifefiles" "$HOME/.local/bin/lifefiles"
+  apps="$HOME/.local/share/applications"
+  mkdir -p "$apps"
+  sed "s|-e lifefiles|-e $HOME/.local/bin/lifefiles|" \
+    "$REPO/lifefiles/lifefiles.desktop" > "$apps/lifefiles.desktop"
+  command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$apps" 2>/dev/null || true
+  # Folder links in browsers/portals ("show in folder") open here — but only
+  # take the slot when it is unset or still the Dolphin this installer put there;
+  # a file manager you chose yourself stays. (lifeconf's Apps panel switches it.)
+  if command -v xdg-mime >/dev/null 2>&1; then
+    cur_fm="$(xdg-mime query default inode/directory 2>/dev/null || true)"
+    case "$cur_fm" in
+      ""|org.kde.dolphin.desktop) xdg-mime default lifefiles.desktop inode/directory ;;
+      *) echo "    keeping $cur_fm as the folder handler (change it in lifeconf > Apps)" ;;
+    esac
+  fi
+else
+  echo "    WARNING: cargo not found — skipping lifefiles (Mod+E will do nothing)."
+fi
+
 # lifeconf — the theming/settings front-end. One ~/.config/lifeconf/theme.toml
 # drives waybar/kitty/fuzzel/lifenote/swaylock/lifelock/lifegreet/niri; `lifeconf
 # --apply` regenerates them all. Seeded from the olive preset on first run.
@@ -379,6 +409,8 @@ if command -v cargo >/dev/null 2>&1; then
              lifenote/config swaylock/config; do
     [[ -s "$REPO/$gen" ]] || theme_missing=1
   done
+  # lifefiles' theme lives in ~/.config, not the repo.
+  [[ -s "$HOME/.config/lifefiles/theme" ]] || theme_missing=1
   if [[ ! -f "$HOME/.config/lifeconf/theme.toml" ]]; then
     echo "    seeding ~/.config/lifeconf/theme.toml (olive) and applying"
     "$HOME/.local/bin/lifeconf" --apply

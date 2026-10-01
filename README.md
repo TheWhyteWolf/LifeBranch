@@ -23,6 +23,7 @@ Rust components, built from source by the installer:
 | [`lifelock`](lifelock/README.md) | screen locker, PAM-backed |
 | [`lifenote`](lifenote/README.md) | notification daemon |
 | [`lifegreet`](lifegreet/README.md) | login screen |
+| [`lifefiles`](lifefiles/README.md) | mouse-driven terminal file browser |
 
 ## Install
 
@@ -133,6 +134,7 @@ scripts/power-menu.sh    -> ~/.local/bin/power-menu.sh
 scripts/lifebg-toggle.sh -> ~/.local/bin/lifebg-toggle.sh
 scripts/vol-osd.sh   -> ~/.local/bin/vol-osd.sh (volume keys -> wpctl + wob flash)
 scripts/dnd-toggle.sh -> ~/.local/bin/dnd-toggle.sh (lifenote do-not-disturb, Mod+N)
+scripts/net-menu.sh  -> ~/.local/bin/net-menu.sh (wifi menu, waybar NET click)
 scripts/notif-menu.sh -> ~/.local/bin/notif-menu.sh (waybar # button: notification history)
 scripts/float-snap.sh -> ~/.local/bin/float-snap.sh (floating window snapping, Mod+Alt+arrows)
 scripts/scratch-term.sh -> ~/.local/bin/scratch-term.sh (dropdown terminal, Mod+Grave)
@@ -148,6 +150,7 @@ scripts/config-region.sh (sourced helper: rewrite fenced LIFEBRANCH regions safe
 bootstrap.sh         (curl entry point: clone + install)
 lifeconf/            -> ~/.local/bin/lifeconf (rust build; the theming front-end)
 lifenote/            -> ~/.local/bin/lifenote (rust build; the notification daemon)
+lifefiles/           -> ~/.local/bin/lifefiles (rust build; the file browser, Mod+E)
 lifewall/            -> ~/.local/bin/lifebg (rust build; scripts/life.py if no cargo)
 lifelock/            -> ~/.local/bin/lifelock (rust build; the lock screen)
 lifegreet/           -> /usr/local/bin/lifegreet (rust build by greeter-install.sh; the login screen)
@@ -177,6 +180,8 @@ greetd/greetd.service.d/lifegreet.conf -> /etc/systemd/system/greetd.service.d/ 
 | `Mod+KP_Add/Subtract/Multiply` | volume up / down / mute (wob OSD flash) |
 | `Mod+KP_Divide` | media play/pause (playerctl) |
 | `Mod+N` | do-not-disturb toggle (lifenote + waybar DND label) |
+| `Mod+E` | file manager (lifefiles, in kitty) |
+| `Mod+S` | settings (lifeconf GUI) |
 | `Mod+Alt+Escape` | lock screen (moved from `Mod+Alt+L` for the snap mirror) |
 | `Mod+Shift+E` | power menu |
 | `Mod+Shift+G` | pause/resume wallpaper |
