@@ -249,6 +249,7 @@ name = "lifefont"
 version = "0.1.0"
 dependencies = [
  "ab_glyph",
+ "libc",
 ]
 
 [[package]]

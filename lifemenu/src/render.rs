@@ -2,6 +2,10 @@
 // Monospace text into a premultiplied ARGB8888 canvas (the panel is slightly
 // translucent, like fuzzel's). Adapted from lifeconf/src/gui/render.rs: each
 // char is rasterized once into a cell-sized coverage bitmap and cached.
+//
+// A char the font lacks (emoji and CJK in window titles, accented names) comes
+// from whatever font fontconfig picks for it, as kitty does; one with no
+// outline anywhere (colour-bitmap emoji) is a blank cell, not a tofu box.
 
 use crate::cli::Rgba;
 use lifefont::Font;
@@ -10,6 +14,8 @@ use std::process::Command;
 
 pub struct Atlas {
     font: Font,
+    /// Fonts loaded for chars `font` lacks, keyed by file#index.
+    fallbacks: Vec<(String, Font)>,
     px: f32,
     pub cw: usize,
     pub ch: usize,
@@ -35,7 +41,7 @@ impl Atlas {
         let lm = font.horizontal_line_metrics(px).ok_or("font has no line metrics")?;
         let cw = font.metrics('M', px).advance_width.round().max(1.0) as usize;
         let ch = (lm.ascent - lm.descent).ceil().max(1.0) as usize;
-        Ok(Atlas { font, px, cw, ch, ascent: lm.ascent.round() as i32, cache: HashMap::new() })
+        Ok(Atlas { font, fallbacks: Vec::new(), px, cw, ch, ascent: lm.ascent.round() as i32, cache: HashMap::new() })
     }
 
     fn cell(&mut self, c: char) -> &[u8] {
@@ -46,11 +52,31 @@ impl Atlas {
         &self.cache[&c]
     }
 
-    fn rasterize(&self, c: char) -> Vec<u8> {
-        let (cw, ch) = (self.cw, self.ch);
+    /// The font to draw `c` with: ours, else a fallback that has it.
+    fn font_for(&mut self, c: char) -> Option<&Font> {
+        if self.font.has_glyph(c) || c.is_ascii() {
+            return Some(&self.font);
+        }
+        if let Some(i) = self.fallbacks.iter().position(|(_, f)| f.has_glyph(c)) {
+            return Some(&self.fallbacks[i].1);
+        }
+        let (file, index) = fc_match(&format!(":charset={:x}", c as u32))?;
+        let key = format!("{file}#{index}");
+        if self.fallbacks.iter().any(|(k, _)| *k == key) {
+            return None; // fontconfig's best is a font we know lacks it
+        }
+        let font = Font::from_path_index(&file, index).ok()?;
+        let has = font.has_glyph(c);
+        self.fallbacks.push((key, font));
+        if has { self.fallbacks.last().map(|(_, f)| f) } else { None }
+    }
+
+    fn rasterize(&mut self, c: char) -> Vec<u8> {
+        let (cw, ch, px, ascent) = (self.cw, self.ch, self.px, self.ascent);
         let mut out = vec![0u8; cw * ch];
-        let (m, cov) = self.font.rasterize(c, self.px);
-        let y_top = self.ascent - (m.ymin + m.height as i32);
+        let Some(font) = self.font_for(c) else { return out };
+        let (m, cov) = font.rasterize(c, px);
+        let y_top = ascent - (m.ymin + m.height as i32);
         for ry in 0..m.height {
             let y = y_top + ry as i32;
             if y < 0 || y as usize >= ch {
