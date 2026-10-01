@@ -1,0 +1,19 @@
+[package]
+name = "lifefiles"
+version = "0.1.0"
+edition = "2021"
+description = "mouse-driven terminal file browser for the niri olive rice (three-pane, yazi-fast, themed by lifeconf)"
+license = "GPL-3.0-or-later"
+authors = ["Whyte Erminae"]
+
+[dependencies]
+# Same ratatui as lifeconf's TUI; it re-exports crossterm so there is one
+# version to track.
+ratatui = "0.29"
+# localtime_r for trash DeletionDate, nothing else.
+libc = "0.2"
+
+[profile.release]
+lto = true
+strip = true
+panic = "abort"
