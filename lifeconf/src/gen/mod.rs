@@ -10,6 +10,7 @@ pub mod lifefiles;
 pub mod lifegreet;
 pub mod lifelock;
 pub mod lifenote;
+pub mod lifeshot;
 pub mod niri_kdl;
 pub mod swaylock;
 pub mod waybar;
@@ -96,6 +97,7 @@ pub fn generate_theme_files(theme: &Theme, paths: &Paths, r: &mut Report) {
     write(r, paths.config("swaylock/config"), swaylock::render(theme));
     write(r, paths.config("lifelock/config"), lifelock::render(theme));
     write(r, paths.config("lifefiles/theme"), lifefiles::render(theme));
+    write(r, paths.config("lifeshot/theme"), lifeshot::render(theme));
 }
 
 /// Regenerate every theme-derived config. Returns a report of what changed and
