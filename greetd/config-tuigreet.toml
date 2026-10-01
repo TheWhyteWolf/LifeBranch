@@ -1,6 +1,6 @@
 # greetd — FALLBACK tuigreet greeter config. The active config (config.toml)
 # runs lifegreet; install this one instead if the cube greeter ever breaks:
-#   sudo install -Dm644 ~/niri/greetd/config-tuigreet.toml /etc/greetd/config.toml
+#   sudo install -Dm644 ~/LifeBranch/greetd/config-tuigreet.toml /etc/greetd/config.toml
 # Runs tuigreet on vt1; sessions from wayland-sessions (Niri + Plasma),
 # default niri-session, remembered per user.
 #
