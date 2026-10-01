@@ -35,7 +35,7 @@ pub fn render(t: &Theme) -> String {
          text-clear-color={text}\n\
          text-ver-color={accent}\n\
          text-wrong-color={urgent}\n",
-        family = t.font.family,
+        family = crate::theme::plain_name(&t.font.family),
         bg = bare(&p.bg),
         surface = bare(&p.surface),
         border = bare(&p.border),

@@ -30,7 +30,8 @@ pub fn render(t: &Theme) -> String {
          max-lines=6\n\n\
          anchor={anchor}\n\
          margin=8\n\
-         layer=top\n",
+         layer=top\n\n\
+         dismiss-on-click-outside={click_out}\n",
         border_style = n.border_style,
         crit_style = n.critical_border_style,
         surface = hash(&p.surface),
@@ -41,5 +42,19 @@ pub fn render(t: &Theme) -> String {
         warn = hash(&p.warn),
         urgent = hash(&p.urgent),
         anchor = n.position,
+        click_out = n.dismiss_on_click_outside,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn click_outside_is_emitted() {
+        let mut t = Theme::default();
+        assert!(render(&t).contains("dismiss-on-click-outside=false"));
+        t.lifenote.dismiss_on_click_outside = true;
+        assert!(render(&t).contains("dismiss-on-click-outside=true"));
+    }
 }
