@@ -123,20 +123,15 @@ echo "==> Symlinking configs into ~/.config"
 # Create them before linking: the symlinks below point into the repo, and
 # `lifeconf --apply` writes through them, so a missing directory turns into a
 # write failure and a dangling symlink (unthemed bar/launcher/locker).
-mkdir -p "$REPO/waybar" "$REPO/fuzzel" "$REPO/kitty" "$REPO/lifenote" "$REPO/swaylock"
+mkdir -p "$REPO/fuzzel" "$REPO/kitty" "$REPO/lifenote" "$REPO/swaylock"
 # Laptop-specific (from macbook/):
 link "$MAC/niri/config.kdl"      "$HOME/.config/niri/config.kdl"
-link "$MAC/waybar/config.jsonc"  "$HOME/.config/waybar/config.jsonc"
 # Shared olive theme (from the repo root):
-link "$REPO/waybar/style.css"    "$HOME/.config/waybar/style.css"
 link "$REPO/fuzzel/fuzzel.ini"   "$HOME/.config/fuzzel/fuzzel.ini"
-link "$REPO/mako/config"         "$HOME/.config/mako/config"     # fallback daemon
 link "$REPO/lifenote/config"     "$HOME/.config/lifenote/config"
 link "$REPO/kitty/rice.conf"     "$HOME/.config/kitty/rice.conf"
 link "$REPO/kitty/olive.conf"    "$HOME/.config/kitty/olive.conf"
 link "$REPO/tmpfiles/kitty.conf" "$HOME/.config/user-tmpfiles.d/kitty.conf"
-link "$REPO/systemd/waybar.service" "$HOME/.config/systemd/user/waybar.service"
-link "$REPO/wob/wob.ini"         "$HOME/.config/wob/wob.ini"
 link "$REPO/swaylock/config"     "$HOME/.config/swaylock/config"
 link "$REPO/xdg/portals.conf"    "$HOME/.config/xdg-desktop-portal/portals.conf"
 link "$REPO/qt6ct/qt6ct.conf"    "$HOME/.config/qt6ct/qt6ct.conf"
@@ -166,11 +161,6 @@ else
   echo "    note: the kitty socket dir was not created now — it will be at next login."
 fi
 
-# waybar is a supervised systemd user unit, not a niri spawn — the niri configs
-# stopped spawning it, so without this the bar never starts at all.
-echo "==> Enabling the waybar user unit"
-systemctl --user daemon-reload
-systemctl --user enable waybar.service
 
 echo "==> Installing scripts into ~/.local/bin"
 # One list drives both chmod and symlink — the desktop installer's shape, so a
@@ -290,15 +280,14 @@ else
 fi
 
 # lifenote — box-drawing-framed notification daemon (desktop parity). Replaces
-# mako in spawn-at-startup; mako stays installed as the fallback (pkill lifenote
-# && mako). The waybar #/DND modules talk to `lifenote ctl`.
+# mako in spawn-at-startup. The bar's #/DND labels talk to `lifenote ctl`.
 echo "==> lifenote notification daemon (~/.local/bin/lifenote)"
 if command -v cargo >/dev/null 2>&1; then
   (cd "$REPO/lifenote" && cargo build --release)
   ln -sfn "$REPO/lifenote/target/release/lifenote" "$HOME/.local/bin/lifenote"
 else
   echo "    ERROR: cargo not found — niri spawns lifenote for notifications."
-  echo "    Install rust, or point the spawn-at-startup line back at mako."
+  echo "    Install rust and run this again."
   exit 1
 fi
 
@@ -347,12 +336,12 @@ if command -v cargo >/dev/null 2>&1; then
   (cd "$REPO/lifeosd" && cargo build --release)
   ln -sfn "$REPO/lifeosd/target/release/lifeosd" "$HOME/.local/bin/lifeosd"
 else
-  echo "    WARNING: cargo not found — skipping lifeosd (wob stays the OSD)."
+  echo "    WARNING: cargo not found — skipping lifeosd (no volume OSD)."
 fi
 
 # lifebar — the status bar (workspaces, clock, readings, a text tray),
-# replacing waybar. Built here, it takes over from the waybar unit; without
-# cargo the waybar unit enabled above stays the bar.
+# replacing waybar. A machine upgraded from the waybar days gets that unit
+# disabled here.
 echo "==> lifebar status bar (~/.local/bin/lifebar)"
 if command -v cargo >/dev/null 2>&1; then
   (cd "$REPO/lifebar" && cargo build --release)
@@ -361,10 +350,9 @@ if command -v cargo >/dev/null 2>&1; then
   systemctl --user daemon-reload
   systemctl --user disable waybar.service 2>/dev/null || true
   systemctl --user enable lifebar.service
-  echo "    lifebar.service enabled in place of waybar.service (takes effect at next login;"
-  echo "     now: systemctl --user stop waybar && systemctl --user start lifebar)"
+  echo "    lifebar.service enabled (starts at next login; now: systemctl --user start lifebar)"
 else
-  echo "    WARNING: cargo not found — skipping lifebar (waybar stays the bar)."
+  echo "    WARNING: cargo not found — skipping lifebar (there will be no bar)."
 fi
 
 # lifeportal — apps' Open/Save dialogs become lifefiles (--pick), through
@@ -437,7 +425,7 @@ if command -v cargo >/dev/null 2>&1; then
   # the old first-run-only test left a fresh clone's symlinks dangling and the
   # bar fell back to waybar's built-in stylesheet.
   theme_missing=0
-  for gen in waybar/style.css fuzzel/fuzzel.ini kitty/olive.conf \
+  for gen in fuzzel/fuzzel.ini kitty/olive.conf \
              lifenote/config swaylock/config; do
     [[ -s "$REPO/$gen" ]] || theme_missing=1
   done
@@ -470,6 +458,10 @@ fi
 # wrong for a laptop. Runs after lifeconf because theme.toml is what it edits.
 # The lid is already handled separately, by logind (macbook/system/logind-t2.conf).
 offer_idle_suspend "$HOME/.config/lifeconf/theme.toml"
+
+# The tray applets, waybar, wob, udiskie, fuzzel, mako and polkit-kde-agent that
+# the life* components replaced: offer to remove what is left of them.
+offer_remove_legacy
 
 echo "==> GTK dark theme + cursor (GTK apps; Qt/KDE keeps its own settings)"
 if command -v gsettings >/dev/null 2>&1; then
@@ -529,8 +521,8 @@ cat <<'EOF'
       Hibernate stays masked on purpose: the T2 cannot survive it.
     - Power menu: Mod+Shift+E (lock/suspend/logout/reboot/poweroff — Suspend
       shows here because sleep.target isn't masked).
-    - Volume/brightness keys flash the lifeosd bar (wob if lifeosd isn't built).
-    - Do-not-disturb: Mod+N (or click the DND label in waybar).
+    - Volume/brightness keys flash the lifeosd bar.
+    - Do-not-disturb: Mod+N (or click the DND label in the bar).
     - swayidle starts with niri — log out/in (or run the spawn line by hand) to arm it.
     - Restart kitty windows to pick up transparency + font + olive palette (rice.conf).
     - Optional olive login screen: bash ../greeter-install.sh
