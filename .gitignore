@@ -13,6 +13,7 @@ lifemenu/target/
 lifeauth/target/
 lifefont/target/
 lifepanel/target/
+lifeosd/target/
 
 # Zip/archive artifacts
 *.zip
