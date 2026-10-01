@@ -25,6 +25,7 @@ pub enum Act {
     Idle,
     Panel,
     NetSettings,
+    VpnSettings,
     Mute,
     SoundSettings,
     Volume(i32),
@@ -86,6 +87,7 @@ pub struct State {
     pub notes: Option<(u32, bool)>,
     pub idle_inhibited: bool,
     pub net: Option<Net>,
+    pub vpn: bool,
     pub backlight: Option<u32>,
     pub volume: Option<(u32, bool)>,
     pub battery: Option<Battery>,
@@ -158,6 +160,9 @@ impl State {
                 Net::Down => Seg::new("NET --", Role::Urgent),
             };
             v.push(s.on(Act::Panel).on_right(Act::NetSettings));
+        }
+        if self.vpn {
+            v.push(Seg::new("VPN", Role::Accent).on(Act::Panel).on_right(Act::VpnSettings));
         }
         if let Some(b) = self.backlight {
             v.push(Seg::new(format!("BRT {b}%"), Role::Text).on(Act::Panel).on_wheel(Act::Brightness(1), Act::Brightness(-1)));

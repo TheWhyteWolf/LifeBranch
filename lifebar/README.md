@@ -22,6 +22,7 @@ is private (the rest is the shared font and libraries). waybar was 74 MB.
 | `DND` | only while do-not-disturb is on | toggle it | |
 | `IDLE`/`WAKE` | idle inhibitor | toggle: WAKE holds off lock and screen-off | |
 | `NET` | wifi strength, `NET` wired, `NET --` offline | quick settings (lifepanel) | right: Network settings |
+| `VPN` | only while a tunnel other than Tailscale's is up (WireGuard, OpenVPN, Proton, Mullvad) | quick settings | right: VPN settings |
 | `BRT` | panel backlight (laptops) | quick settings | wheel: brightness |
 | `VOL` / `MUTE` | default output | mute | right: Sound settings; wheel: volume |
 | `BAT` / `CHG` / `AC` | battery (laptops) | quick settings | |

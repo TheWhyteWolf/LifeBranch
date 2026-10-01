@@ -218,6 +218,23 @@ clear_orphan_debug() {
   fi
 }
 
+# offer_tailscale_operator: Tailscale refuses `tailscale up/down/set` from a
+# normal user until that user is its operator, which is what the VPN panel and
+# lifepanel's quick toggle run. One sudo, once; skipped when Tailscale isn't
+# installed or already trusts this user.
+offer_tailscale_operator() {
+  command -v tailscale >/dev/null 2>&1 || return 0
+  local me op
+  me=$(id -un)
+  op=$(tailscale debug prefs 2>/dev/null | jq -r '.OperatorUser // ""' 2>/dev/null) || return 0
+  [[ $op == "$me" ]] && return 0
+  echo "==> Tailscale: let $me switch it on and off and pick exit nodes (Settings > VPN)"
+  if ask_yn "Make $me Tailscale's operator?" y; then
+    sudo tailscale set --operator="$me" && echo "    done" || echo "    !! tailscale set --operator failed; carrying on"
+  fi
+  return 0
+}
+
 # filter_wanted: the same checks over the extra packages someone types at the
 # installer's "anything else?" question, which may be repo or AUR names alike.
 # Reads and rewrites the array WANTED.

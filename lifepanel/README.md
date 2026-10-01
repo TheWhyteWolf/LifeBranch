@@ -32,7 +32,8 @@ and so do Esc and clicking a window.
 |---|---|---|
 | move | Up/Down, Tab | hover |
 | wifi/bluetooth on/off | Left/Right | click `[on]` |
-| list networks/devices | Enter | click the row |
+| list networks/devices/VPNs | Enter | click the row |
+| VPN connect/disconnect | Enter on it | click it |
 | join/connect/disconnect | Enter on it | click it |
 | volume, mic, brightness | Left/Right (5% steps) | click the bar, wheel |
 | mute | Enter, or `m` | click `mute` |
@@ -50,6 +51,16 @@ notification.
 
 Drives are listed only while something removable is plugged in. Eject unmounts
 the drive's filesystems and powers it off, so it is safe to pull.
+
+## VPN
+
+The `vpn` row lists every tunnel the machine has (NetworkManager WireGuard and
+OpenVPN profiles, Tailscale, Proton VPN, Mullvad) and says which are on.
+Enter on one connects or disconnects it. A NetworkManager profile that needs a
+password asks in lifemenu's password box, and the password goes to nmcli on
+stdin (nm-applet used to answer these). Setting things up — importing a
+`.conf`/`.ovpn`, exit nodes, locations, deleting — is the VPN page in Settings;
+the logic is shared, `lifeconf/src/sys/vpn.rs`.
 
 ## Where things come from
 
@@ -88,8 +99,9 @@ built.
   registered yet, so devices that need one (keyboards, phones) fail with
   bluetoothctl's message. "Just works" devices (headphones, speakers, most
   mice) pair fine. blueman-manager is still installed for the others.
-- **Enterprise (802.1X) and VPN secrets.** nm-applet used to answer these
-  prompts. Use `nmcli --ask` or nm-connection-editor for now.
+- **Enterprise (802.1X) wifi secrets.** nm-applet used to answer these
+  prompts. Use `nmcli --ask` or nm-connection-editor for now. (VPN passwords
+  are asked for; see VPN above.)
 - **Encrypted (LUKS) drives.** These aren't listed, because unlocking one
   needs a passphrase.
 

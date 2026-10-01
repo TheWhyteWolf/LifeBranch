@@ -23,11 +23,12 @@ pub mod power;
 pub mod net;
 pub mod sound;
 pub mod touchpad;
+pub mod vpn;
 
 mod common;
 pub use common::*;
 
-pub const PANELS: &[&str] = &["Display", "Network", "Bluetooth", "Sound", "Keyboard", "Touchpad", "Power", "Date & Time", "Apps", "Autostart", "About"];
+pub const PANELS: &[&str] = &["Display", "Network", "VPN", "Bluetooth", "Sound", "Keyboard", "Touchpad", "Power", "Date & Time", "Apps", "Autostart", "About"];
 
 pub fn is_panel(name: &str) -> bool {
     PANELS.contains(&name)
@@ -37,6 +38,7 @@ pub fn labels(panel: &str) -> &'static [&'static str] {
     match panel {
         "Display" => display::LABELS,
         "Network" => net::LABELS,
+        "VPN" => vpn::LABELS,
         "Bluetooth" => bluetooth::LABELS,
         "Sound" => sound::LABELS,
         "Keyboard" => keyboard::LABELS,
@@ -54,6 +56,7 @@ pub fn row_kind(panel: &str, field: usize) -> RowKind {
     match panel {
         "Display" => display::kind(field),
         "Network" => net::kind(field),
+        "VPN" => vpn::kind(field),
         "Bluetooth" => bluetooth::kind(field),
         "Sound" => sound::kind(field),
         "Keyboard" => keyboard::kind(field),
@@ -71,6 +74,7 @@ pub fn load(panel: &str, run: Runner) -> Vec<Row> {
     match panel {
         "Display" => display::load(run),
         "Network" => net::load(run),
+        "VPN" => vpn::load(run),
         "Bluetooth" => bluetooth::load(run),
         "Sound" => sound::load(run),
         "Keyboard" => keyboard::load(run),
@@ -112,6 +116,7 @@ pub fn apply(panel: &str, field: usize, rows: &[Row], ch: Change, run: Runner) -
     match panel {
         "Display" => display::apply(field, rows, ch, run),
         "Network" => net::apply(field, rows, ch, run),
+        "VPN" => vpn::apply(field, rows, ch, run),
         "Bluetooth" => bluetooth::apply(field, rows, ch, run),
         "Sound" => sound::apply(field, rows, ch, run),
         "Keyboard" => keyboard::apply(field, rows, ch, run),

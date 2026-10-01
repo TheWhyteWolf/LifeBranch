@@ -26,6 +26,7 @@ mod sys {
     pub mod net;
     pub mod power;
     pub mod sound;
+    pub mod vpn;
 }
 
 // lifemenu's config reader (colours, font) and its text renderer.
