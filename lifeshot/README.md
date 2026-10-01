@@ -2,7 +2,7 @@
 
 A flameshot-style screenshot tool in the rice's own look: freeze the screen,
 drag to select an area, mark it up, copy or save. No Qt — it is the same
-sctk + fontdue software-rendered stack as lifelock and lifenote, with a
+sctk + `lifefont` software-rendered stack as lifelock and lifenote, with a
 text-button toolbar instead of icons. `Shift+Print` (niri's own `Print`,
 `Ctrl+Print` and `Alt+Print` are untouched).
 

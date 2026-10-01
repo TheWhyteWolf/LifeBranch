@@ -4,7 +4,7 @@
 // shared crate — see the note in gui/mod.rs). Rasterizes each char once into a
 // cell-sized coverage bitmap, then blits strings into an ARGB8888 canvas.
 
-use fontdue::{Font, FontSettings};
+use lifefont::Font;
 use std::collections::HashMap;
 
 pub struct Atlas {
@@ -20,7 +20,7 @@ impl Atlas {
     pub fn new(font_path: &str, px: f32) -> Result<Atlas, String> {
         let bytes =
             std::fs::read(font_path).map_err(|e| format!("cannot read font {font_path}: {e}"))?;
-        let font = Font::from_bytes(bytes, FontSettings::default())
+        let font = Font::from_bytes(bytes)
             .map_err(|e| format!("cannot parse font {font_path}: {e}"))?;
         let lm = font
             .horizontal_line_metrics(px)

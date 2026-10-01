@@ -4,7 +4,7 @@
 // It drives the exact same model::Model as the TUI — only rendering and input
 // mapping differ.
 //
-// Rendering reuses a self-contained copy of lifenote's fontdue Atlas (gui::
+// Rendering reuses a self-contained copy of lifenote's glyph Atlas (gui::
 // render) rather than a shared crate: extracting a life-common crate would mean
 // refactoring four already-working crates into a workspace for no user-facing
 // gain, so that cleanup is deferred (see README milestones).
