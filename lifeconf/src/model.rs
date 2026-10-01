@@ -80,6 +80,8 @@ pub struct Model {
     pub status: String,
     /// Installed cursor themes, which Cursor's theme row steps through.
     pub cursor_themes: Vec<String>,
+    /// Installed monospace font families, for Font's family row.
+    pub font_families: Vec<String>,
     pub dirty: bool,
     pub quit: bool,
 }
@@ -158,10 +160,22 @@ pub fn kind(cat: usize, field: usize) -> Kind {
         ("Accessibility", _) => Kind::Int(2),
         ("Cursor", 0) => Kind::Choice, // one of the installed themes
         ("Cursor", _) => Kind::Int(2),
-        ("Font", 0) => Kind::Text,
+        ("Font", 0) => Kind::Choice, // one of the installed monospace families
         ("Font", _) => Kind::Int(1),
         _ => Kind::Text,
     }
+}
+
+/// The best of `list` for typed text `q`, ignoring case: an exact match, else
+/// the first that starts with it, else the first containing it; with how many
+/// matched at that level.
+pub fn choice_match(q: &str, list: &[String]) -> Option<(String, usize)> {
+    let q = q.trim().to_lowercase();
+    let tests: [&dyn Fn(&str) -> bool; 3] = [&|s| s == q, &|s| s.starts_with(&q), &|s| s.contains(&q)];
+    tests.iter().find_map(|t| {
+        let hits: Vec<&String> = list.iter().filter(|s| t(&s.to_lowercase())).collect();
+        hits.first().map(|b| ((*b).clone(), hits.len()))
+    })
 }
 
 pub fn fmtf(v: f64) -> String {
@@ -200,6 +214,7 @@ impl Model {
             dirty: false,
             quit: false,
             cursor_themes: crate::cursors::installed(),
+            font_families: crate::fonts::installed_mono(),
         }
     }
 
@@ -272,6 +287,9 @@ impl Model {
 
     /// Commit a typed string to the current field (hex/text/number).
     pub fn set_text(&mut self, s: &str) {
+        if matches!(self.kind_here(), Kind::Choice) {
+            return self.pick_search(s);
+        }
         if sys::is_panel(CATS[self.cat]) {
             return self.sys_change(sys::Change::Text(s.to_string()));
         }
@@ -434,18 +452,21 @@ impl Model {
                 ("Lifegreet", 0) => self.theme.lifegreet.link = !self.theme.lifegreet.link,
                 _ => {}
             },
-            Kind::Choice if (CATS[self.cat], self.field) == ("Cursor", 0) => {
-                let names = &self.cursor_themes;
+            Kind::Choice => {
+                let names = self.choices_here();
                 if names.is_empty() {
-                    self.status = "no cursor themes found in ~/.local/share/icons or /usr/share/icons".into();
+                    self.status = match CATS[self.cat] {
+                        "Font" => "no monospace fonts found (fc-list)".into(),
+                        _ => "no cursor themes found in ~/.local/share/icons or /usr/share/icons".into(),
+                    };
                     return;
                 }
-                let cur = names.iter().position(|n| *n == self.theme.cursor.theme);
-                let next = match cur {
+                let cur = self.value(self.cat, self.field);
+                let next = match names.iter().position(|n| *n == cur) {
                     Some(i) => (i as i32 + dir).rem_euclid(names.len() as i32) as usize,
                     None => 0,
                 };
-                self.theme.cursor.theme = names[next].clone();
+                return self.set_choice(&names[next].clone());
             }
             Kind::Float(step) => return self.step_num(dir as f64 * step),
             Kind::Int(step) => return self.step_num(dir as f64 * step as f64),
@@ -472,6 +493,75 @@ impl Model {
         let base: f64 = cur.parse().unwrap_or(0.0);
         let next = ((base + delta) * 100.0).round() / 100.0;
         self.set_text(&fmtf(next));
+    }
+
+    /// What a choice row picks from: a system panel's options, or the
+    /// installed cursor themes and fonts.
+    pub fn choices_here(&self) -> Vec<String> {
+        match (CATS[self.cat], self.field) {
+            (c, f) if sys::is_panel(c) => {
+                self.sys_rows.get(f).map(|r| r.choices.iter().map(|(l, _)| l.clone()).collect()).unwrap_or_default()
+            }
+            ("Cursor", 0) => self.cursor_themes.clone(),
+            ("Font", 0) => self.font_families.clone(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// Set a theme-side choice row to `v` (already one of its choices).
+    fn set_choice(&mut self, v: &str) {
+        match (CATS[self.cat], self.field) {
+            ("Cursor", 0) => self.theme.cursor.theme = v.into(),
+            ("Font", 0) => self.theme.font.family = v.into(),
+            _ => return,
+        }
+        self.dirty = true;
+        self.preview();
+    }
+
+    /// Enter on a field: type into it, search it (a choice), or flip/fire it.
+    pub fn activate(&mut self) {
+        match self.kind_here() {
+            Kind::Hex | Kind::Text | Kind::Float(_) | Kind::Int(_) => self.begin_edit(),
+            Kind::Choice if !self.choices_here().is_empty() => {
+                self.editing = Some(String::new());
+                self.status = "type to search · Enter picks · Esc cancels · +/- steps".into();
+            }
+            _ => self.nudge(1),
+        }
+    }
+
+    /// While searching a choice row: what the typed text would pick, for the
+    /// front ends to show after the buffer.
+    pub fn search_hint(&self) -> Option<String> {
+        if !matches!(self.kind_here(), Kind::Choice) {
+            return None;
+        }
+        let q = self.editing.as_deref()?;
+        if q.trim().is_empty() {
+            return Some(format!("  (now {})", self.value(self.cat, self.field)));
+        }
+        Some(match choice_match(q, &self.choices_here()) {
+            Some((best, 1)) => format!("  -> {best}"),
+            Some((best, n)) => format!("  -> {best}  (+{} more)", n - 1),
+            None => "  (no match)".into(),
+        })
+    }
+
+    fn pick_search(&mut self, q: &str) {
+        if q.trim().is_empty() {
+            self.status = "unchanged".into();
+            return;
+        }
+        let Some((best, _)) = choice_match(q, &self.choices_here()) else {
+            self.status = format!("nothing matches {:?}", q.trim());
+            return;
+        };
+        if sys::is_panel(CATS[self.cat]) {
+            self.sys_change(sys::Change::Text(best));
+        } else {
+            self.set_choice(&best);
+        }
     }
 
     /// Begin editing the current field: seed the buffer with its value.
@@ -676,6 +766,28 @@ mod tests {
     fn model() -> Model {
         // Nothing here writes: only navigation/search, never preview/commit.
         Model::new(Paths { home: "/nonexistent-lifeconf-test".into() }, Theme::default())
+    }
+
+    #[test]
+    fn choice_search_prefers_exact_then_prefix_then_substring() {
+        let l: Vec<String> = ["Hack", "Hack Nerd Font", "DejaVu Sans Mono", "Ubuntu Mono"].map(String::from).into();
+        assert_eq!(choice_match("hack", &l), Some(("Hack".into(), 1)));
+        assert_eq!(choice_match("ha", &l), Some(("Hack".into(), 2)));
+        assert_eq!(choice_match(" mono ", &l), Some(("DejaVu Sans Mono".into(), 2)));
+        assert_eq!(choice_match("comic", &l), None);
+    }
+
+    #[test]
+    fn enter_on_a_choice_opens_a_search_with_a_live_hint() {
+        let mut m = model();
+        m.enter_cat(CATS.iter().position(|c| *c == "Font").unwrap());
+        m.font_families = vec!["Hack".into(), "Ubuntu Mono".into()];
+        m.activate();
+        assert_eq!(m.editing.as_deref(), Some(""));
+        m.editing = Some("ubu".into());
+        assert_eq!(m.search_hint().as_deref(), Some("  -> Ubuntu Mono"));
+        m.editing = Some("zzz".into());
+        assert_eq!(m.search_hint().as_deref(), Some("  (no match)"));
     }
 
     #[test]
