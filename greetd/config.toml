@@ -8,7 +8,7 @@
 # Ctrl+Alt+Del reboots. This box must never sleep — no suspend anywhere.
 #
 # Fallback to the tuigreet greeter (from a TTY, Ctrl+Alt+F3):
-#   sudo install -Dm644 ~/niri/greetd/config-tuigreet.toml /etc/greetd/config.toml
+#   sudo install -Dm644 ~/LifeBranch/greetd/config-tuigreet.toml /etc/greetd/config.toml
 #   sudo systemctl restart greetd
 
 [terminal]

@@ -36,7 +36,7 @@ Wi-Fi/BT can need a reload on resume.
 
 The login screen is shared too — greetd + [lifegreet](../lifegreet/README.md)
 (the Game of Life cube greeter, tuigreet as fallback). Run
-`bash ~/niri/greeter-install.sh`: it builds lifegreet, installs the greetd
+`bash ~/LifeBranch/greeter-install.sh`: it builds lifegreet, installs the greetd
 config plus its service drop-in, and swaps whatever display manager is
 current. Nothing in it is desktop-specific — the drop-in raises
 `LimitMEMLOCK` for the mlockall'd greeter (frame buffers at Retina 2880×1800
@@ -45,7 +45,7 @@ need even more locked memory than the desktop's 1080p).
 ## Install
 
 ```sh
-bash ~/niri/macbook/install.sh
+bash ~/LifeBranch/macbook/install.sh
 ```
 
 Installs the shared stack (`kitty fuzzel waybar mako swaybg xwayland-satellite

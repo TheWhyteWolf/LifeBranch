@@ -55,7 +55,11 @@ impl Notifications {
         hints: HashMap<String, Value<'_>>,
         expire_timeout: i32,
     ) -> u32 {
-        let id = if replaces_id != 0 {
+        // Only honour replaces_id for an id this daemon has handed out. A
+        // made-up one would otherwise be adopted verbatim and later collide
+        // with a server-assigned id, replacing an unrelated notification; the
+        // spec says to treat it as a new notification instead.
+        let id = if replaces_id != 0 && replaces_id < self.next_id.load(Ordering::Relaxed) {
             replaces_id
         } else {
             self.next_id.fetch_add(1, Ordering::Relaxed)
