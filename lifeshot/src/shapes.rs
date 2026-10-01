@@ -32,13 +32,13 @@ const MARKER_ALPHA: f32 = 0.38;
 // ---- text ------------------------------------------------------------------
 
 pub struct Fonts {
-    font: fontdue::Font,
+    font: lifefont::Font,
 }
 
 impl Fonts {
     pub fn load(path: &str) -> Option<Fonts> {
         let bytes = std::fs::read(path).ok()?;
-        fontdue::Font::from_bytes(bytes, fontdue::FontSettings::default()).ok().map(|font| Fonts { font })
+        lifefont::Font::from_bytes(bytes).ok().map(|font| Fonts { font })
     }
 
     pub fn advance(&self, px: f32) -> f32 {

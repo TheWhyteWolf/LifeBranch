@@ -6,6 +6,7 @@ lifenote/target/
 lifeconf/target/
 lifefiles/target/
 lifeshot/target/
+lifefont/target/
 
 # Zip/archive artifacts
 *.zip

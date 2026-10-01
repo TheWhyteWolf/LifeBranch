@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Glyph rasterization. Each shade block is pre-rendered once into a
 // cell-sized 8-bit coverage bitmap; text (clock, CAPS) is rasterized on the
-// fly. fontdue gives per-pixel coverage (0..=255), which is exactly the alpha
+// fly. lifefont gives per-pixel coverage (0..=255), which is exactly the alpha
 // we composite over the black background.
 
 use crate::scene::Glyph;
-use fontdue::{Font, FontSettings};
+use lifefont::Font;
 use std::collections::HashMap;
 
 pub struct Atlas {
@@ -24,7 +24,7 @@ impl Atlas {
         let cell_h = cell_h as usize;
         let font = std::fs::read(font_path)
             .ok()
-            .and_then(|b| Font::from_bytes(b, FontSettings::default()).ok());
+            .and_then(|b| Font::from_bytes(b).ok());
         if font.is_none() {
             eprintln!("lifelock: could not load font {font_path}; using solid cells");
         }
@@ -66,7 +66,7 @@ impl Atlas {
         for ch in text.chars() {
             let (m, cov) = font.rasterize(ch, px);
             let x0 = pen + m.xmin;
-            // fontdue y is measured up from baseline; ymin is the bottom edge.
+            // lifefont (like fontdue before it) measures y up from baseline; ymin is the bottom edge.
             let y_top = -(m.ymin + m.height as i32); // rows above baseline (neg = above)
             top = top.min(y_top);
             bot = bot.max(y_top + m.height as i32);
