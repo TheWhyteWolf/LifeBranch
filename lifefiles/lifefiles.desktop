@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=lifefiles
+GenericName=File Manager
+Comment=Mouse-driven terminal file browser for the niri olive rice
+# install.sh rewrites the lifefiles path to an absolute ~/.local/bin one, since a
+# launcher's environment may not carry ~/.local/bin on PATH.
+Exec=kitty --class lifefiles -e lifefiles %f
+Terminal=false
+Icon=system-file-manager
+Categories=System;FileTools;FileManager;
+MimeType=inode/directory;
+Keywords=files;folders;browser;yazi;
+StartupNotify=false
+StartupWMClass=lifefiles
