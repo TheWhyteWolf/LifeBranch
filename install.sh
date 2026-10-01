@@ -407,6 +407,27 @@ else
   echo "    WARNING: cargo not found — skipping lifebar (waybar stays the bar)."
 fi
 
+# lifeportal — apps' Open/Save dialogs become lifefiles (--pick), through
+# xdg-desktop-portal's FileChooser. Per-user install: a .portal file names the
+# backend, a D-Bus service file starts it on the first dialog, and
+# xdg/portals.conf routes FileChooser to it (gtk's dialog when it's missing).
+echo "==> lifeportal file dialogs (~/.local/bin/lifeportal)"
+if command -v cargo >/dev/null 2>&1; then
+  (cd "$REPO/lifeportal" && cargo build --release)
+  ln -sfn "$REPO/lifeportal/target/release/lifeportal" "$HOME/.local/bin/lifeportal"
+  mkdir -p "$HOME/.local/share/xdg-desktop-portal/portals" "$HOME/.local/share/dbus-1/services"
+  ln -sfn "$REPO/lifeportal/lifebranch.portal" "$HOME/.local/share/xdg-desktop-portal/portals/lifebranch.portal"
+  printf '[D-BUS Service]\nName=org.freedesktop.impl.portal.desktop.lifebranch\nExec=%s\n' \
+    "$HOME/.local/bin/lifeportal" \
+    > "$HOME/.local/share/dbus-1/services/org.freedesktop.impl.portal.desktop.lifebranch.service"
+  # A running portal only reads backends at start.
+  if systemctl --user -q is-active xdg-desktop-portal.service 2>/dev/null; then
+    systemctl --user restart xdg-desktop-portal.service || true
+  fi
+else
+  echo "    WARNING: cargo not found — skipping lifeportal (file dialogs stay gtk's)."
+fi
+
 # lifefiles — mouse-driven terminal file browser (Mod+E). Themed by lifeconf via
 # ~/.config/lifefiles/theme, and registered as the folder handler.
 echo "==> lifefiles file browser (~/.local/bin/lifefiles)"

@@ -51,6 +51,27 @@ rest of the rice.
   none is set or it is still Dolphin; a file manager you picked is left alone.
   Switch it any time in `lifeconf` > Apps > file manager.
 
+## As a file chooser
+
+`lifefiles --pick` is the Open/Save dialog for every app that uses the
+portal ([lifeportal](../lifeportal/README.md) starts it). Browsing works as
+usual; only choosing is new:
+
+```
+lifefiles --pick [--multiple | --directory | --save NAME] [--title T] --out FILE [DIR]
+```
+
+| mode | choose with |
+|---|---|
+| open | Enter or double-click on a file |
+| `--multiple` | Space to mark, Ctrl+S |
+| `--directory` | Ctrl+S takes the folder you're in |
+| `--save NAME` | Ctrl+S asks the name (NAME pre-filled); replacing a file asks first |
+
+The status line says which. Esc (once nothing is marked or filtered) or q
+cancels with exit status 1. The chosen paths go to FILE, separated by NUL
+bytes, because a file name can contain a newline.
+
 ## Known limitations
 
 - Column math is `chars().count()`: wide (CJK/emoji) names misalign their row.

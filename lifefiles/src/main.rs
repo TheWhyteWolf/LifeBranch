@@ -18,6 +18,9 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 const USAGE: &str = "lifefiles [DIR|FILE]\n\
+    lifefiles --pick [--multiple|--directory|--save NAME] [--title T] --out FILE [DIR]\n\
+    \x20      a file chooser: writes the chosen paths, NUL-separated, to FILE;\n\
+    \x20      exit 1 if cancelled (lifeportal runs this for apps' file dialogs)\n\
     Mouse: click select · double-click open · drag to move (Ctrl = copy) ·\n\
            right-click menu · wheel scroll · click breadcrumb/places to jump\n\
     Keys:  arrows/hjkl move · Enter open · Backspace up · Space mark · Ctrl+A all\n\
@@ -33,11 +36,42 @@ fn restore() {
 fn main() {
     let mut start = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
     let mut select = None;
-    if let Some(a) = std::env::args().nth(1) {
-        if a == "-h" || a == "--help" {
-            print!("{USAGE}");
-            return;
+    let mut pick: Option<app::Pick> = None;
+    let mut out: Option<PathBuf> = None;
+    let mut path_arg = None;
+    let mut args = std::env::args().skip(1);
+    while let Some(a) = args.next() {
+        let mut val = |f: &str| {
+            args.next().unwrap_or_else(|| {
+                eprintln!("lifefiles: {f} needs a value\n\n{USAGE}");
+                std::process::exit(2);
+            })
+        };
+        match a.as_str() {
+            "-h" | "--help" => {
+                print!("{USAGE}");
+                return;
+            }
+            "--pick" => {
+                pick.get_or_insert_with(Default::default);
+            }
+            "--multiple" => pick.get_or_insert_with(Default::default).multiple = true,
+            "--directory" => pick.get_or_insert_with(Default::default).directory = true,
+            "--save" => pick.get_or_insert_with(Default::default).save = Some(val("--save")),
+            "--title" => pick.get_or_insert_with(Default::default).title = val("--title"),
+            "--out" => out = Some(PathBuf::from(val("--out"))),
+            f if f.starts_with("--") => {
+                eprintln!("lifefiles: unknown flag {f}\n\n{USAGE}");
+                std::process::exit(2);
+            }
+            _ => path_arg = Some(a),
         }
+    }
+    if pick.is_some() && out.is_none() {
+        eprintln!("lifefiles: --pick needs --out FILE\n\n{USAGE}");
+        std::process::exit(2);
+    }
+    if let Some(a) = path_arg {
         let p = PathBuf::from(&a);
         if p.is_dir() {
             start = p;
@@ -74,6 +108,7 @@ fn main() {
     };
 
     let mut app = app::App::new(start);
+    app.pick = pick;
     if let Some(name) = select {
         let dir = app.cwd.clone();
         app.go(&dir, Some(name));
@@ -106,4 +141,16 @@ fn main() {
         }
     }
     restore();
+    if let Some(out) = out {
+        let Some(paths) = app.picked else { std::process::exit(1) };
+        let mut buf: Vec<u8> = Vec::new();
+        for p in paths {
+            buf.extend_from_slice(std::os::unix::ffi::OsStrExt::as_bytes(p.as_os_str()));
+            buf.push(0);
+        }
+        if let Err(e) = std::fs::write(&out, buf) {
+            eprintln!("lifefiles: {}: {e}", out.display());
+            std::process::exit(1);
+        }
+    }
 }
