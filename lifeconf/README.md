@@ -21,7 +21,7 @@ Fourth-and-a-bit member of the `life*` family (companion to
 | swaylock | `~/.config/swaylock/config` |
 | lifelock | `~/.config/lifelock/config` |
 | lifegreet | staged for `/etc/lifegreet/config` (privileged — printed, not auto-applied) |
-| niri | `~/.config/niri/config.kdl` — only the four `// LIFECONF:BEGIN … END` fenced regions (animations slowdown, cursor, idle timeouts, lifewall flags) |
+| niri | `~/.config/niri/local.kdl` (the gitignored per-machine file `config.kdl` includes) — only the `// LIFECONF:BEGIN … END` fenced regions (animations, cursor, idle timeouts, lifewall flags, border, tab indicator, insert hint) |
 
 On an installed rice those `~/.config` paths are symlinks back into the repo,
 so regenerating updates the tracked source too.
@@ -132,7 +132,7 @@ finds Sound.
 | **About** | — | device, OS, kernel, CPU, memory, uptime, niri and lifeconf versions. |
 
 Keyboard and Touchpad edit the installer's `// LIFEBRANCH:BEGIN keyboard|touchpad`
-regions of `config.kdl` through the same stage → `niri validate` → rename path
+regions of `local.kdl` through the same stage → `niri validate` → rename path
 as the theme regions, so a bad write leaves the config untouched and niri
 hot-reloads a good one. Settings the panel doesn't know are kept; a region it
 can't round-trip (properties, `;`-joined nodes) is refused with a message
@@ -151,8 +151,9 @@ dirtying the repo. **After pulling the commit that untracked them, run
 `lifeconf --apply` once** — git deletes the old tracked copies from the working
 tree on that pull, and --apply regenerates them (through the `~/.config`
 symlinks) from your local theme. install.sh already does this on fresh setups.
-The niri configs are the exception: they stay tracked, and lifeconf edits only
-their fenced `LIFECONF:BEGIN/END` regions.
+The niri configs stay tracked, but everything lifeconf (and the installer)
+writes lives in the gitignored `niri/local.kdl` they include, so a theme change
+never dirties the checkout.
 
 ### The greeter is special
 

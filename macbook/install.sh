@@ -128,7 +128,14 @@ echo "==> Symlinking configs into ~/.config"
 # write failure and a dangling symlink (unthemed bar/launcher/locker).
 mkdir -p "$REPO/fuzzel" "$REPO/kitty" "$REPO/lifenote" "$REPO/swaylock"
 # Laptop-specific (from macbook/):
+# niri/local.kdl: this machine's own niri settings, gitignored and included
+# by the tracked config.kdl. It has to exist before config.kdl is linked —
+# niri rejects a config whose include is missing.
+# shellcheck source=scripts/config-region.sh
+source "$REPO/scripts/config-region.sh"
+prepare_niri_local "$REPO" macbook/niri
 link "$MAC/niri/config.kdl"      "$HOME/.config/niri/config.kdl"
+link "$MAC/niri/local.kdl"       "$HOME/.config/niri/local.kdl"
 # Shared olive theme (from the repo root):
 link "$REPO/fuzzel/fuzzel.ini"   "$HOME/.config/fuzzel/fuzzel.ini"
 link "$REPO/lifenote/config"     "$HOME/.config/lifenote/config"
@@ -163,7 +170,16 @@ if systemd-tmpfiles --user --create "$HOME/.config/user-tmpfiles.d/kitty.conf"; 
 else
   echo "    note: the kitty socket dir was not created now — it will be at next login."
 fi
-
+# The rule only re-applies at login if the user tmpfiles unit is enabled, and
+# on Arch it ships disabled — without this the dir exists until the first
+# reboot, then the listen_on error comes back.
+if systemctl --user enable systemd-tmpfiles-setup.service; then
+  echo "    systemd-tmpfiles-setup.service enabled (recreates the kitty socket dir each login)"
+else
+  echo "    warning: could not enable systemd-tmpfiles-setup.service — run"
+  echo "             'systemctl --user enable systemd-tmpfiles-setup.service' from your desktop session,"
+  echo "             or kitty will print 'Invalid listen_on' after every reboot."
+fi
 
 echo "==> Installing scripts into ~/.local/bin"
 # One list drives both chmod and symlink — the desktop installer's shape, so a
@@ -181,11 +197,11 @@ for s in "${SCRIPTS[@]}"; do
 done
 
 # --- Hardware and locale -----------------------------------------------------
-# shellcheck source=scripts/config-region.sh
-source "$REPO/scripts/config-region.sh"
-NIRI_CFG="$HOME/.config/niri/config.kdl"
+# (config-region.sh is already sourced, above the symlinks.) The regions live
+# in local.kdl, which config.kdl includes.
+NIRI_CFG="$HOME/.config/niri/local.kdl"
 
-# The Apple pad's settings are already written into macbook/niri/config.kdl, but
+# The Apple pad's settings are already in macbook/niri/local.kdl.default, but
 # re-detect anyway: the same script runs on any hardware, and an external pad
 # reports different capabilities from the internal one.
 echo "==> Looking for a touchpad"
@@ -268,7 +284,7 @@ else
 fi
 
 # lifelock — the Game of Life lock screen (desktop parity; wired into swayidle
-# in macbook/niri/config.kdl). swaylock stays installed as the emergency
+# in macbook/niri/local.kdl). swaylock stays installed as the emergency
 # fallback behind Mod+Shift+Alt+Escape.
 echo "==> lifelock screen locker (~/.local/bin/lifelock)"
 if command -v cargo >/dev/null 2>&1; then
@@ -293,6 +309,15 @@ else
   echo "    Install rust and run this again."
   exit 1
 fi
+# KDE ships a DBus activation file for org.freedesktop.Notifications that
+# resurrects plasmashell whenever a notification is sent while the name is
+# unowned (e.g. during a lifenote restart) — plasma then squats on the name
+# and lifenote can't start. A user-level override masks it; delete the file
+# to restore KDE's lazy activation.
+echo "    masking KDE's notification DBus activation (plasmashell squatting)"
+mkdir -p "$HOME/.local/share/dbus-1/services"
+printf '[D-BUS Service]\nName=org.freedesktop.Notifications\nExec=/usr/bin/false\n' \
+  > "$HOME/.local/share/dbus-1/services/org.kde.plasma.Notifications.service"
 
 # lifemenu — the launcher (Mod+Return/D/Space) and the menu every script
 # opens (power, clipboard, wifi, notifications, GPG PIN). Fuzzel-compatible
@@ -426,7 +451,7 @@ fi
 
 # lifeconf — the theming/settings front-end (shared build from the repo root).
 # Drives the palette files (gitignored build artifacts — see lifeconf/README.md
-# "Generated files & git") + the niri regions in macbook/niri/config.kdl.
+# "Generated files & git") + the niri regions in macbook/niri/local.kdl.
 # Seeded from the olive preset on first run: no-visual-diff.
 echo "==> lifeconf theming front-end (~/.local/bin/lifeconf)"
 if command -v cargo >/dev/null 2>&1; then
@@ -492,7 +517,9 @@ echo "==> T2 system plumbing (suspend/audio/network fixes; needs sudo)"
 # This read used to be unguarded: with no terminal to answer it, `read` hit EOF
 # and `set -e` ended the install here, silently, before the performance profile
 # and `niri validate` had run. ask_yn takes the default instead.
-if ask_yn "Run macbook/system/apply-system.sh now?" y; then
+# Default no, so easy mode never takes it: it rewrites /etc, the kernel command
+# line and the initramfs, which is a deliberate step on someone else's T2 box.
+if ask_yn "Run macbook/system/apply-system.sh now (edits /etc, kernel cmdline, initramfs)?" n; then
   sudo bash "$MAC/system/apply-system.sh"
 fi
 

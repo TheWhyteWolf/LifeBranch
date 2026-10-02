@@ -32,11 +32,17 @@ lifeportal/target/
 /fuzzel/fuzzel.ini
 /lifenote/config
 /swaylock/config
+# Each machine's own niri settings, included by the tracked config.kdl; the
+# installer creates them from local.kdl.default.
+/niri/local.kdl
+/macbook/niri/local.kdl
 
 # Installer backups (detect-trackpad.sh writes the previous config here before
 # rewriting the LIFEBRANCH:BEGIN touchpad region)
 *.pre-touchpad
 *.bak
+# scripts/config-region.sh's copy of the config from before its last rewrite
+*.lifebranch-prev
 
 # Python bytecode (scripts/life.py)
 __pycache__/
