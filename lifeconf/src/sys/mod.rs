@@ -16,6 +16,7 @@ pub mod bluetooth;
 pub mod datetime;
 pub mod desktop;
 pub mod display;
+pub mod firmware;
 pub mod kdl;
 pub mod mouse;
 pub mod keyboard;
@@ -36,7 +37,7 @@ pub mod xkb;
 mod common;
 pub use common::*;
 
-pub const PANELS: &[&str] = &["Display", "Network", "VPN", "Bluetooth", "Sound", "Keyboard", "Touchpad", "Mouse", "Power", "Printers", "Night light", "Date & Time", "Region", "Apps", "Autostart", "Updates", "Snapshots", "Users", "About"];
+pub const PANELS: &[&str] = &["Display", "Network", "VPN", "Bluetooth", "Sound", "Keyboard", "Touchpad", "Mouse", "Power", "Printers", "Night light", "Date & Time", "Region", "Apps", "Autostart", "Updates", "Firmware", "Snapshots", "Users", "About"];
 
 pub fn is_panel(name: &str) -> bool {
     PANELS.contains(&name)
@@ -61,6 +62,7 @@ pub fn labels(panel: &str) -> &'static [&'static str] {
         "Apps" => apps::LABELS,
         "Autostart" => autostart::LABELS,
         "Updates" => updates::LABELS,
+        "Firmware" => firmware::LABELS,
         "Snapshots" => snapshots::LABELS,
         "Users" => users::LABELS,
         _ => &[],
@@ -86,6 +88,7 @@ pub fn row_kind(panel: &str, field: usize) -> RowKind {
         "Apps" => apps::kind(field),
         "Autostart" => autostart::kind(field),
         "Updates" => updates::kind(field),
+        "Firmware" => firmware::kind(field),
         "Snapshots" => snapshots::kind(field),
         "Users" => users::kind(field),
         _ => RowKind::Info,
@@ -111,6 +114,7 @@ pub fn load(panel: &str, run: Runner) -> Vec<Row> {
         "Apps" => apps::load(run),
         "Autostart" => autostart::load(run),
         "Updates" => updates::load(run),
+        "Firmware" => firmware::load(run),
         "Snapshots" => snapshots::load(run),
         "Users" => users::load(run),
         _ => Vec::new(),
@@ -160,6 +164,7 @@ pub fn apply(panel: &str, field: usize, rows: &[Row], ch: Change, run: Runner) -
         "Apps" => apps::apply(field, rows, ch, run),
         "Autostart" => autostart::apply(field, rows, ch, run),
         "Updates" => updates::apply(field, rows, ch, run),
+        "Firmware" => firmware::apply(field, rows, ch, run),
         "Snapshots" => snapshots::apply(field, rows, ch, run),
         "Users" => users::apply(field, rows, ch, run),
         _ => Err("read-only".into()),

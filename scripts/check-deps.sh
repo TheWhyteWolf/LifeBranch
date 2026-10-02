@@ -34,6 +34,7 @@ MAP=(wpctl:wireplumber
      udisksctl:udisks2
      htop:htop
      checkupdates:pacman-contrib
+     fwupdmgr:fwupd
      lpstat:cups
      lpadmin:cups
      kitty:kitty)
