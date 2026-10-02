@@ -43,6 +43,8 @@ lifeportal/target/
 *.bak
 # scripts/config-region.sh's copy of the config from before its last rewrite
 *.lifebranch-prev
+# ...and the file it stages a rewrite in, if a run is cut off mid-write
+.lifebranch-staged.*
 
 # Python bytecode (scripts/life.py)
 __pycache__/

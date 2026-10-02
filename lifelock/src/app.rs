@@ -563,7 +563,7 @@ impl App {
             None => {
                 // Auth child died. Session stays locked (fail-secure); further
                 // password attempts can't succeed, so recover via the
-                // Mod+Shift+Alt+L swaylock-takeover bind or a TTY. Report once
+                // Mod+Shift+Alt+Escape swaylock-takeover bind or a TTY. Report once
                 // and let the reply source be removed so it doesn't spin.
                 self.machine.auth = AuthState::Idle;
                 self.auth_dead = true;

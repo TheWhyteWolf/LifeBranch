@@ -78,8 +78,21 @@ pub fn user_name(uid: u32) -> Option<String> {
     Some(unsafe { std::ffi::CStr::from_ptr(pw.pw_name) }.to_string_lossy().into_owned())
 }
 
+/// Only polkitd may ask, as with the Bluetooth and NetworkManager agents (see
+/// prompt::from_owner). The password itself only ever goes to polkit's helper,
+/// but anyone else could still raise a real-looking admin prompt with their own
+/// wording, or cancel one that is open.
+async fn guard(conn: &zbus::Connection, hdr: &zbus::message::Header<'_>) -> Result<(), AgentError> {
+    if crate::prompt::from_owner(conn, hdr, "org.freedesktop.PolicyKit1").await {
+        Ok(())
+    } else {
+        Err(AgentError::Failed("not from polkitd".into()))
+    }
+}
+
 #[zbus::interface(name = "org.freedesktop.PolicyKit1.AuthenticationAgent")]
 impl Agent {
+    #[allow(clippy::too_many_arguments)] // the D-Bus signature, plus the sender check
     async fn begin_authentication(
         &self,
         action_id: String,
@@ -88,7 +101,10 @@ impl Agent {
         _details: HashMap<String, String>,
         cookie: String,
         identities: Vec<(String, HashMap<String, OwnedValue>)>,
+        #[zbus(connection)] conn: &zbus::Connection,
+        #[zbus(header)] hdr: zbus::message::Header<'_>,
     ) -> Result<(), AgentError> {
+        guard(conn, &hdr).await?;
         let uid = pick_identity(&identities, self.me)
             .ok_or_else(|| AgentError::Failed("no unix-user identity offered".into()))?;
         let user = user_name(uid).ok_or_else(|| AgentError::Failed(format!("no such user {uid}")))?;
@@ -102,7 +118,13 @@ impl Agent {
         result
     }
 
-    async fn cancel_authentication(&self, cookie: String) -> Result<(), AgentError> {
+    async fn cancel_authentication(
+        &self,
+        cookie: String,
+        #[zbus(connection)] conn: &zbus::Connection,
+        #[zbus(header)] hdr: zbus::message::Header<'_>,
+    ) -> Result<(), AgentError> {
+        guard(conn, &hdr).await?;
         let mut t = self.pending.lock().unwrap();
         let p = t.get_mut(&cookie).ok_or_else(|| AgentError::Failed("no such authentication".into()))?;
         p.cancelled = true;

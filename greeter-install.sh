@@ -11,6 +11,8 @@
 #   back to tuigreet: sudo install -Dm644 ~/LifeBranch/greetd/config-tuigreet.toml /etc/greetd/config.toml
 #                     sudo systemctl restart greetd
 #   off greetd:       sudo systemctl disable greetd && sudo systemctl enable <your old DM> && reboot
+#   GRUB echoes:      sudo cp /boot/grub/grub.cfg.lifebranch-bak /boot/grub/grub.cfg
+#                     (or regenerate it: sudo grub-mkconfig -o /boot/grub/grub.cfg)
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -135,7 +137,11 @@ sudo install -d -o greeter -g greeter -m 755 /var/cache/tuigreet
 if [[ -f /boot/grub/grub.cfg ]] \
    && sudo grep -q "^[[:space:]]*echo[[:space:]]*'Loading " /boot/grub/grub.cfg; then
   echo "==> Silencing GRUB's 'Loading Linux ...' boot echoes"
+  # The copy is of the file as it stood just before this edit (re-taken each
+  # run), so it is always the one to put back; see Rollback at the top.
+  sudo cp /boot/grub/grub.cfg /boot/grub/grub.cfg.lifebranch-bak
   sudo sed -i "/^[[:space:]]*echo[[:space:]]*'Loading /d" /boot/grub/grub.cfg
+  echo "    previous grub.cfg kept as /boot/grub/grub.cfg.lifebranch-bak"
 fi
 
 # Swap display managers. enable/disable only touch next boot — the current
