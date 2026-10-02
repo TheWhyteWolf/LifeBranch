@@ -68,7 +68,7 @@ write_region() {
 # keep DST's body. DST is rewritten in place (through a symlink: the real file
 # is resolved first, as in write_region).
 copy_regions() {
-  local src="$1" dst real tmp
+  local src="$1" real tmp
   real=$(readlink -f "$2") || return 1
   tmp=$(mktemp) || return 1
   awk '

@@ -122,7 +122,7 @@ _conflict_table() {
 # package says so itself.
 drop_conflicts() {
   local want c rival name conf prov p
-  local -A drop=() installed=() app_installed=() blocks=() provider=()
+  local -A dropped=() installed=() app_installed=() blocks=() provider=()
   while read -r p; do
     installed[$p]=1
     [[ $p == *-debug ]] && continue
@@ -137,8 +137,8 @@ drop_conflicts() {
   done < <(LC_ALL=C pacman -Qi | _conflict_table)
 
   _rival() {   # want rival why
-    [[ -n ${drop[$1]:-} ]] && return
-    drop[$1]=1
+    [[ -n ${dropped[$1]:-} ]] && return
+    dropped[$1]=1
     echo "    keeping your $2, so skipping $1 ($3)"
   }
   _check() {   # want, its declared conflicts, the names it provides
@@ -175,8 +175,8 @@ drop_conflicts() {
   done
 
   local keep=() keep_aur=()
-  for p in "${PKGS[@]}"; do [[ -n ${drop[$p]:-} ]] || keep+=("$p"); done
-  for p in "${AUR_PKGS[@]}"; do [[ -n ${drop[$p]:-} ]] || keep_aur+=("$p"); done
+  for p in "${PKGS[@]}"; do [[ -n ${dropped[$p]:-} ]] || keep+=("$p"); done
+  for p in "${AUR_PKGS[@]}"; do [[ -n ${dropped[$p]:-} ]] || keep_aur+=("$p"); done
   PKGS=("${keep[@]}")
   AUR_PKGS=("${keep_aur[@]}")
   unset -f _rival _check
@@ -192,11 +192,11 @@ drop_conflicts() {
 # installed are offered for removal; the rest are only counted.
 clear_orphan_debug() {
   local db=/var/lib/pacman/local dbg base p req n
-  local -A wanted=() per_base=()
+  local -A wanted_apps=() per_base=()
   # How many installed packages each build (pkgbase) has, in one pass.
   while read -r base n; do per_base[$base]=$n; done < <(
     awk '/^%BASE%$/ { getline; c[$0]++ } END { for (b in c) print b, c[b] }' "$db"/*/desc)
-  for p in "${PKGS[@]}" "${AUR_PKGS[@]}"; do app_of "$p"; wanted[$APP]=1; done
+  for p in "${PKGS[@]}" "${AUR_PKGS[@]}"; do app_of "$p"; wanted_apps[$APP]=1; done
   local colliding=() other=0
   local -A have=()
   while read -r p; do have[$p]=1; done < <(pacman -Qq)
@@ -210,7 +210,7 @@ clear_orphan_debug() {
     req=$(LC_ALL=C pacman -Qi "$dbg" | sed -n 's/^Required By *: //p')
     [[ $req == None ]] || continue
     app_of "$base"
-    if [[ -n ${wanted[$APP]:-} ]]; then colliding+=("$dbg"); else other=$((other + 1)); fi
+    if [[ -n ${wanted_apps[$APP]:-} ]]; then colliding+=("$dbg"); else other=$((other + 1)); fi
   done < <(printf '%s\n' "${!have[@]}" | grep -- '-debug$')
   (( other )) && echo "    ($other other orphaned -debug package(s) from removed AUR builds; harmless here)"
   (( ${#colliding[@]} )) || return 0
