@@ -54,7 +54,40 @@ for kv in "deny = 10" "unlock_time = 60"; do
 done
 
 echo "==> [4/8] Kernel cmdline (s2idle, pm_async=off, no splash)"
-sed -i 's|^GRUB_CMDLINE_LINUX=.*|GRUB_CMDLINE_LINUX="intel_iommu=on iommu=pt pcie_ports=compat mem_sleep_default=s2idle pm_async=off"|' /etc/default/grub
+# Add only what is missing, never replace the line: it may carry options this
+# script knows nothing about (cryptdevice=, rd.luks.*, resume=) and dropping
+# one of those is a machine that no longer boots. A key that is already set
+# to something else is left alone and reported. Backed up before any edit.
+T2_OPTS=(intel_iommu=on iommu=pt pcie_ports=compat mem_sleep_default=s2idle pm_async=off)
+if [[ ! -f /etc/default/grub ]]; then
+  echo "    no /etc/default/grub (not GRUB?) — add these to your bootloader's kernel"
+  echo "    command line by hand: ${T2_OPTS[*]}"
+elif ! grep -q '^GRUB_CMDLINE_LINUX=".*"$' /etc/default/grub; then
+  echo "    GRUB_CMDLINE_LINUX in /etc/default/grub is not a plain \"...\" line — add by hand: ${T2_OPTS[*]}"
+else
+  cur=$(sed -n 's/^GRUB_CMDLINE_LINUX="\(.*\)"$/\1/p' /etc/default/grub | tail -n1)
+  new=$cur
+  for opt in "${T2_OPTS[@]}"; do
+    key=${opt%%=*}
+    if [[ " $new " == *" $opt "* ]]; then
+      continue
+    elif [[ " $new " == *" $key="* ]]; then
+      echo "    keeping your own $key= (wanted $opt)"
+    else
+      new="${new:+$new }$opt"
+    fi
+  done
+  if [[ $new != "$cur" ]]; then
+    bak="/etc/default/grub.lifebranch-$(date +%Y%m%d-%H%M%S)"
+    cp /etc/default/grub "$bak"
+    # | as the delimiter; escape the replacement's own specials (& \ |).
+    esc=$(printf '%s' "$new" | sed 's/[&\\|]/\\&/g')
+    sed -i "s|^GRUB_CMDLINE_LINUX=\".*\"\$|GRUB_CMDLINE_LINUX=\"$esc\"|" /etc/default/grub
+    echo "    GRUB_CMDLINE_LINUX=\"$new\" (previous file: $bak)"
+  else
+    echo "    kernel cmdline already has the T2 options"
+  fi
+fi
 # apply at runtime too so suspend can be tested before the reboot
 echo s2idle > /sys/power/mem_sleep
 echo 0     > /sys/power/pm_async
@@ -66,8 +99,10 @@ fi
 if pacman -Qq jack2 &>/dev/null; then
   pacman -Rdd --noconfirm jack2   # dep-less removal; pipewire-jack provides jack next
 fi
+# Not the tray applets or udiskie: lifepanel replaced them, and the installer's
+# offer_remove_legacy removes them just before this script runs.
 pacman -S --needed --noconfirm pipewire-alsa pipewire-jack \
-  network-manager-applet blueman udiskie wlsunset wf-recorder playerctl \
+  wlsunset wf-recorder playerctl \
   || { echo "pacman failed (stale mirrors?) — run 'pacman -Syu', then re-run this script"; exit 1; }
 systemctl enable t2fanrd tiny-dfr 2>/dev/null || true
 
@@ -84,15 +119,28 @@ echo "==> [6/8] mkinitcpio (no plymouth) + grub"
 sed -i -E 's/^MODULES=\(apple-bce\)$/MODULES=()/' /etc/mkinitcpio.conf
 sed -i -E 's/^(HOOKS=.*) plymouth(.*)/\1\2/' /etc/mkinitcpio.conf
 mkinitcpio -P
-grub-mkconfig -o /boot/grub/grub.cfg
+if command -v grub-mkconfig >/dev/null 2>&1 && [[ -f /boot/grub/grub.cfg ]]; then
+  grub-mkconfig -o /boot/grub/grub.cfg
+else
+  echo "    no GRUB here — regenerate your bootloader entries yourself"
+fi
 
 echo "==> [7/8] Network cleanup"
 udevadm control --reload
-nmcli connection delete "Wired connection 1" 2>/dev/null || true
-# keep the newest of the duplicated hotspot profiles, drop the rest
-nmcli -t -f UUID,NAME,TIMESTAMP connection show 2>/dev/null \
-  | awk -F: '$2 ~ /^moto g 5G/ { print $3, $1 }' | sort -rn | tail -n +2 \
-  | while read -r _ uuid; do nmcli connection delete "$uuid" 2>/dev/null || true; done
+# Drop the wired profile NetworkManager auto-created for the T2's internal NCM
+# interface before 99-network-t2-ncm.rules named it — and only that one: it is
+# found by the interface's fixed MAC or its new name, never by a profile name
+# like "Wired connection 1", which on another machine is a real connection.
+T2_NCM_MAC=ac:de:48:00:11:22
+nmcli -t -f UUID,TYPE connection show 2>/dev/null \
+  | while IFS=: read -r uuid type; do
+      [[ $type == 802-3-ethernet ]] || continue
+      bound=$(nmcli --escape no -g connection.interface-name,802-3-ethernet.mac-address \
+                connection show "$uuid" 2>/dev/null | tr 'A-Z' 'a-z' | tr '\n' ' ')
+      if [[ " $bound " == *" t2_ncm "* || " $bound " == *" $T2_NCM_MAC "* ]]; then
+        nmcli connection delete "$uuid" >/dev/null 2>&1 && echo "    removed the T2 NCM wired profile ($uuid)"
+      fi
+    done || true
 
 echo "==> [8/8] Bluetooth (rfkill unblock; ROM firmware is normal on this chip)"
 bash "$DIR/t2-bt-firmware.sh" || echo "    (Bluetooth still off — see message above; everything else is done)"

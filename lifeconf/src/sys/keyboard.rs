@@ -260,7 +260,7 @@ mod tests {
     fn region_with_syntax_we_cannot_round_trip_is_left_alone() {
         let p = test_config("kb-odd", "keyboard", "    keyboard { repeat-delay 300; numlock }");
         let rows = load_at(&p);
-        assert!(rows[0].value.contains("edit config.kdl by hand"));
+        assert!(rows[0].value.contains("edit local.kdl by hand"));
         assert!(ap(&p, 3, &rows, Change::Toggle).is_err());
     }
 

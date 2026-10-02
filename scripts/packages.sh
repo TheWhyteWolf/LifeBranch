@@ -340,4 +340,9 @@ enable_services() {
   fi
   # upower is D-Bus activated; pipewire and wireplumber are socket/preset-
   # enabled user units. Nothing to do for them.
+  #
+  # Explicit 0: the installers call this as a bare statement under `set -e`,
+  # and without it a failed `enable ... && echo` above becomes the function's
+  # status and ends the whole install over one optional service.
+  return 0
 }
