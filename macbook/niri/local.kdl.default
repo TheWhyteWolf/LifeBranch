@@ -1,0 +1,86 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// macbook/niri/local.kdl.default — the defaults for this machine's niri/local.kdl.
+//
+// config.kdl includes local.kdl, and local.kdl holds every setting that is
+// this machine's own: keyboard layout, touchpad, mouse and night light (the
+// installer and Settings write those) and the theme regions lifeconf
+// regenerates from ~/.config/lifeconf/theme.toml. local.kdl is gitignored, so
+// changing any of it never dirties the checkout or blocks a `git pull`.
+// The installer creates it from this file when it is missing.
+
+input {
+    // LIFEBRANCH:BEGIN keyboard
+    keyboard {
+        // Standard US layout on the internal Apple keyboard (ANSI, no numpad).
+        xkb {
+            layout "us"
+            model "pc105"
+            options "terminate:ctrl_alt_bksp"
+        }
+    }
+    // LIFEBRANCH:END keyboard
+    // LIFEBRANCH:BEGIN touchpad
+    touchpad {
+        tap
+        natural-scroll
+        dwt                        // disable-while-typing
+        // Apple clickpad: two-finger click = right, three-finger = middle.
+        click-method "clickfinger"
+        accel-profile "adaptive"
+        scroll-method "two-finger"
+    }
+    // LIFEBRANCH:END touchpad
+    // LIFEBRANCH:BEGIN mouse
+    // Settings > Mouse edits this region (speed, natural scroll, left-handed...).
+    mouse {}
+    // LIFEBRANCH:END mouse
+}
+
+layout {
+    // LIFECONF:BEGIN niri-border
+    border {
+        width 2
+        active-color "#a4c94b"
+        inactive-color "#39412b"
+        urgent-color "#8a3b2e"
+    }
+    // LIFECONF:END niri-border
+    // LIFECONF:BEGIN niri-tab-indicator
+    tab-indicator {
+        hide-when-single-tab
+        active-color "#a4c94b"
+        inactive-color "#39412b"
+        urgent-color "#8a3b2e"
+    }
+    // LIFECONF:END niri-tab-indicator
+    // LIFECONF:BEGIN niri-insert-hint
+    insert-hint {
+        color "#a4c94b80"
+    }
+    // LIFECONF:END niri-insert-hint
+}
+
+// LIFECONF:BEGIN cursor
+cursor {
+    xcursor-theme "LifeBranch-dark"
+    xcursor-size 24
+}
+// LIFECONF:END cursor
+// LIFECONF:BEGIN lifewall
+spawn-sh-at-startup "exec ~/.local/bin/lifebg --layer --font-family 'ShureTechMono Nerd Font' --font-size 8 --tick 0.3 --fps 15 --fade 3 --density 0.14 --char '!#$%&()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~' --bg '#121412' --mature '#66744c' --newborn '#87a540' --fps-battery 8"
+// LIFECONF:END lifewall
+// LIFECONF:BEGIN idle-timeouts
+spawn-at-startup "swayidle" "-w" "timeout" "600" "systemd-cat -t lifelock ~/.local/bin/lifelock -f" "timeout" "900" "niri msg action power-off-monitors; ~/.local/bin/lifebg-toggle.sh dpms-pause" "resume" "~/.local/bin/lifebg-toggle.sh dpms-resume" "lock" "systemd-cat -t lifelock ~/.local/bin/lifelock -f" "before-sleep" "systemd-cat -t lifelock ~/.local/bin/lifelock -f"
+// LIFECONF:END idle-timeouts
+// LIFEBRANCH:BEGIN nightlight
+// Night light: warms the gamma after sunset (wlr-gamma-control).
+// Settings > Night light edits this region (location, temperatures, times).
+spawn-at-startup "wlsunset" "-l" "51.5" "-L" "-0.1"
+// LIFEBRANCH:END nightlight
+// LIFECONF:BEGIN animations
+animations {
+    // Crisper, less floaty (1.0 = niri default speed; lower = faster).
+    slowdown 0.6
+}
+// LIFECONF:END animations
+

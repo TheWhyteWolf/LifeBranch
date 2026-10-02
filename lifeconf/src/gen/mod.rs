@@ -110,6 +110,8 @@ pub fn generate_all(theme: &Theme, paths: &Paths) -> Report {
     let mut r = Report::default();
     generate_theme_files(theme, paths, &mut r);
     lifegreet::stage(theme, paths, &mut r);
-    niri_kdl::apply(theme, &paths.config("niri/config.kdl"), &mut r);
+    // local.kdl, not config.kdl: the regions live in the gitignored file the
+    // tracked config includes, so re-theming never dirties the checkout.
+    niri_kdl::apply(theme, &paths.config("niri/local.kdl"), &mut r);
     r
 }

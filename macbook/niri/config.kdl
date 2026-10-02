@@ -16,33 +16,11 @@ input {
     // Apple's Command key reports as Super (Mod4), so Mod = Super works out of the box.
     mod-key "Super"
 
-    // LIFEBRANCH:BEGIN keyboard
-    keyboard {
-        // Written by scripts/setup-locale.sh — re-run install.sh, or just
-        // edit these: they are ordinary xkb names (`localectl list-x11-keymap-layouts`).
-        xkb {
-            layout "us"
-            model "pc105"
-            options "terminate:ctrl_alt_bksp"
-        }
-    }
-    // LIFEBRANCH:END keyboard
+    // keyboard: in local.kdl (included at the end of this file)
 
-    // LIFEBRANCH:BEGIN touchpad
-    // Managed by lifeconf (Settings). Settings it doesn't know are kept.
-    touchpad {
-        tap
-        dwt
-        click-method "clickfinger"
-        accel-profile "adaptive"
-        scroll-method "two-finger"
-    }
-    // LIFEBRANCH:END touchpad
+    // touchpad: in local.kdl (included at the end of this file)
 
-    // LIFEBRANCH:BEGIN mouse
-    // Settings > Mouse edits this region (speed, natural scroll, left-handed...).
-    mouse {}
-    // LIFEBRANCH:END mouse
+    // mouse: in local.kdl (included at the end of this file)
 
     // Uncomment to focus windows/outputs by moving the mouse into them:
     // focus-follows-mouse max-scroll-amount="0%"
@@ -72,34 +50,16 @@ layout {
     focus-ring {
         off
     }
-    // LIFECONF:BEGIN niri-border
-    border {
-        width 2
-        active-color "#0000ff"
-        inactive-color "#1f1f51"
-        urgent-color "#f44125"
-    }
-    // LIFECONF:END niri-border
+    // niri-border: in local.kdl (included at the end of this file)
 
     shadow {
     }
 
     // Tabbed columns (Mod+W): olive strip instead of niri's default colors.
-    // LIFECONF:BEGIN niri-tab-indicator
-    tab-indicator {
-        hide-when-single-tab
-        active-color "#0000ff"
-        inactive-color "#1f1f51"
-        urgent-color "#f44125"
-    }
-    // LIFECONF:END niri-tab-indicator
+    // niri-tab-indicator: in local.kdl (included at the end of this file)
 
     // Drop-target hint while moving windows: translucent accent, not default blue.
-    // LIFECONF:BEGIN niri-insert-hint
-    insert-hint {
-        color "#0000ff80"
-    }
-    // LIFECONF:END niri-insert-hint
+    // niri-insert-hint: in local.kdl (included at the end of this file)
 
     struts {}
 }
@@ -121,12 +81,7 @@ environment {
 
 // Cursor: LifeBranch-dark (lifecursor) — black with a white ring, visible on any backdrop.
 // niri exports XCURSOR_THEME/XCURSOR_SIZE to spawned apps; install.sh sets GTK to match.
-// LIFECONF:BEGIN cursor
-cursor {
-    xcursor-theme "LifeBranch-dark"
-    xcursor-size 18
-}
-// LIFECONF:END cursor
+// cursor: in local.kdl (included at the end of this file)
 
 // Dark-olive backdrop behind the overview / empty workspaces.
 overview {
@@ -142,18 +97,14 @@ overview {
 // lifemenu is a Wayland client. Values come from niri's own env, i.e. environment.d.
 spawn-at-startup "dbus-update-activation-environment" "--systemd" "QT_QPA_PLATFORM" "QT_WAYLAND_DISABLE_WINDOWDECORATION" "ELECTRON_OZONE_PLATFORM_HINT"
 // Conway's Game of Life wallpaper (shared lifewall build; see install.sh).
-// LIFECONF:BEGIN lifewall
-spawn-sh-at-startup "exec ~/.local/bin/lifebg --layer --font-family 'ShureTechMono Nerd Font' --font-size 8 --tick 0.5 --fps 10 --fade 2 --density 0.12 --char 'BUMFACEbumface' --bg '#0a0a15' --mature '#36367d' --newborn '#1b1bbe' --glider-interval 90 --fps-battery 4"
-// LIFECONF:END lifewall
+// lifewall: in local.kdl (included at the end of this file)
 // Idle chain: lock at 10 min, screens off at 15 min. Unlike the desktop, sleep
 // stays available on the laptop — before-sleep locks first (lid close, etc.).
 // lifelock is the locker (desktop parity); Mod+Shift+Alt+Escape spawns the
 // swaylock recovery fallback. The 900s step also freezes the Game of Life wallpaper.
 // systemd-cat: niri /dev/null's spawned processes' stderr, so without the
 // wrapper lifelock's diagnostics never reach the journal.
-// LIFECONF:BEGIN idle-timeouts
-spawn-at-startup "swayidle" "-w" "timeout" "600" "systemd-cat -t lifelock ~/.local/bin/lifelock -f" "timeout" "900" "niri msg action power-off-monitors; ~/.local/bin/lifebg-toggle.sh dpms-pause" "resume" "~/.local/bin/lifebg-toggle.sh dpms-resume" "timeout" "1800" "~/.local/bin/idle-suspend.sh" "lock" "systemd-cat -t lifelock ~/.local/bin/lifelock -f" "before-sleep" "systemd-cat -t lifelock ~/.local/bin/lifelock -f"
-// LIFECONF:END idle-timeouts
+// idle-timeouts: in local.kdl (included at the end of this file)
 // The bar is NOT spawned here — it runs as a supervised systemd user unit:
 // lifebar.service, or waybar.service until lifebar is built (both
 // WantedBy=graphical-session.target). spawn-at-startup gives a one-shot scope:
@@ -166,11 +117,7 @@ spawn-at-startup "swayidle" "-w" "timeout" "600" "systemd-cat -t lifelock ~/.loc
 // app that touches system settings. lifeauth (prompts through lifemenu;
 // journalctl -t lifeauth).
 spawn-sh-at-startup "exec systemd-cat -t lifeauth ~/.local/bin/lifeauth"
-// LIFEBRANCH:BEGIN nightlight
-// Night light: warms the gamma after sunset (wlr-gamma-control).
-// Coordinates come from your timezone via tzdata; -l is latitude, -L longitude.
-spawn-at-startup "wlsunset" "-l" "54.1500" "-L" "-4.4667"
-// LIFEBRANCH:END nightlight
+// nightlight: in local.kdl (included at the end of this file)
 // Automount removable media through udisks2, with a lifenote popup for
 // each: lifepanel --watch (journalctl -t lifepanel).
 spawn-sh-at-startup "exec systemd-cat -t lifepanel ~/.local/bin/lifepanel --watch"
@@ -199,12 +146,7 @@ hotkey-overlay {
 
 screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
 
-// LIFECONF:BEGIN animations
-animations {
-    // Crisper, less floaty (1.0 = niri default speed; lower = faster).
-    slowdown 0.35
-}
-// LIFECONF:END animations
+// animations: in local.kdl (included at the end of this file)
 
 // --- Window rules ---
 window-rule {
@@ -479,3 +421,10 @@ binds {
     // The pattern must not catch the kitty panel (its cmdline ends in bin/lifebg too).
     Mod+Ctrl+G hotkey-overlay-title="Reset wallpaper" { spawn-sh "pkill -USR1 -f '^(python[0-9.]* )?[^ ]*bin/lifebg( |$)'"; }
 }
+
+// This machine's own settings: keyboard, touchpad, mouse, night light (the
+// installer and Settings write these) and the theme regions lifeconf
+// generates — border, cursor, wallpaper, idle timeouts, animations. Last, so
+// it overrides anything above. local.kdl is gitignored, which is what keeps
+// this file clean for `git pull`; install.sh creates it from local.kdl.default.
+include "local.kdl"

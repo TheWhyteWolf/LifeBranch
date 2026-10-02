@@ -56,6 +56,73 @@ write_region() {
   return 0
 }
 
+# copy_regions SRC DST: give every fenced region in DST (LIFEBRANCH and
+# LIFECONF alike) the body the same-named region has in SRC. Regions SRC lacks
+# keep DST's body. DST is rewritten in place (through a symlink: the real file
+# is resolved first, as in write_region).
+copy_regions() {
+  local src="$1" dst real tmp
+  real=$(readlink -f "$2") || return 1
+  tmp=$(mktemp) || return 1
+  awk '
+    function key(l) { sub(/.*LIFE(CONF|BRANCH):(BEGIN|END) /, "", l); sub(/[[:space:]]+$/, "", l); return l }
+    FNR == NR {
+      if ($0 ~ /LIFE(CONF|BRANCH):BEGIN /) { k = key($0); have[k] = 1; body[k] = ""; inr = 1; next }
+      if ($0 ~ /LIFE(CONF|BRANCH):END /) { inr = 0; next }
+      if (inr) body[k] = body[k] $0 "\n"
+      next
+    }
+    $0 ~ /LIFE(CONF|BRANCH):BEGIN / {
+      print; k = key($0)
+      if (k in have) { printf "%s", body[k]; skip = 1 }
+      next
+    }
+    $0 ~ /LIFE(CONF|BRANCH):END / { skip = 0 }
+    !skip { print }
+  ' "$src" "$real" > "$tmp" && cat "$tmp" > "$real"
+  local rc=$?
+  rm -f "$tmp"
+  return $rc
+}
+
+# seed_niri_local LOCAL TEMPLATE [OLD...]: create the machine's niri/local.kdl
+# (gitignored; the tracked config.kdl includes it) when it doesn't exist yet,
+# from TEMPLATE. The region bodies are then carried over from the first OLD
+# file that has any regions — an earlier config.kdl from before the regions
+# moved out of it — so an upgrade keeps its layout, touchpad and theme.
+# A no-op once LOCAL exists: from then on it is the machine's own file.
+seed_niri_local() {
+  local local_kdl="$1" template="$2" old; shift 2
+  [[ -e $local_kdl ]] && return 0
+  cp "$template" "$local_kdl" || return 1
+  echo "    created $local_kdl (this machine's niri settings; not tracked by git)"
+  for old in "$@"; do
+    [[ -s $old ]] && grep -q 'LIFE\(CONF\|BRANCH\):BEGIN ' "$old" || continue
+    copy_regions "$old" "$local_kdl" && echo "    carried your settings over from your previous config.kdl"
+    return 0
+  done
+  return 0
+}
+
+# prepare_niri_local REPO REL: make sure <REPO>/<REL>/local.kdl exists before
+# config.kdl is linked (niri rejects a config whose include is missing). REL is
+# the config's directory inside the repo: niri or macbook/niri.
+#
+# Where an upgrade's settings come from: up to this change the regions lived
+# in the tracked config.kdl itself, so a machine that had run the installer or
+# Settings had local edits there, and `git pull` refused to run over them. The
+# way through is `git stash && git pull`, and the newest stash then holds the
+# old config — so that is looked at first, then the backup write_region left.
+prepare_niri_local() {
+  local repo="$1" rel="$2" stashed rc=0
+  stashed=$(mktemp) || return 1
+  git -C "$repo" show "stash@{0}:$rel/config.kdl" > "$stashed" 2>/dev/null || : > "$stashed"
+  seed_niri_local "$repo/$rel/local.kdl" "$repo/$rel/local.kdl.default" \
+    "$stashed" "$repo/$rel/config.kdl.lifebranch-prev" || rc=1
+  rm -f "$stashed"
+  return $rc
+}
+
 # get_toml FILE SECTION KEY: print the value of `key` inside [section], or
 # nothing when either is absent. Numbers and bare words come back verbatim.
 get_toml() {
