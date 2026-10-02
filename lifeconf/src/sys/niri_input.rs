@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Shared plumbing for the panels that edit niri's `input` settings. They live
-// in fenced `// LIFEBRANCH:BEGIN <name>` regions of config.kdl (the installer
+// in fenced `// LIFEBRANCH:BEGIN <name>` regions of local.kdl, the per-machine file config.kdl includes (the installer
 // owns those too); we parse the region, change the nodes we own, render it back
 // and write it through the same stage -> `niri validate` -> rename path lifeconf
 // uses for its theme regions. niri hot-reloads config.kdl, so a successful
@@ -16,7 +16,7 @@ pub fn config_path() -> String {
     let home = std::env::var("LIFECONF_HOME")
         .or_else(|_| std::env::var("HOME"))
         .unwrap_or_else(|_| ".".into());
-    format!("{home}/.config/niri/config.kdl")
+    format!("{home}/.config/niri/local.kdl")
 }
 
 /// Parse the region's top-level nodes. Err names what we can't safely edit.
@@ -24,7 +24,7 @@ pub fn read(path: &str, region: &str) -> Result<Vec<Node>, String> {
     let src = std::fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?;
     let body = region_body(&src, PREFIX, region)
         .ok_or_else(|| format!("no LIFEBRANCH:BEGIN {region} region in niri config"))?;
-    kdl::parse(body).map_err(|e| format!("{region} region isn't plain enough to edit here ({e}); edit config.kdl by hand"))
+    kdl::parse(body).map_err(|e| format!("{region} region isn't plain enough to edit here ({e}); edit local.kdl by hand"))
 }
 
 pub fn write(path: &str, region: &str, nodes: &[Node]) -> Result<(), String> {

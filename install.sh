@@ -154,7 +154,14 @@ echo "==> Symlinking configs into ~/.config"
 # `lifeconf --apply` writes through them, so a missing directory turns into a
 # write failure and a dangling symlink (unthemed bar/launcher/locker).
 mkdir -p "$REPO/fuzzel" "$REPO/kitty" "$REPO/lifenote" "$REPO/swaylock"
+# niri/local.kdl: this machine's own niri settings, gitignored and included
+# by the tracked config.kdl. It has to exist before config.kdl is linked —
+# niri rejects a config whose include is missing.
+# shellcheck source=scripts/config-region.sh
+source "$REPO/scripts/config-region.sh"
+prepare_niri_local "$REPO" niri
 link "$REPO/niri/config.kdl"     "$HOME/.config/niri/config.kdl"
+link "$REPO/niri/local.kdl"      "$HOME/.config/niri/local.kdl"
 link "$REPO/fuzzel/fuzzel.ini"   "$HOME/.config/fuzzel/fuzzel.ini"
 link "$REPO/lifenote/config"     "$HOME/.config/lifenote/config"
 link "$REPO/kitty/rice.conf"     "$HOME/.config/kitty/rice.conf"
@@ -191,6 +198,16 @@ if systemd-tmpfiles --user --create "$HOME/.config/user-tmpfiles.d/kitty.conf"; 
 else
   echo "    note: the kitty socket dir was not created now — it will be at next login."
 fi
+# The rule only re-applies at login if the user tmpfiles unit is enabled, and
+# on Arch it ships disabled — without this the dir exists until the first
+# reboot, then the listen_on error comes back.
+if systemctl --user enable systemd-tmpfiles-setup.service; then
+  echo "    systemd-tmpfiles-setup.service enabled (recreates the kitty socket dir each login)"
+else
+  echo "    warning: could not enable systemd-tmpfiles-setup.service — run"
+  echo "             'systemctl --user enable systemd-tmpfiles-setup.service' from your desktop session,"
+  echo "             or kitty will print 'Invalid listen_on' after every reboot."
+fi
 
 echo "==> Installing scripts into ~/.local/bin"
 # One list drives both chmod and symlink. life.py stays outside: chmod'd here
@@ -223,9 +240,9 @@ echo "    linked ~/.local/bin/pinentry-fuzzel.sh (inert until gpg-agent.conf poi
 # Everything in this section is a fenced LIFEBRANCH:BEGIN region in the niri
 # config: rewritten in place, hand-editable afterwards, and validated before it
 # is kept. write_region restores the previous file if the result does not parse.
-# shellcheck source=scripts/config-region.sh
-source "$REPO/scripts/config-region.sh"
-NIRI_CFG="$HOME/.config/niri/config.kdl"
+# (config-region.sh is already sourced, above the symlinks.) The regions live
+# in local.kdl, which config.kdl includes.
+NIRI_CFG="$HOME/.config/niri/local.kdl"
 
 # Nothing about a touchpad is guessable: tap-to-click, two-finger scrolling and
 # where the right button lives all depend on what the hardware reports. Read it
@@ -345,7 +362,7 @@ fi
 
 # lifelock — the Game of Life lock screen. Builds the binary and installs its
 # PAM service file (required: lifelock refuses to start without it). It is
-# wired into swayidle in niri/config.kdl; swaylock stays installed as the
+# wired into swayidle in niri/local.kdl; swaylock stays installed as the
 # emergency fallback behind Mod+Shift+Alt+Escape.
 echo "==> lifelock screen locker (~/.local/bin/lifelock)"
 if command -v cargo >/dev/null 2>&1; then
@@ -611,10 +628,10 @@ cat <<'EOF'
       VS Code start working. Per-app opt-out is in that file.
     - Touchpad: re-run `detect-trackpad.sh` any time to see what your hardware
       reports; the settings live in the LIFEBRANCH:BEGIN touchpad region of
-      ~/.config/niri/config.kdl and are ordinary niri options.
+      ~/.config/niri/local.kdl and are ordinary niri options.
     - Game of Life wallpaper starts with niri. Preview in a terminal: `lifebg`
       Restart it live:  pkill -f '[l]ifebg'; then re-run the lifebg line from
-      niri/config.kdl (or: lifeconf --apply). Flags: `lifebg --help` (tick/fps/fade/colours/char).
+      niri/local.kdl (or: lifeconf --apply). Flags: `lifebg --help` (tick/fps/fade/colours/char).
     - Restart kitty windows to pick up the transparency + font + olive palette.
     - Lock: Mod+Alt+Escape (or 10 min idle) -> lifelock, the Game of Life cube;
       the Mod+Shift+Alt+Escape recovery bind force-swaps in swaylock if it

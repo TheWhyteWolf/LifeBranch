@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// niri/config.kdl — marker-delimited region rewrite. Unlike the other configs
-// this file is mostly hand-written, so lifeconf only owns four fenced regions
+// niri/local.kdl — marker-delimited region rewrite. local.kdl is the
+// gitignored, per-machine file the tracked config.kdl includes; it also holds
+// the installer's own regions and anything added by hand, so lifeconf only
+// owns its fenced regions
 // (`// LIFECONF:BEGIN <name>` ... `// LIFECONF:END <name>`) and leaves every
 // other byte untouched. The rewrite is staged and must pass `niri validate`
 // before it replaces the live file; a rejected rewrite changes nothing.
