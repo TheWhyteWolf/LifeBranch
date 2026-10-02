@@ -153,7 +153,7 @@ pub fn load(run: Runner) -> Vec<Row> {
         .unwrap_or_else(|| "-".into()));
     rows[4] = r(&checked.map(ago).unwrap_or_else(|| "never".into()));
     rows[5] = r("download LVFS's list");
-    rows[6] = r(if updates.is_empty() { "nothing to install" } else { "install (opens a terminal)" });
+    rows[6] = r(if updates.is_empty() { "nothing to install" } else { "install the device above (opens a terminal)" });
     rows
 }
 
@@ -181,9 +181,22 @@ pub fn apply(field: usize, rows: &[Row], ch: Change, run: Runner) -> Result<Stri
             if rows.get(6).is_some_and(|r| r.value == "nothing to install") {
                 return Err("nothing to install: check now first".into());
             }
-            let script = "fwupdmgr update; echo; echo 'Done. Press Enter to close.'; read _";
+            // The device picked above, not every device: fwupdmgr takes the
+            // DeviceId. It goes through two shells, so only take ids that
+            // can't be shell syntax (fwupd's are hex digests).
+            let dev = rows.get(2).ok_or("no such row")?;
+            let id = dev
+                .choices
+                .iter()
+                .find(|(label, _)| *label == dev.value)
+                .map(|(_, id)| id.as_str())
+                .ok_or("pick a device above first")?;
+            if id.is_empty() || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+                return Err(format!("odd device id {id:?}"));
+            }
+            let script = format!("fwupdmgr update {id}; echo; echo 'Done. Press Enter to close.'; read _");
             run("sh", &["-c", &format!("setsid -f kitty --title 'Firmware update' sh -c \"{script}\" >/dev/null 2>&1")])?;
-            Ok("firmware update running in a terminal".into())
+            Ok(format!("updating {} in a terminal", dev.value.split("  ").next().unwrap_or("the device")))
         }
         _ => Err("nothing to change here".into()),
     }
@@ -231,6 +244,23 @@ mod tests {
         let rows = load(&fake(DEVICES, Err("fwupdmgr: No updatable devices")));
         assert!(rows[1].value.starts_with("none"), "{}", rows[1].value);
         assert_eq!(rows[6].value, "nothing to install");
+    }
+
+    #[test]
+    fn update_now_installs_only_the_chosen_device() {
+        let rows = load(&fake(DEVICES, Ok(UPDATES)));
+        let ran = std::cell::RefCell::new(Vec::new());
+        let run = |c: &str, a: &[&str]| {
+            ran.borrow_mut().push(format!("{c} {}", a.join(" ")));
+            Ok(String::new())
+        };
+        assert_eq!(apply(6, &rows, Change::Toggle, &run).unwrap(), "updating System Firmware in a terminal");
+        assert!(ran.borrow()[0].contains("fwupdmgr update aa11;"), "{}", ran.borrow()[0]);
+        // An id that could be shell syntax is refused, never run.
+        let mut odd = rows.clone();
+        odd[2].choices[0].1 = "aa11; rm -rf ~".into();
+        assert!(apply(6, &odd, Change::Toggle, &run).is_err());
+        assert_eq!(ran.borrow().len(), 1);
     }
 
     #[test]

@@ -19,20 +19,22 @@ has_region() { grep -q "LIFEBRANCH:BEGIN $2\$" "$1" 2>/dev/null; }
 # Replaces the region's body with BLOCKFILE. The config is normally a symlink
 # into the repo, so the real file is resolved first: writing to the link path
 # would replace the link with a regular file and quietly detach the config from
-# git. If VALIDATOR is given it is run against the result (with the config path
-# appended) and the previous file is restored when it fails — a generated block
-# that does not parse must never be what you find at your next login.
+# git. The new text is staged beside the real file and, if VALIDATOR is given,
+# checked there (with the staged path appended) BEFORE the config is touched:
+# niri hot-reloads its config, so a generated block that does not parse must
+# never be live even for a moment. The previous config is kept as
+# CONFIG.lifebranch-prev.
 write_region() {
   local cfg="$1" name="$2" block="$3"; shift 3
-  local real backup rc
+  local real backup staged
   real=$(readlink -f "$cfg") || return 1
   if ! has_region "$real" "$name"; then
     echo "    no LIFEBRANCH:BEGIN $name region in $real — skipping" >&2
     return 1
   fi
-  backup="$real.lifebranch-prev"
-  cp "$real" "$backup" || return 1
-  awk -v blk="$block" -v name="$name" '
+  # Beside the real file, so anything relative in it resolves the same way.
+  staged=$(mktemp "$(dirname "$real")/.lifebranch-staged.XXXXXX") || return 1
+  if ! awk -v blk="$block" -v name="$name" '
     $0 ~ ("LIFEBRANCH:BEGIN " name "$") {
       print
       while ((getline l < blk) > 0) print l
@@ -42,16 +44,21 @@ write_region() {
     }
     $0 ~ ("LIFEBRANCH:END " name "$") { skip = 0 }
     !skip { print }
-  ' "$backup" > "$real"
-  rc=0
-  if (( $# )); then
-    "$@" "$real" >/dev/null 2>&1 || rc=1
-  fi
-  if (( rc )); then
-    mv "$backup" "$real"
-    echo "    !! generated '$name' block did not validate — config restored, nothing changed." >&2
+  ' "$real" > "$staged"; then
+    rm -f "$staged"
+    echo "    !! could not build the '$name' region — config unchanged." >&2
     return 1
   fi
+  if (( $# )) && ! "$@" "$staged" >/dev/null 2>&1; then
+    rm -f "$staged"
+    echo "    !! generated '$name' block did not validate — config unchanged." >&2
+    return 1
+  fi
+  backup="$real.lifebranch-prev"
+  cp "$real" "$backup" || { rm -f "$staged"; return 1; }
+  # Over the existing file rather than mv: keeps its inode, mode and owner.
+  cat "$staged" > "$real" || { cp "$backup" "$real"; rm -f "$staged"; return 1; }
+  rm -f "$staged"
   echo "    wrote the '$name' region (previous copy: $backup)"
   return 0
 }

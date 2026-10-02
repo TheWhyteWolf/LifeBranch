@@ -151,10 +151,25 @@ fi
 # Two installers: the general one, and the T2 MacBook variant (HiDPI panel,
 # Apple keyboard, brightness keys, plus the T2 suspend/audio/wifi plumbing).
 variant=${LIFEBRANCH_VARIANT:-}
+# The T2 chip itself, not the model name: the MacBook installer's system step
+# is T2 plumbing (bridge, NCM, s2idle), wrong for an older MacBook. The T2
+# shows up as Apple (106b) PCI functions 1801 (bridge) / 1802 (secure enclave).
+has_t2() {
+  local d
+  for d in /sys/bus/pci/devices/*; do
+    [[ $(cat "$d/vendor" 2>/dev/null) == 0x106b ]] || continue
+    case $(cat "$d/device" 2>/dev/null) in 0x1801|0x1802) return 0 ;; esac
+  done
+  return 1
+}
 if [[ -z $variant ]]; then
   product=$(cat /sys/class/dmi/id/product_name 2>/dev/null || true)
-  if [[ $product == MacBook* ]]; then
-    say "This looks like a $product"
+  if [[ $product == MacBook* ]] && ! has_t2; then
+    say "This looks like a $product without a T2 chip — using the general installer"
+    echo "    (LIFEBRANCH_VARIANT=macbook forces the T2 one)"
+    variant=desktop
+  elif [[ $product == MacBook* ]]; then
+    say "This looks like a $product with a T2 chip"
     if [[ $ASK_FROM != /dev/null ]]; then
       read -rp "    Use the MacBook installer (T2 suspend/audio/keyboard fixes)? [Y/n] " a \
            < "$ASK_FROM"

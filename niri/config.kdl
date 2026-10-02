@@ -96,8 +96,7 @@ overview {
 // lifemenu is a Wayland client. Values come from niri's own env, i.e. environment.d.
 spawn-at-startup "dbus-update-activation-environment" "--systemd" "QT_QPA_PLATFORM" "QT_WAYLAND_DISABLE_WINDOWDECORATION" "ELECTRON_OZONE_PLATFORM_HINT"
 // Conway's Game of Life wallpaper, drawn by lifewall itself on the background
-// layer (--layer, GPU-rendered). lifebg -> lifewall, or the scripts/life.py
-// fallback, which re-runs itself inside a kitty panel; see install.sh.
+// layer (--layer, GPU-rendered). ~/.local/bin/lifebg is lifewall; see install.sh.
 // lifewall: in local.kdl (included at the end of this file)
 // Idle chain: lock at 10 min, screens off at 15 min. There is deliberately no
 // suspend timeout here: this config was written for a machine that runs
