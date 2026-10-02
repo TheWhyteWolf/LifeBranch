@@ -198,7 +198,7 @@ lifeconf/            -> ~/.local/bin/lifeconf (rust build; the theming front-end
 lifenote/            -> ~/.local/bin/lifenote (rust build; the notification daemon)
 lifefiles/           -> ~/.local/bin/lifefiles (rust build; the file browser, Mod+E)
 lifeshot/            -> ~/.local/bin/lifeshot (rust build; screenshot + annotate, Shift+Print)
-lifewall/            -> ~/.local/bin/lifebg (rust build; scripts/life.py if no cargo)
+lifewall/            -> ~/.local/bin/lifebg (rust build)
 lifelock/            -> ~/.local/bin/lifelock (rust build; the lock screen)
 lifegreet/           -> /usr/local/bin/lifegreet (rust build by greeter-install.sh; the login screen)
 greetd/config.toml   -> /etc/greetd/config.toml (copied by greeter-install.sh, not symlinked)
@@ -270,9 +270,9 @@ next time you open it.
   [lifewall's Cost section](lifewall/README.md#cost) for the measurements.
   Flags: `lifebg --help`.
   Kill/restart: `pkill -f '[l]ifebg'`, then re-run the lifebg line from
-  `niri/local.kdl` (or `lifeconf --apply`). Without cargo, install.sh falls
-  back to the stdlib Python original (`scripts/life.py`, discrete 3-frame
-  fades), which re-runs itself in a kitty panel.
+  `niri/local.kdl` (or `lifeconf --apply`). The stdlib Python original,
+  `scripts/life.py` (discrete 3-frame fades, run inside a kitty panel), is
+  still in the repo but no longer installed.
 - **Kitty transparency + olive** — `kitty/rice.conf` sets `background_opacity
   0.93` so the Life board ghosts through terminals, and includes
   `kitty/olive.conf` — the full olive 16-colour palette (`include rice.conf`
