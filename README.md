@@ -531,9 +531,9 @@ next time you open it.
 Copyright (C) 2026 Whyte Erminae
 
 GPL-3.0-or-later. See [LICENSE](LICENSE). Every source file carries
-`SPDX-License-Identifier: GPL-3.0-or-later`. `lifelock` includes logic ported
-from the MIT-licensed swaylock; its notice is retained in
-[`lifelock/NOTICE`](lifelock/NOTICE).
+`SPDX-License-Identifier: GPL-3.0-or-later`. `lifelock` and `lifegreet` include
+logic ported from the MIT-licensed swaylock; its notice is retained in
+[`lifelock/NOTICE`](lifelock/NOTICE) and [`lifegreet/NOTICE`](lifegreet/NOTICE).
 
 Contributions go out under the same licence. See
 [CONTRIBUTING.md](CONTRIBUTING.md).
