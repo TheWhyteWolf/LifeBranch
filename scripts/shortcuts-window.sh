@@ -185,7 +185,7 @@ open_window() {
     exit 1
   fi
   # --class gives niri an app-id to match its floating window rule against.
-  exec kitty --class "$APP_ID" --title "LifeBranch shortcuts" \
+  exec kitty -o confirm_os_window_close=0 --class "$APP_ID" --title "LifeBranch shortcuts" \
        -- "$0" --show
 }
 

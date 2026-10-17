@@ -508,6 +508,34 @@ impl Model {
         }
     }
 
+    /// Values that can be picked directly from a GUI list.
+    pub fn options_here(&self) -> Vec<String> {
+        match self.kind_here() {
+            Kind::Preset => presets::NAMES.iter().map(|s| (*s).into()).collect(),
+            Kind::Enum(opts) => opts.iter().map(|s| (*s).into()).collect(),
+            Kind::Choice => self.choices_here(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// Apply a selected list value through the same path as stepping/searching.
+    pub fn pick_option(&mut self, value: &str) {
+        if !self.options_here().iter().any(|v| v == value) {
+            return;
+        }
+        match self.kind_here() {
+            Kind::Preset => {
+                self.theme.apply_preset(value);
+                self.dirty = true;
+                self.preview();
+            }
+            Kind::Enum(_) => self.set_enum(value),
+            Kind::Choice if is_system(self.cat) => self.sys_change(sys::Change::Text(value.into())),
+            Kind::Choice => self.set_choice(value),
+            _ => {}
+        }
+    }
+
     /// Set a theme-side choice row to `v` (already one of its choices).
     fn set_choice(&mut self, v: &str) {
         match (CATS[self.cat], self.field) {

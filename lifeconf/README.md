@@ -59,9 +59,12 @@ without saving (reverting the live preview). The GUI adds mouse
 click-to-select, a **Save** button (lit while there are unsaved changes), and
 mirrors the TUI 1:1.
 
-Rows that pick from a list (Cursor's theme, Font's family, and the system
-panels' choices) step with a click, Space or `+`/`-`. Enter opens a search
-instead: type part of a name, the row shows what it would pick
+Rows that pick from a list (presets, fixed options, Cursor's theme, Font's
+family, and the system panels' choices) open a clickable dropdown in the GUI.
+Type to filter it, use Up/Down to move, Enter or a click to pick, and Esc to
+close it. Space or `+`/`-` still steps through choices, and Enter on a
+Cursor, Font, or system choice opens the existing search: type part of a
+name, and the row shows what it would pick
 (`mono_ -> Adwaita Mono (+10 more)`), Enter takes it and Esc cancels. Font
 offers the installed monospace families only, because the bar, menus,
 notifications and terminal all draw on a fixed grid.

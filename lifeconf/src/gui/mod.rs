@@ -49,6 +49,7 @@ use smithay_client_toolkit::{
 const FONT: &str = "/usr/share/fonts/TTF/ShureTechMonoNerdFontMono-Regular.ttf";
 const FONT_PX: f32 = 16.0;
 const SIDEBAR_CELLS: usize = 16;
+const DROPDOWN_ROWS: usize = 6;
 const TICK: std::time::Duration = std::time::Duration::from_secs(1);
 
 pub fn run(paths: Paths, theme: Theme, panel: Option<&str>) -> i32 {
@@ -125,6 +126,7 @@ pub fn run(paths: Paths, theme: Theme, panel: Option<&str>) -> i32 {
         pointer: None,
         ctrl: false,
         pointer_pos: (0.0, 0.0),
+        dropdown: None,
     };
 
     WaylandSource::new(conn, event_queue).insert(event_loop.handle()).expect("wayland source");
@@ -164,6 +166,32 @@ struct Gui {
     pointer: Option<wl_pointer::WlPointer>,
     ctrl: bool,
     pointer_pos: (f64, f64),
+    dropdown: Option<Dropdown>,
+}
+
+struct Dropdown {
+    options: Vec<String>,
+    query: String,
+    selected: usize, // index in the filtered list
+    scroll: usize,
+}
+
+impl Dropdown {
+    fn matches(&self) -> Vec<usize> {
+        let q = self.query.to_lowercase();
+        self.options.iter().enumerate()
+            .filter(|(_, option)| option.to_lowercase().contains(&q))
+            .map(|(i, _)| i).collect()
+    }
+
+    fn move_by(&mut self, delta: isize) {
+        let len = self.matches().len();
+        if len > 0 {
+            self.selected = (self.selected as isize + delta).clamp(0, len as isize - 1) as usize;
+            if self.selected < self.scroll { self.scroll = self.selected; }
+            if self.selected >= self.scroll + DROPDOWN_ROWS { self.scroll = self.selected + 1 - DROPDOWN_ROWS; }
+        }
+    }
 }
 
 // --- geometry (free fns so the offline renderer shares the exact layout) ---
@@ -230,6 +258,16 @@ fn hit(r: Rect, x: f64, y: f64) -> bool {
     x >= r.0 as f64 && x < (r.0 + r.2) as f64 && y >= r.1 as f64 && y < (r.1 + r.3) as f64
 }
 
+/// The list opens below its field when possible, otherwise above it.
+fn dropdown_rect(w: usize, h: usize, cell_w: usize, cell_h: usize, field: usize, rows: usize) -> Rect {
+    let x = sidebar_w(cell_w, cell_h) + cell_w * 2;
+    let row_h = cell_h + 4;
+    let height = (rows.min(DROPDOWN_ROWS) + 1) * row_h + 8;
+    let below = row_y(cell_h, field) + cell_h + 5;
+    let y = if below + height + cell_h < h { below } else { row_y(cell_h, field).saturating_sub(height + 5) };
+    (x, y, w.saturating_sub(x + cell_w), height)
+}
+
 /// The Save button's rect (x, y, w, h) — bottom-right corner.
 fn save_btn_rect(w: usize, h: usize, cell_w: usize, cell_h: usize) -> (usize, usize, usize, usize) {
     let bw = 8 * cell_w;
@@ -241,6 +279,7 @@ fn save_btn_rect(w: usize, h: usize, cell_w: usize, cell_h: usize) -> (usize, us
 /// window and the offline PPM test render identically.
 fn paint_scene(
     m: &Model,
+    dropdown: Option<&Dropdown>,
     atlas: &mut Atlas,
     pv: &mut Previews,
     px: &mut [u32],
@@ -316,7 +355,15 @@ fn paint_scene(
             m.value(m.cat, i)
         };
         let vcol = if selected { accent } else { text };
+        let selectable = matches!(kind(m.cat, i), Kind::Preset | Kind::Enum(_) | Kind::Choice);
+        let val = if selectable {
+            let cells = stride.saturating_sub(vx + 4 * cell_w) / cell_w;
+            val.chars().take(cells).collect::<String>()
+        } else { val };
         let after = atlas.draw_str(px, stride, h, vx, y, &val, vcol);
+        if selectable {
+            atlas.draw_str(px, stride, h, stride.saturating_sub(3 * cell_w), y, "▾", vcol);
+        }
         if matches!(kind(m.cat, i), Kind::Hex) {
             if let Some(c) = rgb(&m.value(m.cat, i)) {
                 render::fill_rect(px, stride, h, after + cell_w, y, cell_h, cell_h, c);
@@ -409,6 +456,38 @@ fn paint_scene(
     let ly = by + (bh.saturating_sub(cell_h)) / 2;
     atlas.draw_str(px, stride, h, lx, ly, label, btn_fg);
 
+    if let Some(dd) = dropdown {
+        let matches = dd.matches();
+        let rect = dropdown_rect(stride, h, cell_w, cell_h, m.field, matches.len().max(1));
+        let row_h = cell_h + 4;
+        render::fill_rect(px, stride, h, rect.0, rect.1, rect.2, rect.3, surface);
+        render::fill_rect(px, stride, h, rect.0, rect.1, rect.2, 1, accent);
+        render::fill_rect(px, stride, h, rect.0, rect.1 + rect.3 - 1, rect.2, 1, accent);
+        let cells = rect.2.saturating_sub(2 * cell_w) / cell_w;
+        let prompt = format!("filter: {}_", dd.query);
+        atlas.draw_str(px, stride, h, rect.0 + cell_w, rect.1 + 4,
+            &prompt.chars().take(cells).collect::<String>(), accent);
+        if matches.is_empty() {
+            atlas.draw_str(px, stride, h, rect.0 + cell_w, rect.1 + row_h + 4, "no matches", warn);
+        }
+        for (visible, &option) in matches.iter().skip(dd.scroll).take(DROPDOWN_ROWS).enumerate() {
+            let y = rect.1 + (visible + 1) * row_h + 4;
+            let selected = dd.scroll + visible == dd.selected;
+            if selected {
+                render::fill_rect(px, stride, h, rect.0 + 2, y - 2, rect.2 - 4, row_h, border);
+            }
+            let label = &dd.options[option];
+            atlas.draw_str(px, stride, h, rect.0 + cell_w, y,
+                &label.chars().take(cells).collect::<String>(), if selected { accent } else { text });
+        }
+        if dd.scroll > 0 {
+            atlas.draw_str(px, stride, h, rect.0 + rect.2 - cell_w, rect.1 + row_h + 4, "↑", accent);
+        }
+        if dd.scroll + DROPDOWN_ROWS < matches.len() {
+            atlas.draw_str(px, stride, h, rect.0 + rect.2 - cell_w, rect.1 + rect.3 - row_h, "↓", accent);
+        }
+    }
+
     // Pending keep/revert prompt, drawn last so it sits over everything.
     if let (Some(p), Some(secs)) = (&m.pending, m.pending_secs(std::time::Instant::now())) {
         let (banner, keep, revert) = prompt_rects(stride, h, cell_w, cell_h);
@@ -474,7 +553,7 @@ pub fn render_ppm(paths: Paths, theme: Theme, out: &str) -> i32 {
         m.searching = true;
         m.clamp_to_search();
     }
-    paint_scene(&m, &mut atlas, &mut Previews::default(), &mut px, w, h, cell_w, cell_h);
+    paint_scene(&m, None, &mut atlas, &mut Previews::default(), &mut px, w, h, cell_w, cell_h);
 
     let mut ppm = format!("P6\n{w} {h}\n255\n").into_bytes();
     for pixel in &px {
@@ -491,6 +570,17 @@ pub fn render_ppm(paths: Paths, theme: Theme, out: &str) -> i32 {
 }
 
 impl Gui {
+    fn open_dropdown(&mut self) {
+        let options = self.m.options_here();
+        if options.is_empty() {
+            self.m.status = "no choices available".into();
+            return;
+        }
+        let current = self.m.value(self.m.cat, self.m.field);
+        let selected = options.iter().position(|v| *v == current).unwrap_or(0);
+        self.dropdown = Some(Dropdown { options, query: String::new(), selected, scroll: selected.saturating_sub(DROPDOWN_ROWS - 1) });
+    }
+
     fn sidebar_w(&self) -> usize {
         sidebar_w(self.cell_w, self.cell_h)
     }
@@ -535,7 +625,7 @@ impl Gui {
     }
 
     fn paint(&mut self, px: &mut [u32], stride: usize, h: usize) {
-        paint_scene(&self.m, &mut self.atlas, &mut self.previews, px, stride, h, self.cell_w, self.cell_h);
+        paint_scene(&self.m, self.dropdown.as_ref(), &mut self.atlas, &mut self.previews, px, stride, h, self.cell_w, self.cell_h);
     }
 
     fn redraw(&mut self) {
@@ -588,6 +678,27 @@ impl Gui {
             self.redraw();
             return;
         }
+        if let Some(dd) = self.dropdown.take() {
+            let matches = dd.matches();
+            let rect = dropdown_rect(self.width as usize, self.height as usize,
+                self.cell_w, self.cell_h, self.m.field, matches.len().max(1));
+            if hit(rect, x, y) {
+                let row_h = self.cell_h + 4;
+                let offset = (y as usize - rect.1).saturating_sub(4) / row_h;
+                if offset > 0 {
+                    if let Some(&index) = matches.get(dd.scroll + offset - 1) {
+                        if offset <= DROPDOWN_ROWS {
+                            self.m.pick_option(&dd.options[index]);
+                            self.redraw();
+                            return;
+                        }
+                    }
+                }
+                self.dropdown = Some(dd);
+                self.redraw();
+                return;
+            }
+        }
         // A click anywhere but the field being typed into ends that edit first,
         // keeping what was typed. Left open, the buffer would follow the
         // selection and Enter would write it into whichever field was next.
@@ -625,9 +736,10 @@ impl Gui {
         } else if let Some(i) = self.row_at(y, self.m.n_fields()) {
             self.m.field = i;
             self.m.focus = Focus::Fields;
-            // A click into the fields acts like Enter: edit or cycle.
+            // Selectable rows open a list; other controls retain their action.
             match kind(self.m.cat, i) {
                 Kind::Hex | Kind::Text | Kind::Float(_) | Kind::Int(_) => self.m.begin_edit(),
+                Kind::Preset | Kind::Enum(_) | Kind::Choice => self.open_dropdown(),
                 _ => self.m.nudge(1),
             }
         }
@@ -642,6 +754,36 @@ impl Gui {
                 Keysym::Return | Keysym::KP_Enter | Keysym::y => self.m.keep_pending(),
                 Keysym::Escape | Keysym::n => self.m.revert_pending("reverted"),
                 _ => {}
+            }
+            self.redraw();
+            return;
+        }
+        if let Some(dd) = self.dropdown.as_mut() {
+            match sym {
+                Keysym::Escape => self.dropdown = None,
+                Keysym::Return | Keysym::KP_Enter => {
+                    let picked = dd.matches().get(dd.selected).map(|&i| dd.options[i].clone());
+                    self.dropdown = None;
+                    if let Some(value) = picked { self.m.pick_option(&value); }
+                }
+                Keysym::Up => dd.move_by(-1),
+                Keysym::Down => dd.move_by(1),
+                Keysym::Page_Up => dd.move_by(-(DROPDOWN_ROWS as isize)),
+                Keysym::Page_Down => dd.move_by(DROPDOWN_ROWS as isize),
+                Keysym::BackSpace => {
+                    dd.query.pop();
+                    dd.selected = 0;
+                    dd.scroll = 0;
+                }
+                _ => {
+                    if !self.ctrl {
+                        if let Some(t) = ev.utf8.as_deref().filter(|t| !t.chars().any(char::is_control)) {
+                            dd.query.push_str(t);
+                            dd.selected = 0;
+                            dd.scroll = 0;
+                        }
+                    }
+                }
             }
             self.redraw();
             return;
@@ -847,6 +989,18 @@ impl PointerHandler for Gui {
                     let (x, y) = e.position;
                     self.click(x, y);
                 }
+                PointerEventKind::Axis { vertical, .. } => {
+                    if let Some(dd) = self.dropdown.as_mut() {
+                        let rect = dropdown_rect(self.width as usize, self.height as usize,
+                            self.cell_w, self.cell_h, self.m.field, dd.matches().len().max(1));
+                        if hit(rect, e.position.0, e.position.1) {
+                            let steps = if vertical.discrete != 0 { vertical.discrete as isize }
+                                else { (vertical.absolute / 15.0) as isize };
+                            dd.move_by(steps);
+                            self.redraw();
+                        }
+                    }
+                }
                 _ => {}
             }
         }
@@ -913,6 +1067,38 @@ smithay_client_toolkit::delegate_shm!(Gui);
 smithay_client_toolkit::delegate_seat!(Gui);
 smithay_client_toolkit::delegate_keyboard!(Gui);
 smithay_client_toolkit::delegate_pointer!(Gui);
+
+#[cfg(test)]
+mod dropdown_tests {
+    use super::*;
+
+    #[test]
+    fn filtering_and_navigation_keep_the_selected_item_visible() {
+        let mut dd = Dropdown {
+            options: (0..20).map(|i| format!("item {i:02}")).collect(),
+            query: String::new(), selected: 0, scroll: 0,
+        };
+        dd.move_by(12);
+        assert_eq!((dd.selected, dd.scroll), (12, 7));
+        dd.query = "1".into();
+        dd.selected = 0;
+        dd.scroll = 0;
+        assert_eq!(dd.matches().len(), 11);
+        dd.move_by(20);
+        assert_eq!((dd.selected, dd.scroll), (10, 5));
+    }
+
+    #[test]
+    fn dropdown_uses_space_above_low_fields() {
+        let rect = dropdown_rect(760, 360, 10, 18, 12, 20);
+        assert!(rect.1 + rect.3 < row_y(18, 12));
+        let rect = dropdown_rect(760, 360, 10, 18, 0, 3);
+        assert!(rect.1 > row_y(18, 0));
+        let rect = dropdown_rect(760, 360, 10, 18, 5, 20);
+        assert!(rect.1 > row_y(18, 5));
+        assert!(rect.1 + rect.3 < 360);
+    }
+}
 smithay_client_toolkit::delegate_xdg_shell!(Gui);
 smithay_client_toolkit::delegate_xdg_window!(Gui);
 smithay_client_toolkit::delegate_registry!(Gui);
