@@ -5,7 +5,7 @@ Conway's Game of Life and a muted olive palette. Pure text, no icon fonts. The
 wallpaper, lock screen and login screen are all the same cellular automaton,
 and one config file re-themes every part of it.
 
-![CI](https://github.com/TheWhyteWolf/LifeBranch/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/allthemalware/LifeBranch/actions/workflows/ci.yml/badge.svg)
 
 | | |
 |---|---|
@@ -40,13 +40,13 @@ Arch Linux or a derivative, x86_64 or aarch64. Nothing here needs an existing
 desktop environment.
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/TheWhyteWolf/LifeBranch/main/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/allthemalware/LifeBranch/main/bootstrap.sh | bash
 ```
 
 Read it before running it if you prefer:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/TheWhyteWolf/LifeBranch/main/bootstrap.sh -o lifebranch.sh
+curl -fsSL https://raw.githubusercontent.com/allthemalware/LifeBranch/main/bootstrap.sh -o lifebranch.sh
 less lifebranch.sh
 bash lifebranch.sh
 ```
@@ -54,7 +54,7 @@ bash lifebranch.sh
 Or by hand:
 
 ```sh
-git clone https://github.com/TheWhyteWolf/LifeBranch.git ~/LifeBranch
+git clone https://github.com/allthemalware/LifeBranch.git ~/LifeBranch
 bash ~/LifeBranch/install.sh
 ```
 

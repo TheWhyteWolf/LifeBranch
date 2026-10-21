@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # LifeBranch bootstrap: one command from a fresh Arch install to the full rice.
 #
-#     curl -fsSL https://raw.githubusercontent.com/TheWhyteWolf/LifeBranch/main/bootstrap.sh | bash
+#     curl -fsSL https://raw.githubusercontent.com/allthemalware/LifeBranch/main/bootstrap.sh | bash
 #
 # or, if you would rather read it before running it (recommended, and it is
 # short on purpose so that is a reasonable thing to do):
 #
-#     curl -fsSL https://raw.githubusercontent.com/TheWhyteWolf/LifeBranch/main/bootstrap.sh -o lifebranch.sh
+#     curl -fsSL https://raw.githubusercontent.com/allthemalware/LifeBranch/main/bootstrap.sh -o lifebranch.sh
 #     less lifebranch.sh
 #     bash lifebranch.sh
 #
@@ -25,7 +25,7 @@
 #                      "none" to keep the output on screen only)
 set -euo pipefail
 
-REMOTE=${LIFEBRANCH_REMOTE:-https://github.com/TheWhyteWolf/LifeBranch.git}
+REMOTE=${LIFEBRANCH_REMOTE:-https://github.com/allthemalware/LifeBranch.git}
 BRANCH=${LIFEBRANCH_BRANCH:-main}
 DEST=${LIFEBRANCH_DIR:-$HOME/LifeBranch}
 
